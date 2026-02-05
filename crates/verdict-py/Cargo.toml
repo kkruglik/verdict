@@ -1,0 +1,13 @@
+[package]
+name = "verdict-py"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+name = "verdict"
+
+[dependencies]
+pyo3 = { version = "0.27.2", features = ["extension-module"] }
+verdict-core = { version = "0.1.0", path = "../verdict-core" }
+verdict-csv = { version = "0.1.0", path = "../verdict-csv" }
