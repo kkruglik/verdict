@@ -21,7 +21,7 @@
 ### 1.3 Column Ops Traits
 
 - [ ] `NumericOps` — `sum`, `min`, `max`, `mean`, `std_dev`
-- [ ] `ComparableOps` — `gt`, `ge`, `lt`, `le`, `between`, `eq` (Int, Float, Date, String)
+- [ ] `ComparableOps` — `gt`, `ge`, `lt`, `le`, `between`, `equal` (Int, Float, Date, String)
 - [ ] `DateTimeOps` — `year`, `month`, `day`, `between_dates`, `is_weekend`
 - [ ] `StringOps` — `contains`, `starts_with`, `ends_with`, `matches_regex`, `length`
 
@@ -99,3 +99,19 @@ where T: Copy + std::iter::Sum + PartialOrd
 ```
 
 Consider this when trait impl duplication becomes painful (4+ types).
+
+## Optional: Generic ComparableOps
+
+Support comparing `IntColumn` against both `i64` and `f64` via generic trait parameter:
+
+```rust
+pub trait ComparableOps<T> {
+    fn gt(&self, compare: T) -> Vec<bool>;
+    // ...
+}
+
+impl ComparableOps<i64> for IntColumn { ... }
+impl ComparableOps<f64> for IntColumn { ... }
+```
+
+Consider this when expectation system needs cross-type comparisons.
