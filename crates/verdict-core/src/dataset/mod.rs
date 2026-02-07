@@ -1,3 +1,10 @@
+pub mod column;
+pub mod ops;
+pub mod schema;
+
+pub use column::{BoolColumn, Column, FloatColumn, IntColumn, StrColumn};
+pub use schema::{DataType, Field, Schema};
+
 use crate::errors::DatasetError;
 use csv::Reader;
 
@@ -108,74 +115,25 @@ impl Dataset {
         Ok(Dataset { headers, columns })
     }
 
+    pub fn get_column_by_name(&self, name: &str) -> Option<&Column> {
+        let col_idx = self.get_column_index(name);
+        if let Some(idx) = col_idx {
+            return Some(&self.columns[idx]);
+        }
+        None
+    }
+
+    pub fn get_column_by_index(&self, idx: usize) -> Option<&Column> {
+        self.columns.get(idx)
+    }
+
+    pub fn get_column_index(&self, name: &str) -> Option<usize> {
+        self.headers.iter().position(|h| h == name)
+    }
+
     pub fn shape(&self) -> (usize, usize) {
         let rows_count = self.columns.first().map_or(0, |c| c.len());
         (rows_count, self.columns.len())
-    }
-}
-
-pub struct Field {
-    pub name: String,
-    pub dtype: DataType,
-}
-
-impl Field {
-    pub fn new(name: impl Into<String>, dtype: DataType) -> Self {
-        Field {
-            name: name.into(),
-            dtype,
-        }
-    }
-}
-
-pub enum DataType {
-    Int,
-    Str,
-    Float,
-    Bool,
-}
-
-pub struct Schema {
-    pub fields: Vec<Field>,
-}
-
-impl Schema {
-    pub fn new(fields: Vec<Field>) -> Self {
-        Schema { fields }
-    }
-}
-
-pub trait ColumnArray {
-    fn len(&self) -> usize;
-    fn null_count(&self) -> usize;
-    fn not_null_count(&self) -> usize;
-    fn is_empty(&self) -> bool;
-}
-
-pub struct IntColumn(pub Vec<Option<i64>>);
-pub struct FloatColumn(pub Vec<Option<f64>>);
-pub struct StrColumn(pub Vec<Option<String>>);
-pub struct BoolColumn(pub Vec<Option<bool>>);
-
-pub enum Column {
-    Int(IntColumn),
-    Float(FloatColumn),
-    Str(StrColumn),
-    Bool(BoolColumn),
-}
-
-impl Column {
-    pub fn len(&self) -> usize {
-        match self {
-            Column::Int(col) => col.0.len(),
-            Column::Float(col) => col.0.len(),
-            Column::Str(col) => col.0.len(),
-            Column::Bool(col) => col.0.len(),
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 }
 
