@@ -1,4 +1,4 @@
-use super::{BoolColumn, FloatColumn, IntColumn, StrColumn};
+use super::{FloatColumn, IntColumn, StrColumn};
 
 pub trait NumericOps {
     type Item;
@@ -10,21 +10,20 @@ pub trait NumericOps {
     fn median(&self) -> Option<f64>;
 }
 
-pub trait ComparableOps {
-    type Item;
-    fn gt(&self, compare: Self::Item) -> Vec<bool>;
-    fn ge(&self, compare: Self::Item) -> Vec<bool>;
-    fn lt(&self, compare: Self::Item) -> Vec<bool>;
-    fn le(&self, compare: Self::Item) -> Vec<bool>;
-    fn equal(&self, compare: Self::Item) -> Vec<bool>;
-    fn between(&self, lower: Self::Item, upper: Self::Item) -> Vec<bool>;
+pub trait ComparableOps<T> {
+    fn gt(&self, compare: T) -> Vec<Option<bool>>;
+    fn ge(&self, compare: T) -> Vec<Option<bool>>;
+    fn lt(&self, compare: T) -> Vec<Option<bool>>;
+    fn le(&self, compare: T) -> Vec<Option<bool>>;
+    fn equal(&self, compare: T) -> Vec<Option<bool>>;
+    fn between(&self, lower: T, upper: T) -> Vec<Option<bool>>;
 }
 
 pub trait StringOps {
-    fn contains(&self, pat: &str) -> Vec<bool>;
-    fn starts_with(&self, pat: &str) -> Vec<bool>;
-    fn ends_with(&self, pat: &str) -> Vec<bool>;
-    fn matches_regex(&self, pat: &str) -> Vec<bool>;
+    fn contains(&self, pat: &str) -> Vec<Option<bool>>;
+    fn starts_with(&self, pat: &str) -> Vec<Option<bool>>;
+    fn ends_with(&self, pat: &str) -> Vec<Option<bool>>;
+    fn matches_regex(&self, pat: &str) -> Vec<Option<bool>>;
     fn length(&self) -> Vec<Option<usize>>;
 }
 
@@ -127,5 +126,154 @@ impl NumericOps for FloatColumn {
         } else {
             Some(vals[mid])
         }
+    }
+}
+
+impl ComparableOps<i64> for IntColumn {
+    fn gt(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x > compare)).collect()
+    }
+
+    fn ge(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x >= compare)).collect()
+    }
+
+    fn lt(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x < compare)).collect()
+    }
+
+    fn le(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x <= compare)).collect()
+    }
+
+    fn equal(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x == compare)).collect()
+    }
+
+    fn between(&self, lower: i64, upper: i64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| x >= lower && x <= upper))
+            .collect()
+    }
+}
+
+impl ComparableOps<f64> for IntColumn {
+    fn gt(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| (x as f64) > compare))
+            .collect()
+    }
+
+    fn ge(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| (x as f64) >= compare))
+            .collect()
+    }
+
+    fn lt(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| (x as f64) < compare))
+            .collect()
+    }
+
+    fn le(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| (x as f64) <= compare))
+            .collect()
+    }
+
+    fn equal(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| (x as f64) == compare))
+            .collect()
+    }
+
+    fn between(&self, lower: f64, upper: f64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| (x as f64) >= lower && (x as f64) <= upper))
+            .collect()
+    }
+}
+
+impl ComparableOps<f64> for FloatColumn {
+    fn gt(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x > compare)).collect()
+    }
+
+    fn ge(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x >= compare)).collect()
+    }
+
+    fn lt(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x < compare)).collect()
+    }
+
+    fn le(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x <= compare)).collect()
+    }
+
+    fn equal(&self, compare: f64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x == compare)).collect()
+    }
+
+    fn between(&self, lower: f64, upper: f64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| x >= lower && x <= upper))
+            .collect()
+    }
+}
+
+impl ComparableOps<&str> for StrColumn {
+    fn gt(&self, compare: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.as_str() > compare))
+            .collect()
+    }
+
+    fn ge(&self, compare: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.as_str() >= compare))
+            .collect()
+    }
+
+    fn lt(&self, compare: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.as_str() < compare))
+            .collect()
+    }
+
+    fn le(&self, compare: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.as_str() <= compare))
+            .collect()
+    }
+
+    fn equal(&self, compare: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.as_str() == compare))
+            .collect()
+    }
+
+    fn between(&self, lower: &str, upper: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| {
+                v.as_ref()
+                    .map(|s| s.as_str() >= lower && s.as_str() <= upper)
+            })
+            .collect()
     }
 }
