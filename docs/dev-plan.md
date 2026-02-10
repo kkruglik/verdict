@@ -20,10 +20,11 @@
 
 ### 1.3 Column Ops Traits
 
-- [ ] `NumericOps` — `sum`, `min`, `max`, `mean`, `std_dev`
-- [ ] `ComparableOps` — `gt`, `ge`, `lt`, `le`, `between`, `eq` (Int, Float, Date, String)
-- [ ] `DateTimeOps` — `year`, `month`, `day`, `between_dates`, `is_weekend`
-- [ ] `StringOps` — `contains`, `starts_with`, `ends_with`, `matches_regex`, `length`
+- [x] `NumericOps` — `sum`, `min`, `max`, `mean`, `std`, `median` (IntColumn, FloatColumn)
+- [x] `ComparableOps<T>` — `gt`, `ge`, `lt`, `le`, `equal`, `between` (IntColumn<i64,f64>, FloatColumn<f64>, StrColumn<&str>)
+- [x] `StringOps` — `contains`, `starts_with`, `ends_with`, `matches_regex`, `length` (StrColumn)
+- [x] Column enum delegation for all ops (returns f64 for numeric, None for unsupported types)
+- [ ] `DateTimeOps` — `year`, `month`, `day`, `between_dates`, `is_weekend` (deferred, no DateTimeColumn yet)
 
 ---
 
@@ -99,3 +100,7 @@ where T: Copy + std::iter::Sum + PartialOrd
 ```
 
 Consider this when trait impl duplication becomes painful (4+ types).
+
+## ~~Optional: Generic ComparableOps~~ (Done)
+
+Implemented `ComparableOps<T>` as generic trait. IntColumn supports both `i64` and `f64` comparison.
