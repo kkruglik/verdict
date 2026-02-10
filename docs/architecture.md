@@ -1,10 +1,3 @@
-I’ll answer as a world-famous Rust library architect and data-validation systems engineer.
-
-**TL;DR**
-Each crate has **one clear responsibility**. If you respect these boundaries, the project stays simple now and scalable later. Below is the **exact high-level logic** and **what code belongs where**, no hand-waving.
-
----
-
 ## 1. `verdict-core` — *the brain*
 
 **Purpose**
@@ -15,90 +8,50 @@ Define *what* validation is, not *how* data is loaded or exposed.
 ### Responsibilities
 
 * Dataset abstraction
+* Column type system and operations
 * Expectation definitions
 * Validation algorithm
 * Error & result types
 
 ---
 
-### Core concepts (must exist)
+### Type Hierarchy
 
-#### Dataset
-
-Represents data in a backend-agnostic way.
-
-```rust
-pub struct Dataset {
-    pub columns: HashMap<String, Vec<Option<String>>>,
-    pub row_count: usize,
-}
 ```
+Dataset
+├── columns: Vec<Column>
+├── schema: Schema
+│   └── fields: Vec<Field>
+│       ├── name: String
+│       └── dtype: DataType (Int, Float, Str, Bool)
+└── accessors: get_column_by_name, get_column_by_index, get_column_index, shape
 
-No CSV knowledge. No Python.
-
----
-
-#### Expectation
-
-Declarative rules.
-
-```rust
-pub enum Expectation {
-    NotNull { column: String },
-    Unique { column: String },
-    Min { column: String, value: f64 },
-}
-```
-
-This is your public API backbone.
-
----
-
-#### Validation
-
-Applies expectations to a dataset.
-
-```rust
-pub fn validate(
-    dataset: &Dataset,
-    expectations: &[Expectation],
-) -> ValidationResult
-```
-
-This is pure logic.
-
----
-
-#### Results & failures
-
-Structured, inspectable output.
-
-```rust
-pub struct Failure {
-    pub expectation: String,
-    pub column: Option<String>,
-    pub row: Option<usize>,
-    pub message: String,
-}
-
-pub struct ValidationResult {
-    pub passed: bool,
-    pub failures: Vec<Failure>,
-}
+Column (enum) — delegates to typed columns
+├── common: len, is_empty, null_count, not_null_count, is_null
+└── variants:
+    ├── IntColumn (Vec<Option<i64>>)
+    │   ├── NumericOps         → sum, min, max, mean, std, median
+    │   ├── ComparableOps<i64> → gt, ge, lt, le, equal, between
+    │   └── ComparableOps<f64> → gt, ge, lt, le, equal, between
+    ├── FloatColumn (Vec<Option<f64>>)
+    │   ├── NumericOps         → sum, min, max, mean, std, median
+    │   └── ComparableOps<f64> → gt, ge, lt, le, equal, between
+    ├── StrColumn (Vec<Option<String>>)
+    │   ├── ComparableOps<&str> → gt, ge, lt, le, equal, between
+    │   └── StringOps           → contains, starts_with, ends_with, matches_regex, length
+    └── BoolColumn (Vec<Option<bool>>)
+        └── (common ops only)
 ```
 
 ---
 
-#### Errors
+### Traits
 
-Typed library errors (`thiserror`).
+* **NumericOps** — math operations for numeric columns (Int, Float)
+* **ComparableOps\<T\>** — comparison operations, generic over compare type
+* **StringOps** — string pattern matching and length
 
-```rust
-pub enum VerdictError {
-    UnknownColumn(String),
-    TypeError(String),
-}
-```
+All trait methods on columns return `Vec<Option<bool>>` to preserve null information.
 
 ---
 
@@ -112,54 +65,28 @@ pub enum VerdictError {
 
 ---
 
-## 2. `verdict-csv` — *the executor*
+## 2. `verdict-csv` — *the data loader*
 
 **Purpose**
-Turn a CSV file into a `Dataset` and run core validation.
-
----
+Turn a CSV file into a `Dataset`.
 
 ### Responsibilities
 
 * Read CSV files
 * Normalize missing values
 * Build `Dataset`
-* Call `verdict-core::validate`
 
----
-
-### High-level API
+### API
 
 ```rust
-pub fn load_csv(path: &Path) -> Result<Dataset, VerdictError>
+pub fn load_csv(path: &Path, schema: &Schema) -> Result<Dataset, VerdictError>
 ```
-
-Optionally:
-
-```rust
-pub fn validate_csv(
-    path: &Path,
-    expectations: &[Expectation],
-) -> Result<ValidationResult, VerdictError>
-```
-
----
-
-### Internal logic
-
-* Use `csv` crate
-* Read headers
-* Store values column-wise
-* Empty string → `None`
-
----
 
 ### What must NOT be here
 
 * Python bindings
 * Expectation definitions
 * Validation rules
-* Business logic
 
 This crate is replaceable.
 
@@ -170,16 +97,12 @@ This crate is replaceable.
 **Purpose**
 Expose `verdict` to Python with a clean API.
 
----
-
 ### Responsibilities
 
 * PyO3 wrappers
 * Python-friendly classes
 * Convert Rust results → Python objects
 * Convert Rust errors → Python exceptions
-
----
 
 ### Python-facing API (conceptual)
 
@@ -194,28 +117,6 @@ ds.expect_unique("email")
 result = ds.validate()
 print(result.failures)
 ```
-
----
-
-### Rust side structure
-
-```rust
-#[pyclass]
-struct PyDataset {
-    dataset: Dataset,
-    expectations: Vec<Expectation>,
-}
-```
-
-Methods:
-
-* `from_csv(path)`
-* `expect_*`
-* `validate()`
-
-All logic calls Rust functions; Python holds no state logic.
-
----
 
 ### What must NOT be here
 
@@ -254,30 +155,3 @@ No cycles. Ever.
 7. Result is returned to Python
 
 Every step has one owner.
-
----
-
-## 6. Why this design is correct
-
-* You can delete Python → Rust still works
-* You can delete CSV → core still works
-* You can add Polars later → core unchanged
-* You can unit test everything in isolation
-
-This is *exactly* how mature Rust systems are built.
-
----
-
-## Final answer
-
-* `verdict-core` defines **truth and rules**
-* `verdict-csv` **feeds data** into the rules
-* `verdict-py` **exposes everything** to Python
-
-Nothing overlaps. Nothing leaks.
-
-If you want, next I can:
-
-* write the **exact first `not_null` implementation**, or
-* design the **Python API surface**, or
-* show how to **evolve this when Polars is added**.
