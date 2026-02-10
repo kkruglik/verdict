@@ -310,9 +310,6 @@ impl StringOps for StrColumn {
     }
 
     fn length(&self) -> Vec<Option<usize>> {
-        self.0
-            .iter()
-            .map(|v| v.as_ref().map(|s| s.len()))
-            .collect()
+        self.0.iter().map(|v| v.as_ref().map(|s| s.len())).collect()
     }
 }
