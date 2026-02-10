@@ -3,6 +3,7 @@ pub mod ops;
 pub mod schema;
 
 pub use column::{BoolColumn, Column, FloatColumn, IntColumn, StrColumn};
+pub use ops::NumericOps;
 pub use schema::{DataType, Field, Schema};
 
 use crate::errors::DatasetError;

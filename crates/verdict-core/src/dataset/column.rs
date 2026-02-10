@@ -1,3 +1,12 @@
+use crate::dataset::ops::{ComparableOps, NumericOps, StringOps};
+
+pub enum Column {
+    Int(IntColumn),
+    Float(FloatColumn),
+    Str(StrColumn),
+    Bool(BoolColumn),
+}
+
 pub struct IntColumn(pub Vec<Option<i64>>);
 pub struct FloatColumn(pub Vec<Option<f64>>);
 pub struct StrColumn(pub Vec<Option<String>>);
@@ -63,13 +72,6 @@ impl BoolColumn {
     }
 }
 
-pub enum Column {
-    Int(IntColumn),
-    Float(FloatColumn),
-    Str(StrColumn),
-    Bool(BoolColumn),
-}
-
 impl Column {
     pub fn len(&self) -> usize {
         match self {
@@ -108,6 +110,144 @@ impl Column {
             Column::Float(col) => col.not_null_count(),
             Column::Str(col) => col.not_null_count(),
             Column::Bool(col) => col.not_null_count(),
+        }
+    }
+
+    pub fn sum(&self) -> Option<f64> {
+        match self {
+            Column::Int(col) => col.sum().map(|v| v as f64),
+            Column::Float(col) => col.sum(),
+            _ => None,
+        }
+    }
+
+    pub fn mean(&self) -> Option<f64> {
+        match self {
+            Column::Int(col) => col.mean(),
+            Column::Float(col) => col.mean(),
+            _ => None,
+        }
+    }
+
+    pub fn min(&self) -> Option<f64> {
+        match self {
+            Column::Int(col) => col.min().map(|v| v as f64),
+            Column::Float(col) => col.min(),
+            _ => None,
+        }
+    }
+
+    pub fn max(&self) -> Option<f64> {
+        match self {
+            Column::Int(col) => col.max().map(|v| v as f64),
+            Column::Float(col) => col.max(),
+            _ => None,
+        }
+    }
+
+    pub fn std(&self) -> Option<f64> {
+        match self {
+            Column::Int(col) => col.std(),
+            Column::Float(col) => col.std(),
+            _ => None,
+        }
+    }
+
+    pub fn median(&self) -> Option<f64> {
+        match self {
+            Column::Int(col) => col.median(),
+            Column::Float(col) => col.median(),
+            _ => None,
+        }
+    }
+
+    pub fn gt(&self, compare: f64) -> Vec<Option<bool>> {
+        match self {
+            Column::Int(col) => col.gt(compare),
+            Column::Float(col) => col.gt(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn ge(&self, compare: f64) -> Vec<Option<bool>> {
+        match self {
+            Column::Int(col) => col.ge(compare),
+            Column::Float(col) => col.ge(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn lt(&self, compare: f64) -> Vec<Option<bool>> {
+        match self {
+            Column::Int(col) => col.lt(compare),
+            Column::Float(col) => col.lt(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn le(&self, compare: f64) -> Vec<Option<bool>> {
+        match self {
+            Column::Int(col) => col.le(compare),
+            Column::Float(col) => col.le(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn equal(&self, compare: f64) -> Vec<Option<bool>> {
+        match self {
+            Column::Int(col) => col.equal(compare),
+            Column::Float(col) => col.equal(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn equal_str(&self, compare: &str) -> Vec<Option<bool>> {
+        match self {
+            Column::Str(col) => col.equal(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn between(&self, lower: f64, upper: f64) -> Vec<Option<bool>> {
+        match self {
+            Column::Int(col) => col.between(lower, upper),
+            Column::Float(col) => col.between(lower, upper),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn contains(&self, pat: &str) -> Vec<Option<bool>> {
+        match self {
+            Column::Str(col) => col.contains(pat),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn starts_with(&self, pat: &str) -> Vec<Option<bool>> {
+        match self {
+            Column::Str(col) => col.starts_with(pat),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn ends_with(&self, pat: &str) -> Vec<Option<bool>> {
+        match self {
+            Column::Str(col) => col.ends_with(pat),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn matches_regex(&self, pat: &str) -> Vec<Option<bool>> {
+        match self {
+            Column::Str(col) => col.matches_regex(pat),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    pub fn str_length(&self) -> Vec<Option<usize>> {
+        match self {
+            Column::Str(col) => col.length(),
+            _ => vec![None; self.len()],
         }
     }
 }

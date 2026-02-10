@@ -1,4 +1,5 @@
 use super::{FloatColumn, IntColumn, StrColumn};
+use regex::Regex;
 
 pub trait NumericOps {
     type Item;
@@ -274,6 +275,44 @@ impl ComparableOps<&str> for StrColumn {
                 v.as_ref()
                     .map(|s| s.as_str() >= lower && s.as_str() <= upper)
             })
+            .collect()
+    }
+}
+
+impl StringOps for StrColumn {
+    fn contains(&self, pat: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.contains(pat)))
+            .collect()
+    }
+
+    fn starts_with(&self, pat: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.starts_with(pat)))
+            .collect()
+    }
+
+    fn ends_with(&self, pat: &str) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.ends_with(pat)))
+            .collect()
+    }
+
+    fn matches_regex(&self, pat: &str) -> Vec<Option<bool>> {
+        let re = Regex::new(pat).expect("invalid regex pattern");
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| re.is_match(s)))
+            .collect()
+    }
+
+    fn length(&self) -> Vec<Option<usize>> {
+        self.0
+            .iter()
+            .map(|v| v.as_ref().map(|s| s.len()))
             .collect()
     }
 }
