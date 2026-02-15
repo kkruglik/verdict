@@ -1,5 +1,5 @@
 use crate::{
-    dataset::{Column, Dataset},
+    dataset::{Column, Dataset, InSetValues},
     errors::ValidationError,
 };
 
@@ -23,7 +23,7 @@ pub enum Constraint {
     Between { min: f64, max: f64 },
 
     // String checks
-    InSet(Vec<String>),
+    InSet(InSetValues),
     MatchesRegex(String),
     Contains(String),
     StartsWith(String),
@@ -89,9 +89,8 @@ fn validate_col_with_rule(
         Constraint::LengthBetween { min, max } => {
             Ok(check_length_between(column, *min, *max, rule))
         }
-        Constraint::Unique | Constraint::InSet(_) => Err(ValidationError::UnknownConstraint {
-            name: format!("{:?}", rule.constraint),
-        }),
+        Constraint::Unique => Ok(check_unique(column, rule)),
+        Constraint::InSet(other) => Ok(check_is_in_set(column, other, rule)),
     }
 }
 
@@ -292,5 +291,31 @@ fn check_length_between(col: &Column, min: usize, max: usize, rule: &Rule) -> Va
             failed,
             &format!("string lengths not between {} and {}", min, max),
         )
+    }
+}
+
+fn check_is_in_set(col: &Column, other: &InSetValues, rule: &Rule) -> ValidationResult {
+    let failed_count = col
+        .is_in(other)
+        .iter()
+        .filter(|v| !matches!(v, Some(true)))
+        .count();
+    if failed_count == 0 {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed_count,
+            &format!("column values are not in set: {:?}", other),
+        )
+    }
+}
+
+fn check_unique(col: &Column, rule: &Rule) -> ValidationResult {
+    let failed_count = col.duplicates_count();
+    if failed_count == 0 {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(rule, failed_count, "column values are not unique")
     }
 }

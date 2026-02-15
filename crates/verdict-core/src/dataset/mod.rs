@@ -2,7 +2,7 @@ pub mod column;
 pub mod ops;
 pub mod schema;
 
-pub use column::{BoolColumn, Column, FloatColumn, IntColumn, StrColumn};
+pub use column::{BoolColumn, Column, FloatColumn, InSetValues, IntColumn, StrColumn};
 pub use ops::NumericOps;
 pub use schema::{DataType, Field, Schema};
 
