@@ -100,7 +100,7 @@ pub fn validate(data: &Dataset, rules: &[Rule]) -> Vec<ValidationResult> {
         .map(|rule| {
             let col = data.get_column_by_name(&rule.column);
             match col {
-                Some(col) => validate_col_with_rule(&col, rule)
+                Some(col) => validate_col_with_rule(col, rule)
                     .unwrap_or_else(|e| ValidationResult::failed(rule, 0, &e.to_string())),
                 None => {
                     let error = ValidationError::ColumnNotFound {
@@ -280,7 +280,7 @@ fn check_length_between(col: &Column, min: usize, max: usize, rule: &Rule) -> Va
     let failed = col
         .str_length()
         .iter()
-        .map(|opt| opt.map_or(false, |v| (v >= min) && (v <= max)))
+        .map(|opt| opt.is_some_and(|v| (v >= min) && (v <= max)))
         .filter(|v| !v)
         .count();
     if failed == 0 {
