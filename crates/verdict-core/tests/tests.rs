@@ -313,14 +313,8 @@ mod tests {
         let dataset = make_dataset("./tests/fixtures/all_types.csv");
         let null_dataset = make_dataset("./tests/fixtures/with_nulls.csv");
 
-        let passed_result = validate(
-            &dataset,
-            &[Rule::new("id", Constraint::NotNull)],
-        );
-        let failed_result = validate(
-            &null_dataset,
-            &[Rule::new("id", Constraint::NotNull)],
-        );
+        let passed_result = validate(&dataset, &[Rule::new("id", Constraint::NotNull)]);
+        let failed_result = validate(&null_dataset, &[Rule::new("id", Constraint::NotNull)]);
 
         assert!(passed_result[0].passed);
         assert!(!failed_result[0].passed);
@@ -353,10 +347,16 @@ mod tests {
     #[test]
     fn test_validate_greater_than_or_equal() {
         let dataset = make_dataset("./tests/fixtures/all_types.csv");
-        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThanOrEqual(1.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::GreaterThanOrEqual(1.0))],
+        );
         assert!(results[0].passed);
 
-        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThanOrEqual(3.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::GreaterThanOrEqual(3.0))],
+        );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 2);
     }
@@ -375,10 +375,16 @@ mod tests {
     #[test]
     fn test_validate_less_than_or_equal() {
         let dataset = make_dataset("./tests/fixtures/all_types.csv");
-        let results = validate(&dataset, &[Rule::new("id", Constraint::LessThanOrEqual(5.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::LessThanOrEqual(5.0))],
+        );
         assert!(results[0].passed);
 
-        let results = validate(&dataset, &[Rule::new("id", Constraint::LessThanOrEqual(3.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::LessThanOrEqual(3.0))],
+        );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 2);
     }
@@ -397,13 +403,25 @@ mod tests {
         // all scores are 78.9-100.0
         let results = validate(
             &dataset,
-            &[Rule::new("score", Constraint::Between { min: 70.0, max: 110.0 })],
+            &[Rule::new(
+                "score",
+                Constraint::Between {
+                    min: 70.0,
+                    max: 110.0,
+                },
+            )],
         );
         assert!(results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("score", Constraint::Between { min: 90.0, max: 100.0 })],
+            &[Rule::new(
+                "score",
+                Constraint::Between {
+                    min: 90.0,
+                    max: 100.0,
+                },
+            )],
         );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 2); // bob=87.3, diana=78.9
@@ -415,13 +433,19 @@ mod tests {
         // all names are lowercase alpha
         let results = validate(
             &dataset,
-            &[Rule::new("name", Constraint::MatchesRegex(r"^[a-z]+$".to_string()))],
+            &[Rule::new(
+                "name",
+                Constraint::MatchesRegex(r"^[a-z]+$".to_string()),
+            )],
         );
         assert!(results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("name", Constraint::MatchesRegex(r"^a".to_string()))],
+            &[Rule::new(
+                "name",
+                Constraint::MatchesRegex(r"^a".to_string()),
+            )],
         );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 4);
@@ -474,13 +498,19 @@ mod tests {
         // names: alice(5), bob(3), charlie(7), diana(5), eve(3)
         let results = validate(
             &dataset,
-            &[Rule::new("name", Constraint::LengthBetween { min: 3, max: 7 })],
+            &[Rule::new(
+                "name",
+                Constraint::LengthBetween { min: 3, max: 7 },
+            )],
         );
         assert!(results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("name", Constraint::LengthBetween { min: 4, max: 6 })],
+            &[Rule::new(
+                "name",
+                Constraint::LengthBetween { min: 4, max: 6 },
+            )],
         );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 3); // bob(3), charlie(7), eve(3)
@@ -521,10 +551,7 @@ mod tests {
     #[test]
     fn test_validate_column_not_found() {
         let dataset = make_dataset("./tests/fixtures/all_types.csv");
-        let results = validate(
-            &dataset,
-            &[Rule::new("nonexistent", Constraint::NotNull)],
-        );
+        let results = validate(&dataset, &[Rule::new("nonexistent", Constraint::NotNull)]);
         assert!(!results[0].passed);
         assert!(results[0].error.is_some());
     }
@@ -533,10 +560,7 @@ mod tests {
     fn test_validate_with_nulls() {
         let dataset = make_dataset("./tests/fixtures/with_nulls.csv");
         // id column has nulls in rows 0, 2, 4
-        let results = validate(
-            &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(0.0))],
-        );
+        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThan(0.0))]);
         assert!(!results[0].passed);
         // nulls count as failures
         assert!(results[0].failed_count > 0);
@@ -549,7 +573,13 @@ mod tests {
             Rule::new("id", Constraint::NotNull),
             Rule::new("id", Constraint::GreaterThan(0.0)),
             Rule::new("name", Constraint::NotNull),
-            Rule::new("score", Constraint::Between { min: 0.0, max: 100.0 }),
+            Rule::new(
+                "score",
+                Constraint::Between {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            ),
         ];
         let results = validate(&dataset, &rules);
         assert_eq!(results.len(), 4);
