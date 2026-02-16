@@ -62,11 +62,15 @@
 
 ## Phase 3: Architecture Cleanup
 
-### 3.1 Move CSV to verdict-csv
+### 3.1 ~~Move CSV to verdict-csv~~ → Feature-gated CSV module (Done)
 
-- [ ] `load_csv(path, schema) -> Dataset`
-- [ ] Remove `csv` dependency from core
-- [ ] Split errors
+- [x] Created `csv_loader` module behind `#[cfg(feature = "csv")]` feature flag
+- [x] `DatasetCsvExt` trait with `Dataset::from_csv(path, schema)`
+- [x] `CsvLoadingError` owns all CSV errors (Io, Csv, Parse)
+- [x] Removed `csv` dependency from core by default
+- [x] Removed `DatasetError` from core (only `ValidationError` remains)
+- [x] Core tests build datasets manually, CSV tests gated with `#[cfg(feature = "csv")]`
+- [x] CI workflows updated with `--all-features`
 
 ---
 
