@@ -291,18 +291,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "verdict-csv"
-version = "0.1.0"
-dependencies = [
- "csv",
- "verdict-core",
-]
-
-[[package]]
 name = "verdict-py"
 version = "0.1.0"
 dependencies = [
  "pyo3",
  "verdict-core",
- "verdict-csv",
 ]
