@@ -16,6 +16,8 @@
 - [x] `is_empty()`
 - [x] `null_count()` / `not_null_count()`
 - [x] `is_null() -> Vec<bool>`
+- [x] `unique_count()` / `duplicates_count()`
+- [x] `is_in(InSetValues)` — typed set membership check
 - [ ] `unique_values()` for each type
 
 ### 1.3 Column Ops Traits
@@ -32,14 +34,28 @@
 
 ### 2.1 Validation Results
 
-- [ ] Define `ValidationResult` struct
-- [ ] Track: passed/failed, which rows failed, failure reasons
+- [x] Define `ValidationResult` struct (column, constraint, passed, failed_count, error)
+- [x] `ValidationResult::passed()` / `ValidationResult::failed()` constructors
+- [x] Track: passed/failed, failed count, error message
 - [ ] Implement `Display` for human-readable output
+- [ ] `Report` struct wrapping `Vec<ValidationResult>` with `all_passed()`, `failed()`
 
-### 2.2 Expectation System
+### 2.2 Rules System
 
-- [ ] Define `Expectation` trait/enum
-- [ ] Column-level: `not_null`, `unique`, `in_set`, `in_range`, `matches_regex`
+- [x] `Rule` struct (column name + constraint)
+- [x] `Constraint` enum with 14 variants
+- [x] `validate(dataset, rules) -> Vec<ValidationResult>` public API
+- [x] `validate_col_with_rule` dispatch + check functions
+- [x] `ValidationError` enum (ColumnNotFound, UnknownConstraint, ColumnValidationError)
+- [x] `InSetValues` typed enum (IntSet, FloatSet, StrSet)
+
+#### Column-level constraints (all implemented):
+- [x] `NotNull`, `Unique`
+- [x] `GreaterThan`, `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Equal`, `Between`
+- [x] `MatchesRegex`, `Contains`, `StartsWith`, `EndsWith`, `LengthBetween`
+- [x] `InSet` (typed via InSetValues)
+
+#### Not yet implemented:
 - [ ] Row-level: `column_pair_unique`, `column_a_gt_b`
 
 ---

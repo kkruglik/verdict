@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use verdict_core::dataset::{DataType, Dataset, Field, Schema};
+    use verdict_core::{
+        dataset::{DataType, Dataset, Field, InSetValues, Schema},
+        rules::{Constraint, Rule, validate},
+    };
 
     fn make_dataset(filename: &str) -> Dataset {
         let fields = vec![
@@ -303,5 +306,286 @@ mod tests {
             name_col.str_length(),
             vec![Some(5), Some(3), Some(7), Some(5), Some(3)]
         );
+    }
+
+    #[test]
+    fn test_validate_not_null_column() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let null_dataset = make_dataset("./tests/fixtures/with_nulls.csv");
+
+        let passed_result = validate(&dataset, &[Rule::new("id", Constraint::NotNull)]);
+        let failed_result = validate(&null_dataset, &[Rule::new("id", Constraint::NotNull)]);
+
+        assert!(passed_result[0].passed);
+        assert!(!failed_result[0].passed);
+    }
+
+    #[test]
+    fn test_validate_unique() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(&dataset, &[Rule::new("id", Constraint::Unique)]);
+        assert!(results[0].passed);
+
+        let results = validate(&dataset, &[Rule::new("active", Constraint::Unique)]);
+        assert!(!results[0].passed);
+    }
+
+    #[test]
+    fn test_validate_greater_than() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        // all ids are 1-5, so all > 0
+        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThan(0.0))]);
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+
+        // not all ids > 3
+        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThan(3.0))]);
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 3);
+    }
+
+    #[test]
+    fn test_validate_greater_than_or_equal() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::GreaterThanOrEqual(1.0))],
+        );
+        assert!(results[0].passed);
+
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::GreaterThanOrEqual(3.0))],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2);
+    }
+
+    #[test]
+    fn test_validate_less_than() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(&dataset, &[Rule::new("id", Constraint::LessThan(6.0))]);
+        assert!(results[0].passed);
+
+        let results = validate(&dataset, &[Rule::new("id", Constraint::LessThan(3.0))]);
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 3);
+    }
+
+    #[test]
+    fn test_validate_less_than_or_equal() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::LessThanOrEqual(5.0))],
+        );
+        assert!(results[0].passed);
+
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::LessThanOrEqual(3.0))],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2);
+    }
+
+    #[test]
+    fn test_validate_equal() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(&dataset, &[Rule::new("score", Constraint::Equal(95.5))]);
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 4);
+    }
+
+    #[test]
+    fn test_validate_between() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        // all scores are 78.9-100.0
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "score",
+                Constraint::Between {
+                    min: 70.0,
+                    max: 110.0,
+                },
+            )],
+        );
+        assert!(results[0].passed);
+
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "score",
+                Constraint::Between {
+                    min: 90.0,
+                    max: 100.0,
+                },
+            )],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2); // bob=87.3, diana=78.9
+    }
+
+    #[test]
+    fn test_validate_matches_regex() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        // all names are lowercase alpha
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "name",
+                Constraint::MatchesRegex(r"^[a-z]+$".to_string()),
+            )],
+        );
+        assert!(results[0].passed);
+
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "name",
+                Constraint::MatchesRegex(r"^a".to_string()),
+            )],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 4);
+    }
+
+    #[test]
+    fn test_validate_contains() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(
+            &dataset,
+            &[Rule::new("name", Constraint::Contains("li".to_string()))],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 3);
+
+        // alice and charlie contain "li" — pass case with 2 matches
+        let results = validate(
+            &dataset,
+            &[Rule::new("name", Constraint::Contains("b".to_string()))],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 4); // only bob contains "b"
+    }
+
+    #[test]
+    fn test_validate_starts_with() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(
+            &dataset,
+            &[Rule::new("name", Constraint::StartsWith("a".to_string()))],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 4);
+    }
+
+    #[test]
+    fn test_validate_ends_with() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(
+            &dataset,
+            &[Rule::new("name", Constraint::EndsWith("e".to_string()))],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2); // bob, diana don't end with "e"
+    }
+
+    #[test]
+    fn test_validate_length_between() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        // names: alice(5), bob(3), charlie(7), diana(5), eve(3)
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "name",
+                Constraint::LengthBetween { min: 3, max: 7 },
+            )],
+        );
+        assert!(results[0].passed);
+
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "name",
+                Constraint::LengthBetween { min: 4, max: 6 },
+            )],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 3); // bob(3), charlie(7), eve(3)
+    }
+
+    #[test]
+    fn test_validate_in_set() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "name",
+                Constraint::InSet(InSetValues::StrSet(vec![
+                    "alice".to_string(),
+                    "bob".to_string(),
+                    "charlie".to_string(),
+                    "diana".to_string(),
+                    "eve".to_string(),
+                ])),
+            )],
+        );
+        assert!(results[0].passed);
+
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "name",
+                Constraint::InSet(InSetValues::StrSet(vec![
+                    "alice".to_string(),
+                    "bob".to_string(),
+                ])),
+            )],
+        );
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 3);
+    }
+
+    #[test]
+    fn test_validate_column_not_found() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let results = validate(&dataset, &[Rule::new("nonexistent", Constraint::NotNull)]);
+        assert!(!results[0].passed);
+        assert!(results[0].error.is_some());
+    }
+
+    #[test]
+    fn test_validate_with_nulls() {
+        let dataset = make_dataset("./tests/fixtures/with_nulls.csv");
+        // id column has nulls in rows 0, 2, 4
+        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThan(0.0))]);
+        assert!(!results[0].passed);
+        // nulls count as failures
+        assert!(results[0].failed_count > 0);
+    }
+
+    #[test]
+    fn test_validate_multiple_rules() {
+        let dataset = make_dataset("./tests/fixtures/all_types.csv");
+        let rules = vec![
+            Rule::new("id", Constraint::NotNull),
+            Rule::new("id", Constraint::GreaterThan(0.0)),
+            Rule::new("name", Constraint::NotNull),
+            Rule::new(
+                "score",
+                Constraint::Between {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            ),
+        ];
+        let results = validate(&dataset, &rules);
+        assert_eq!(results.len(), 4);
+        assert!(results[0].passed);
+        assert!(results[1].passed);
+        assert!(results[2].passed);
+        assert!(results[3].passed);
     }
 }
