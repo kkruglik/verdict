@@ -9,5 +9,6 @@ name = "verdict"
 
 [dependencies]
 pyo3 = { version = "0.27.2", features = ["extension-module"] }
-verdict-core = { version = "0.1.0", path = "../verdict-core" }
-verdict-csv = { version = "0.1.0", path = "../verdict-csv" }
+verdict-core = { version = "0.1.0", path = "../verdict-core", features = [
+  "csv",
+] }
