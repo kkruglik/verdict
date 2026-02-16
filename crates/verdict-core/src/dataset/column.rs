@@ -1,4 +1,13 @@
+use std::collections::HashSet;
+
 use crate::dataset::ops::{ComparableOps, NumericOps, StringOps};
+
+#[derive(Debug)]
+pub enum InSetValues {
+    IntSet(Vec<i64>),
+    FloatSet(Vec<f64>),
+    StrSet(Vec<String>),
+}
 
 pub enum Column {
     Int(IntColumn),
@@ -110,6 +119,45 @@ impl Column {
             Column::Float(col) => col.not_null_count(),
             Column::Str(col) => col.not_null_count(),
             Column::Bool(col) => col.not_null_count(),
+        }
+    }
+
+    pub fn unique_count(&self) -> usize {
+        match self {
+            Column::Int(col) => col.0.iter().collect::<HashSet<_>>().len(),
+            Column::Str(col) => col.0.iter().collect::<HashSet<_>>().len(),
+            Column::Bool(col) => col.0.iter().collect::<HashSet<_>>().len(),
+            Column::Float(col) => col
+                .0
+                .iter()
+                .map(|v| v.map(|f| f.to_bits()))
+                .collect::<HashSet<_>>()
+                .len(),
+        }
+    }
+
+    pub fn duplicates_count(&self) -> usize {
+        self.len() - self.unique_count()
+    }
+
+    pub fn is_in(&self, other: &InSetValues) -> Vec<Option<bool>> {
+        match (self, other) {
+            (Column::Int(col), InSetValues::IntSet(set)) => col
+                .0
+                .iter()
+                .map(|opt| opt.map(|v| set.contains(&v)))
+                .collect(),
+            (Column::Float(col), InSetValues::FloatSet(set)) => col
+                .0
+                .iter()
+                .map(|opt| opt.map(|v| set.contains(&v)))
+                .collect(),
+            (Column::Str(col), InSetValues::StrSet(set)) => col
+                .0
+                .iter()
+                .map(|opt| opt.as_ref().map(|v| set.contains(v)))
+                .collect(),
+            _ => vec![None; self.len()],
         }
     }
 
