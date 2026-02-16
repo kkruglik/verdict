@@ -620,8 +620,7 @@ mod csv_tests {
     #[test]
     fn test_load_csv() {
         let schema = make_schema();
-        let dataset =
-            Dataset::from_csv("tests/fixtures/all_types.csv", &schema).unwrap();
+        let dataset = Dataset::from_csv("tests/fixtures/all_types.csv", &schema).unwrap();
         assert_eq!(dataset.headers, vec!["id", "name", "score", "active"]);
         assert_eq!(dataset.shape(), (5, 4));
     }
@@ -629,8 +628,7 @@ mod csv_tests {
     #[test]
     fn test_load_csv_with_nulls() {
         let schema = make_schema();
-        let dataset =
-            Dataset::from_csv("tests/fixtures/with_nulls.csv", &schema).unwrap();
+        let dataset = Dataset::from_csv("tests/fixtures/with_nulls.csv", &schema).unwrap();
         assert_eq!(dataset.headers, vec!["id", "name", "score", "active"]);
         assert_eq!(dataset.shape(), (5, 4));
     }
@@ -645,8 +643,7 @@ mod csv_tests {
     #[test]
     fn test_parse_bool_values() {
         let schema = make_schema();
-        let dataset =
-            Dataset::from_csv("tests/fixtures/all_types.csv", &schema).unwrap();
+        let dataset = Dataset::from_csv("tests/fixtures/all_types.csv", &schema).unwrap();
         let col = dataset.get_column_by_name("active").unwrap();
         assert_eq!(col.len(), 5);
         assert_eq!(col.null_count(), 0);
@@ -654,9 +651,7 @@ mod csv_tests {
 
     #[test]
     fn test_parse_bool_invalid() {
-        let schema = Schema::new(vec![
-            Field::new("name", DataType::Bool),
-        ]);
+        let schema = Schema::new(vec![Field::new("name", DataType::Bool)]);
         let result = Dataset::from_csv("tests/fixtures/all_types.csv", &schema);
         assert!(result.is_err());
     }
