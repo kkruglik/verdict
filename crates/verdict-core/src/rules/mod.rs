@@ -70,6 +70,23 @@ impl ValidationResult {
     }
 }
 
+impl std::fmt::Display for ValidationResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.passed {
+            write!(f, "PASS: column '{}' — {}", self.column, self.constraint)
+        } else {
+            write!(
+                f,
+                "FAIL: column '{}' — {} — {} values failed: {}",
+                self.column,
+                self.constraint,
+                self.failed_count,
+                self.error.as_deref().unwrap_or("unknown error")
+            )
+        }
+    }
+}
+
 fn validate_col_with_rule(
     column: &Column,
     rule: &Rule,
