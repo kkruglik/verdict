@@ -6,9 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 cargo build                           # Build all crates
-cargo test                            # Run all tests
-cargo test -p verdict-core            # Test single crate
-cargo test -p verdict-core -- test_name  # Run specific test
+cargo build --all-features            # Build with all features (csv, etc.)
+cargo test --all-features             # Run all tests including feature-gated
+cargo test -p verdict-core            # Test single crate (core only)
+cargo test -p verdict-core --features csv  # Test core + csv
+cargo test -p verdict-core -- test_name    # Run specific test
 cargo check                           # Fast syntax/type check
 ```
 
@@ -22,20 +24,20 @@ maturin build --release               # Build wheel for distribution
 
 ## Architecture
 
-Verdict is a data validation library with three crates following strict dependency direction:
+Verdict is a data validation library with two crates:
 
 ```
-verdict-core  ←  verdict-csv  ←  verdict-py
+verdict-core  ←  verdict-py
 ```
 
 ### verdict-core
-Pure validation logic. Defines `Dataset`, `Expectation`, `ValidationResult`, and `VerdictError`. No I/O, no Python, no external data formats. Must remain usable as a standalone Rust library.
+Pure validation logic. Defines `Dataset`, `Schema`, `ValidationResult`, and validation rules. No I/O by default. Must remain usable as a standalone Rust library.
 
-### verdict-csv
-CSV file loading only. Converts CSV files into `Dataset` structs. Uses the `csv` crate. No validation logic.
+**Feature flags:**
+- `csv` — enables `csv_loader` module with `DatasetCsvExt` trait (`Dataset::from_csv()`) and `CsvLoadingError`
 
 ### verdict-py
-PyO3 bindings exposing verdict to Python. Wraps both core and csv functionality. The compiled library is named `verdict` (not `verdict-py`).
+PyO3 bindings exposing verdict to Python. Depends on `verdict-core` with `csv` feature enabled. The compiled library is named `verdict` (not `verdict-py`).
 
 ### verdict-core Type Hierarchy
 
@@ -67,9 +69,8 @@ Column (enum) — delegates to typed columns
 
 ## Key Design Rules
 
-- Core knows nothing about CSV or Python
-- CSV knows core only
-- Python knows both
+- Core has no I/O dependencies by default
+- CSV loading is behind a feature flag, not a separate crate
+- Python knows core only
 - No dependency cycles
-- Each crate has exactly one responsibility
-- Validation rules live in core, never in csv or py
+- Validation rules live in core, never in py
