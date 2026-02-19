@@ -1,4 +1,4 @@
-name: Security Audit
+name: Rust Format
 
 on:
   push:
@@ -10,12 +10,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  audit:
+  fmt:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-    - name: Audit dependencies
-      run: cargo audit
+    - name: Check formatting
+      run: cargo fmt --check
