@@ -37,7 +37,22 @@ Pure validation logic. Defines `Dataset`, `Schema`, `ValidationResult`, and vali
 - `csv` — enables `csv_loader` module with `DatasetCsvExt` trait (`Dataset::from_csv()`) and `CsvLoadingError`
 
 ### verdict-py
-PyO3 bindings exposing verdict to Python. Depends on `verdict-core` with `csv` feature enabled. The compiled library is named `verdict` (not `verdict-py`).
+PyO3 bindings exposing verdict to Python. Depends on `verdict-core` with `csv` feature enabled. The compiled library is named `verdict_py`.
+
+**Python API (clean names via `#[pyclass(name = "...")]`):**
+- `Dataset` — construct manually or load via `Dataset.from_csv(path, schema)`
+- `Column` — typed constructors: `Column.integer(...)`, `Column.floating(...)`, `Column.string(...)`, `Column.boolean(...)`
+- `Schema` — list of `(name, DataType)` tuples
+- `DataType` — `DataType.integer()`, `DataType.float()`, `DataType.string()`, `DataType.boolean()`
+- `Constraint` — factory for all 14 constraint variants
+- `Rule(column, constraint)` — pairs a column name with a constraint
+- `validate(dataset, rules) -> list[ValidationResult]` — main validation entry point
+- `ValidationResult` — getters: `column`, `constraint`, `is_passed`, `failed_count`, `error`
+
+**Python test scripts:**
+- `crates/verdict-py/explore.py` — API exploration with small dataset
+- `crates/verdict-py/benchmark.py` — verdict-only benchmark on 100k rows
+- `crates/verdict-py/benchmark_pandas.py` — verdict vs pandas on 100k and 10M rows
 
 ### verdict-core Type Hierarchy
 
