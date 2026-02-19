@@ -40,6 +40,10 @@
 - [x] Implement `Display` for human-readable output
 - [ ] `Report` struct wrapping `Vec<ValidationResult>` with `all_passed()`, `failed()`
 
+### Known Issues
+
+- [ ] `sum()` on all-null column returns `0.0` instead of `None` — investigate in `verdict-core` numeric ops
+
 ### 2.2 Rules System
 
 - [x] `Rule` struct (column name + constraint)
