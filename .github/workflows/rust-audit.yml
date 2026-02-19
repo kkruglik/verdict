@@ -1,4 +1,4 @@
-name: Clippy
+name: Rust Security Audit
 
 on:
   push:
@@ -10,10 +10,13 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  clippy:
+  audit:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
-    - name: Clippy
-      run: cargo clippy --all-features -- -D warnings
+    - uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-audit
+    - name: Audit dependencies
+      run: cargo audit
