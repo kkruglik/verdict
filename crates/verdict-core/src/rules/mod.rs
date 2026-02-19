@@ -3,12 +3,13 @@ use crate::{
     errors::ValidationError,
 };
 
+#[derive(Clone)]
 pub struct Rule {
     pub column: String,
     pub constraint: Constraint,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Constraint {
     // Null checks
     NotNull,
