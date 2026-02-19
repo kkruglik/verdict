@@ -12,6 +12,7 @@ impl Field {
     }
 }
 
+#[derive(Clone)]
 pub enum DataType {
     Int,
     Str,

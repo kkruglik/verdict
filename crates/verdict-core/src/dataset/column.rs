@@ -2,13 +2,14 @@ use std::collections::HashSet;
 
 use crate::dataset::ops::{ComparableOps, NumericOps, StringOps};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InSetValues {
     IntSet(Vec<i64>),
     FloatSet(Vec<f64>),
     StrSet(Vec<String>),
 }
 
+#[derive(Clone)]
 pub enum Column {
     Int(IntColumn),
     Float(FloatColumn),
@@ -16,9 +17,16 @@ pub enum Column {
     Bool(BoolColumn),
 }
 
+#[derive(Clone)]
 pub struct IntColumn(pub Vec<Option<i64>>);
+
+#[derive(Clone)]
 pub struct FloatColumn(pub Vec<Option<f64>>);
+
+#[derive(Clone)]
 pub struct StrColumn(pub Vec<Option<String>>);
+
+#[derive(Clone)]
 pub struct BoolColumn(pub Vec<Option<bool>>);
 
 impl IntColumn {
