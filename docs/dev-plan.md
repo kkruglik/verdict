@@ -37,7 +37,7 @@
 - [x] Define `ValidationResult` struct (column, constraint, passed, failed_count, error)
 - [x] `ValidationResult::passed()` / `ValidationResult::failed()` constructors
 - [x] Track: passed/failed, failed count, error message
-- [ ] Implement `Display` for human-readable output
+- [x] Implement `Display` for human-readable output
 - [ ] `Report` struct wrapping `Vec<ValidationResult>` with `all_passed()`, `failed()`
 
 ### 2.2 Rules System
@@ -78,12 +78,21 @@
 
 ### 4.1 Basic Bindings
 
-- [ ] Expose `Dataset`, `Schema`, `Field`, `DataType`
-- [ ] `load_csv`, `shape()`
+- [x] Expose `Dataset`, `Schema`, `DataType` via PyO3 wrappers
+- [x] `Dataset.from_csv(path, schema)`, `shape()`
+- [x] `Column` with typed constructors: `integer`, `floating`, `string`, `boolean`
+- [x] All column ops exposed: numeric, comparison, string, null checks, `is_in`
+- [x] Dataset accessors: `get_column_by_name`, `get_column_by_index`, `get_column_index`
+- [x] `__repr__` for `Dataset` and `Column`
+- [x] Clean Python-facing names via `#[pyclass(name = "...")]`
 
 ### 4.2 Validation Bindings
 
-- [ ] Expose expectations + results
+- [x] Expose `Constraint` with all 14 variants as static constructors
+- [x] Expose `Rule(column, constraint)`
+- [x] Expose `validate(dataset, rules) -> list[ValidationResult]`
+- [x] `ValidationResult` with getters: `column`, `constraint`, `is_passed`, `failed_count`, `error`
+- [x] `__repr__` on `ValidationResult` using core `Display`
 
 ---
 
