@@ -168,6 +168,67 @@ mod tests {
         assert_eq!(score_col.median().unwrap(), 4.4); // (3.3 + 5.5) / 2
     }
 
+    // ── Edge cases ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_numeric_ops_all_null_returns_none() {
+        let int_col = Column::Int(IntColumn(vec![None, None, None]));
+        let float_col = Column::Float(FloatColumn(vec![None, None, None]));
+
+        for col in [&int_col, &float_col] {
+            assert!(col.sum().is_none());
+            assert!(col.mean().is_none());
+            assert!(col.min().is_none());
+            assert!(col.max().is_none());
+            assert!(col.std().is_none());
+            assert!(col.median().is_none());
+        }
+    }
+
+    #[test]
+    fn test_numeric_ops_empty_returns_none() {
+        let int_col = Column::Int(IntColumn(vec![]));
+        let float_col = Column::Float(FloatColumn(vec![]));
+
+        for col in [&int_col, &float_col] {
+            assert!(col.sum().is_none());
+            assert!(col.mean().is_none());
+            assert!(col.min().is_none());
+            assert!(col.max().is_none());
+            assert!(col.std().is_none());
+            assert!(col.median().is_none());
+        }
+    }
+
+    #[test]
+    fn test_std_single_value_returns_none() {
+        let int_col = Column::Int(IntColumn(vec![Some(42)]));
+        let float_col = Column::Float(FloatColumn(vec![Some(1.5)]));
+        assert!(int_col.std().is_none());
+        assert!(float_col.std().is_none());
+    }
+
+    #[test]
+    fn test_comparable_ops_all_null() {
+        let col = Column::Int(IntColumn(vec![None, None, None]));
+        assert_eq!(col.gt(1.0), vec![None, None, None]);
+        assert_eq!(col.ge(1.0), vec![None, None, None]);
+        assert_eq!(col.lt(1.0), vec![None, None, None]);
+        assert_eq!(col.le(1.0), vec![None, None, None]);
+        assert_eq!(col.equal(1.0), vec![None, None, None]);
+        assert_eq!(col.between(0.0, 2.0), vec![None, None, None]);
+    }
+
+    #[test]
+    fn test_string_ops_all_null() {
+        let col = Column::Str(StrColumn(vec![None, None]));
+        assert_eq!(col.contains("a"), vec![None, None]);
+        assert_eq!(col.starts_with("a"), vec![None, None]);
+        assert_eq!(col.ends_with("a"), vec![None, None]);
+        assert_eq!(col.matches_regex(".*"), vec![None, None]);
+        assert_eq!(col.str_length(), vec![None, None]);
+    }
+
     #[test]
     fn test_numeric_ops_single_value_std() {
         let dataset = make_with_nulls_dataset();
