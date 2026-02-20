@@ -32,6 +32,9 @@ impl NumericOps for IntColumn {
     type Item = i64;
 
     fn sum(&self) -> Option<Self::Item> {
+        if self.not_null_count() == 0 {
+            return None;
+        }
         Some(self.0.iter().flatten().sum())
     }
 
@@ -83,6 +86,9 @@ impl NumericOps for FloatColumn {
     type Item = f64;
 
     fn sum(&self) -> Option<Self::Item> {
+        if self.not_null_count() == 0 {
+            return None;
+        }
         Some(self.0.iter().flatten().sum())
     }
 

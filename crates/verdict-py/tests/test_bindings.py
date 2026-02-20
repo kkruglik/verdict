@@ -134,7 +134,6 @@ class TestNumericOps:
         assert col.min() == pytest.approx(2.1)
         assert col.max() == pytest.approx(40.0)
 
-    @pytest.mark.skip(reason="known bug: sum() returns 0.0 instead of None for all-null columns — see dev-plan Known Issues")
     def test_returns_none_for_all_nulls(self):
         col = Column.integer([None, None])
         assert col.sum() is None
