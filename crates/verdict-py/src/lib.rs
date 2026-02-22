@@ -4,8 +4,9 @@ use verdict_core::{
     dataset::{
         BoolColumn, Column, DataType, Dataset, Field, FloatColumn, InSetValues, IntColumn, Schema,
         StrColumn,
+        ops::{ComparableOps, StringOps},
     },
-    rules::{Constraint, Rule, ValidationResult, validate},
+    rules::{Constraint, Operand, Rule, RuleBuilder, ValidationResult, validate},
 };
 
 fn format_values<T>(values: &[Option<T>], fmt: impl Fn(&T) -> String) -> String {
@@ -23,6 +24,35 @@ fn format_values<T>(values: &[Option<T>], fmt: impl Fn(&T) -> String) -> String 
         format!("{}, ... ({} total)", items.join(", "), len)
     } else {
         items.join(", ")
+    }
+}
+
+#[pyclass(name = "RuleBuilder")]
+struct PyRuleBuilder {
+    inner: RuleBuilder,
+}
+
+#[pymethods]
+impl PyRuleBuilder {
+    fn not_null(&mut self) {
+        self.inner.constraint.push(Constraint::NotNull);
+    }
+
+    fn unique(&mut self) {
+        self.inner.constraint.push(Constraint::Unique);
+    }
+
+    fn build(&self) -> Vec<PyRule> {
+        self.inner
+            .constraint
+            .iter()
+            .map(|v| PyRule {
+                inner: Rule {
+                    column: self.inner.column.clone(),
+                    constraint: v.clone(),
+                },
+            })
+            .collect()
     }
 }
 
@@ -139,7 +169,7 @@ impl PyColumn {
 
     fn equal(&self, py: Python<'_>, compare: Py<PyAny>) -> Vec<Option<bool>> {
         if let Ok(v) = compare.extract::<String>(py) {
-            self.inner.equal_str(&v)
+            self.inner.equal(v.as_str())
         } else if let Ok(v) = compare.extract::<f64>(py) {
             self.inner.equal(v)
         } else {
@@ -168,7 +198,7 @@ impl PyColumn {
     }
 
     fn str_length(&self) -> Vec<Option<usize>> {
-        self.inner.str_length()
+        self.inner.length()
     }
 
     fn is_in(&self, py: Python<'_>, values: Vec<Py<PyAny>>) -> Vec<Option<bool>> {
@@ -343,42 +373,45 @@ impl PyConstraint {
     #[staticmethod]
     fn gt(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::GreaterThan(compare),
+            inner: Constraint::GreaterThan(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn ge(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::GreaterThanOrEqual(compare),
+            inner: Constraint::GreaterThanOrEqual(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn lt(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::LessThan(compare),
+            inner: Constraint::LessThan(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn le(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::LessThanOrEqual(compare),
+            inner: Constraint::LessThanOrEqual(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn eq(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::Equal(compare),
+            inner: Constraint::Equal(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn between(min: f64, max: f64) -> Self {
         PyConstraint {
-            inner: Constraint::Between { min, max },
+            inner: Constraint::Between {
+                min: min.into(),
+                max: max.into(),
+            },
         }
     }
 
