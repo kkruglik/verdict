@@ -1,8 +1,11 @@
 #[cfg(test)]
 mod tests {
     use verdict_core::{
-        dataset::{BoolColumn, Column, Dataset, FloatColumn, InSetValues, IntColumn, StrColumn},
-        rules::{Constraint, Rule, validate},
+        dataset::{
+            BoolColumn, Column, Dataset, FloatColumn, InSetValues, IntColumn, StrColumn,
+            ops::{ComparableOps, StringOps},
+        },
+        rules::{Constraint, Operand, Rule, col, rule, validate},
     };
 
     fn make_all_types_dataset() -> Dataset {
@@ -35,6 +38,65 @@ mod tests {
                     Some(true),
                     Some(false),
                     Some(true),
+                ])),
+            ],
+        )
+    }
+
+    fn make_compare_dataset() -> Dataset {
+        Dataset::new(
+            vec![
+                "id".to_string(),
+                "x".to_string(),
+                "y".to_string(),
+                "z".to_string(),
+            ],
+            vec![
+                Column::Int(IntColumn(vec![Some(1), Some(2), Some(3), Some(4), Some(5)])),
+                Column::Float(FloatColumn(vec![
+                    Some(1.0),
+                    Some(2.0),
+                    Some(3.0),
+                    Some(4.0),
+                    Some(5.0),
+                ])),
+                Column::Float(FloatColumn(vec![
+                    Some(6.0),
+                    Some(7.0),
+                    Some(8.0),
+                    Some(9.0),
+                    Some(10.0),
+                ])),
+                Column::Float(FloatColumn(vec![
+                    Some(28.0),
+                    Some(1.0),
+                    Some(0.5),
+                    Some(4.0),
+                    Some(0.90),
+                ])),
+            ],
+        )
+    }
+
+    // a: nulls at rows 1,4 — b: null at row 2 — c: same values as a — high: all 100.0
+    fn make_compare_nulls_dataset() -> Dataset {
+        Dataset::new(
+            vec![
+                "a".to_string(),
+                "b".to_string(),
+                "c".to_string(),
+                "high".to_string(),
+            ],
+            vec![
+                Column::Float(FloatColumn(vec![Some(1.0), None, Some(3.0), Some(4.0), None])),
+                Column::Float(FloatColumn(vec![Some(2.0), Some(5.0), None, Some(5.0), None])),
+                Column::Float(FloatColumn(vec![Some(1.0), None, Some(3.0), Some(4.0), None])),
+                Column::Float(FloatColumn(vec![
+                    Some(100.0),
+                    Some(100.0),
+                    Some(100.0),
+                    Some(100.0),
+                    Some(100.0),
                 ])),
             ],
         )
@@ -226,7 +288,7 @@ mod tests {
         assert_eq!(col.starts_with("a"), vec![None, None]);
         assert_eq!(col.ends_with("a"), vec![None, None]);
         assert_eq!(col.matches_regex(".*"), vec![None, None]);
-        assert_eq!(col.str_length(), vec![None, None]);
+        assert_eq!(col.length(), vec![None, None]);
     }
 
     #[test]
@@ -370,12 +432,12 @@ mod tests {
     }
 
     #[test]
-    fn test_str_length() {
+    fn test_length() {
         let dataset = make_all_types_dataset();
         // name = ["alice", "bob", "charlie", "diana", "eve"]
         let name_col = dataset.get_column_by_name("name").unwrap();
         assert_eq!(
-            name_col.str_length(),
+            name_col.length(),
             vec![Some(5), Some(3), Some(7), Some(5), Some(3)]
         );
     }
@@ -403,15 +465,339 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_comparing_columns() {
+        let dataset = make_compare_dataset();
+        let id_rules = rule("id").gt(0.0).unique().build();
+        let x_rules = rule("x").lt(col("y")).lt(100.0).unique().gt(0.0).build();
+        assert_eq!(id_rules.len(), 2);
+        assert_eq!(x_rules.len(), 4);
+
+        for result in &validate(&dataset, &id_rules) {
+            assert!(result.passed)
+        }
+
+        for result in &validate(&dataset, &x_rules) {
+            assert!(result.passed)
+        }
+    }
+    // ── col-pair: gt ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_gt_passes() {
+        let ds = make_compare_dataset();
+        // y=[6,7,8,9,10] > x=[1,2,3,4,5] — always true
+        let results = validate(&ds, &rule("y").gt(col("x")).build());
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+    }
+
+    #[test]
+    fn test_col_pair_gt_fails() {
+        let ds = make_compare_dataset();
+        // x=[1,2,3,4,5] > z=[28,1,0.5,4,0.9]
+        // row 0: 1>28 false, row 3: 4>4 false → 2 failures
+        let results = validate(&ds, &rule("x").gt(col("z")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2);
+    }
+
+    // ── col-pair: ge ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_ge_passes() {
+        let ds = make_compare_dataset();
+        // y >= x always
+        let results = validate(&ds, &rule("y").ge(col("x")).build());
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+    }
+
+    #[test]
+    fn test_col_pair_ge_equal_values_pass() {
+        let ds = make_compare_dataset();
+        // x=[1,2,3,4,5] >= z=[28,1,0.5,4,0.9]
+        // row 3: 4>=4 true; row 0: 1>=28 false → 1 failure
+        let results = validate(&ds, &rule("x").ge(col("z")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 1);
+    }
+
+    // ── col-pair: lt ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_lt_passes() {
+        let ds = make_compare_dataset();
+        // x < y always
+        let results = validate(&ds, &rule("x").lt(col("y")).build());
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+    }
+
+    #[test]
+    fn test_col_pair_lt_fails() {
+        let ds = make_compare_dataset();
+        // z=[28,1,0.5,4,0.9] < x=[1,2,3,4,5]
+        // row 0: 28<1 false, row 3: 4<4 false → 2 failures
+        let results = validate(&ds, &rule("z").lt(col("x")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2);
+    }
+
+    // ── col-pair: le ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_le_passes() {
+        let ds = make_compare_dataset();
+        // x <= y always
+        let results = validate(&ds, &rule("x").le(col("y")).build());
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+    }
+
+    #[test]
+    fn test_col_pair_le_fails() {
+        let ds = make_compare_dataset();
+        // x=[1,2,3,4,5] <= z=[28,1,0.5,4,0.9]
+        // row 1: 2<=1 false, row 2: 3<=0.5 false, row 4: 5<=0.9 false → 3 failures
+        let results = validate(&ds, &rule("x").le(col("z")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 3);
+    }
+
+    // ── col-pair: equal ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_equal_same_column() {
+        let ds = make_compare_dataset();
+        // x == x: every value equals itself
+        let results = validate(&ds, &rule("x").equal(col("x")).build());
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+    }
+
+    #[test]
+    fn test_col_pair_equal_fails() {
+        let ds = make_compare_dataset();
+        // x=[1,2,3,4,5] != y=[6,7,8,9,10] for every row → 5 failures
+        let results = validate(&ds, &rule("x").equal(col("y")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 5);
+    }
+
+    // ── col-pair: between ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_between_literal_col_passes() {
+        let ds = make_compare_dataset();
+        // 0.0 <= x <= y: x=[1..5], y=[6..10] — all pass
+        let results = validate(&ds, &rule("x").between(0.0, col("y")).build());
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+    }
+
+    #[test]
+    fn test_col_pair_between_col_literal_passes() {
+        let ds = make_compare_dataset();
+        // x <= y <= 100.0: y=[6..10], x=[1..5] — all pass
+        let results = validate(&ds, &rule("y").between(col("x"), 100.0).build());
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+    }
+
+    #[test]
+    fn test_col_pair_between_col_col_fails() {
+        let ds = make_compare_dataset();
+        // z=[28,1,0.5,4,0.9] between x=[1,2,3,4,5] and y=[6,7,8,9,10]
+        // row 0: 1<=28<=6 false (28>6), row 1: 2<=1 false, row 2: 3<=0.5 false, row 4: 5<=0.9 false → 4 failures
+        let results = validate(&ds, &rule("z").between(col("x"), col("y")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 4);
+    }
+
+    // ── col-pair: nulls ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_null_counts_as_failure() {
+        let ds = make_compare_nulls_dataset();
+        // a < b: rows 0,3 pass; rows 1,2,4 have at least one null → None → failure
+        let results = validate(&ds, &rule("a").lt(col("b")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 3);
+    }
+
+    #[test]
+    fn test_col_pair_one_sided_null_is_failure() {
+        let ds = make_compare_nulls_dataset();
+        // a < high: high has no nulls; a is null at rows 1,4 → None → failure
+        let results = validate(&ds, &rule("a").lt(col("high")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2);
+    }
+
+    #[test]
+    fn test_col_pair_both_null_is_failure() {
+        let ds = make_compare_nulls_dataset();
+        // a == c: same values/nulls; rows 1,4 both null → None → failure
+        let results = validate(&ds, &rule("a").equal(col("c")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2);
+    }
+
+    #[test]
+    fn test_col_pair_between_with_nulls() {
+        let ds = make_compare_nulls_dataset();
+        // 0.0 <= a <= high: a null at rows 1,4 → None → failure
+        let results = validate(&ds, &rule("a").between(0.0, col("high")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 2);
+    }
+
+    // ── col-pair: edge cases ──────────────────────────────────────────────────
+
+    // ── col-pair: str ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_str_equal_passes() {
+        let ds = Dataset::new(
+            vec!["a".to_string(), "b".to_string()],
+            vec![
+                Column::Str(StrColumn(vec![Some("foo".into()), Some("bar".into()), None])),
+                Column::Str(StrColumn(vec![Some("foo".into()), Some("bar".into()), None])),
+            ],
+        );
+        // same values: rows 0,1 pass; row 2 both null → None → failure
+        let results = validate(&ds, &rule("a").equal(col("b")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 1);
+    }
+
+    #[test]
+    fn test_col_pair_str_lt_passes() {
+        let ds = Dataset::new(
+            vec!["a".to_string(), "b".to_string()],
+            vec![
+                Column::Str(StrColumn(vec![Some("apple".into()), Some("cat".into())])),
+                Column::Str(StrColumn(vec![Some("banana".into()), Some("dog".into())])),
+            ],
+        );
+        // "apple" < "banana", "cat" < "dog" lexicographically
+        let results = validate(&ds, &rule("a").lt(col("b")).build());
+        assert!(results[0].passed);
+        assert_eq!(results[0].failed_count, 0);
+    }
+
+    #[test]
+    fn test_col_pair_str_lt_fails() {
+        let ds = Dataset::new(
+            vec!["a".to_string(), "b".to_string()],
+            vec![
+                Column::Str(StrColumn(vec![Some("zoo".into()), Some("cat".into())])),
+                Column::Str(StrColumn(vec![Some("apple".into()), Some("dog".into())])),
+            ],
+        );
+        // "zoo" < "apple" false → 1 failure
+        let results = validate(&ds, &rule("a").lt(col("b")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 1);
+    }
+
+    // ── col-pair: bool ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_bool_equal_passes() {
+        let ds = Dataset::new(
+            vec!["a".to_string(), "b".to_string()],
+            vec![
+                Column::Bool(BoolColumn(vec![Some(true), Some(false), None])),
+                Column::Bool(BoolColumn(vec![Some(true), Some(false), None])),
+            ],
+        );
+        // rows 0,1 match; row 2 both null → None → failure
+        let results = validate(&ds, &rule("a").equal(col("b")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 1);
+    }
+
+    #[test]
+    fn test_col_pair_bool_gt_false_lt_true() {
+        let ds = Dataset::new(
+            vec!["a".to_string(), "b".to_string()],
+            vec![
+                Column::Bool(BoolColumn(vec![Some(true), Some(false)])),
+                Column::Bool(BoolColumn(vec![Some(false), Some(true)])),
+            ],
+        );
+        // a > b: true>false passes, false>true fails → 1 failure
+        let results = validate(&ds, &rule("a").gt(col("b")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 1);
+    }
+
+    // ── col-pair: edge cases ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_col_pair_type_mismatch_all_fail() {
+        let ds = make_compare_dataset();
+        // id (Int) vs x (Float) → ComparableOps<&Column> returns all None → all fail
+        let results = validate(&ds, &rule("id").gt(col("x")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 5);
+    }
+
+    #[test]
+    fn test_col_pair_all_null_left_all_fail() {
+        let ds = Dataset::new(
+            vec!["a".to_string(), "b".to_string()],
+            vec![
+                Column::Float(FloatColumn(vec![None, None, None])),
+                Column::Float(FloatColumn(vec![Some(1.0), Some(2.0), Some(3.0)])),
+            ],
+        );
+        // all left values are None → all None → all fail
+        let results = validate(&ds, &rule("a").lt(col("b")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 3);
+    }
+
+    #[test]
+    fn test_col_pair_between_type_mismatch_all_fail() {
+        let ds = make_compare_dataset();
+        // id (Int) between x (Float) and y (Float) → type mismatch in between_cols → all None
+        let results = validate(&ds, &rule("id").between(col("x"), col("y")).build());
+        assert!(!results[0].passed);
+        assert_eq!(results[0].failed_count, 5);
+    }
+
+    #[test]
+    fn test_col_pair_missing_column_error() {
+        let ds = make_compare_dataset();
+        let results = validate(&ds, &rule("x").gt(col("nonexistent")).build());
+        assert!(!results[0].passed);
+        assert!(results[0].error.is_some());
+    }
+
+    #[test]
     fn test_validate_greater_than() {
         let dataset = make_all_types_dataset();
         // all ids are 1-5, so all > 0
-        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThan(0.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "id",
+                Constraint::GreaterThan(Operand::Literal(0.0)),
+            )],
+        );
         assert!(results[0].passed);
         assert_eq!(results[0].failed_count, 0);
 
         // not all ids > 3
-        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThan(3.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new(
+                "id",
+                Constraint::GreaterThan(Operand::Literal(3.0)),
+            )],
+        );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 3);
     }
@@ -421,13 +807,13 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThanOrEqual(1.0))],
+            &[Rule::new("id", Constraint::GreaterThanOrEqual(1.0.into()))],
         );
         assert!(results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThanOrEqual(3.0))],
+            &[Rule::new("id", Constraint::GreaterThanOrEqual(3.0.into()))],
         );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 2);
@@ -436,10 +822,16 @@ mod tests {
     #[test]
     fn test_validate_less_than() {
         let dataset = make_all_types_dataset();
-        let results = validate(&dataset, &[Rule::new("id", Constraint::LessThan(6.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::LessThan(6.0.into()))],
+        );
         assert!(results[0].passed);
 
-        let results = validate(&dataset, &[Rule::new("id", Constraint::LessThan(3.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::LessThan(3.0.into()))],
+        );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 3);
     }
@@ -449,13 +841,13 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::LessThanOrEqual(5.0))],
+            &[Rule::new("id", Constraint::LessThanOrEqual(5.0.into()))],
         );
         assert!(results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::LessThanOrEqual(3.0))],
+            &[Rule::new("id", Constraint::LessThanOrEqual(3.0.into()))],
         );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 2);
@@ -464,7 +856,10 @@ mod tests {
     #[test]
     fn test_validate_equal() {
         let dataset = make_all_types_dataset();
-        let results = validate(&dataset, &[Rule::new("score", Constraint::Equal(95.5))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new("score", Constraint::Equal(95.5.into()))],
+        );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 4);
     }
@@ -478,8 +873,8 @@ mod tests {
             &[Rule::new(
                 "score",
                 Constraint::Between {
-                    min: 70.0,
-                    max: 110.0,
+                    min: 70.0.into(),
+                    max: 110.0.into(),
                 },
             )],
         );
@@ -490,8 +885,8 @@ mod tests {
             &[Rule::new(
                 "score",
                 Constraint::Between {
-                    min: 90.0,
-                    max: 100.0,
+                    min: 90.0.into(),
+                    max: 100.0.into(),
                 },
             )],
         );
@@ -632,7 +1027,10 @@ mod tests {
     fn test_validate_with_nulls() {
         let dataset = make_with_nulls_dataset();
         // id column has nulls in rows 0, 2, 4
-        let results = validate(&dataset, &[Rule::new("id", Constraint::GreaterThan(0.0))]);
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::GreaterThan(0.0.into()))],
+        );
         assert!(!results[0].passed);
         // nulls count as failures
         assert!(results[0].failed_count > 0);
@@ -643,13 +1041,13 @@ mod tests {
         let dataset = make_all_types_dataset();
         let rules = vec![
             Rule::new("id", Constraint::NotNull),
-            Rule::new("id", Constraint::GreaterThan(0.0)),
+            Rule::new("id", Constraint::GreaterThan(0.0.into())),
             Rule::new("name", Constraint::NotNull),
             Rule::new(
                 "score",
                 Constraint::Between {
-                    min: 0.0,
-                    max: 100.0,
+                    min: 0.0.into(),
+                    max: 100.0.into(),
                 },
             ),
         ];
