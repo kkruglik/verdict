@@ -1,5 +1,8 @@
+use std::fmt::Display;
+
+use crate::dataset::ops::{ComparableOps, StringOps};
 use crate::{
-    dataset::{Column, Dataset, InSetValues},
+    dataset::{Column, Dataset, FloatColumn, InSetValues},
     errors::ValidationError,
 };
 
@@ -10,18 +13,140 @@ pub struct Rule {
 }
 
 #[derive(Debug, Clone)]
+pub enum Operand {
+    Column(String),
+    Literal(f64),
+}
+
+impl Display for Operand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operand::Literal(val) => write!(f, "{}", val),
+            Operand::Column(name) => write!(f, "col({})", name),
+        }
+    }
+}
+
+impl From<f64> for Operand {
+    fn from(value: f64) -> Self {
+        Operand::Literal(value)
+    }
+}
+
+impl From<i64> for Operand {
+    fn from(value: i64) -> Self {
+        Operand::Literal(value as f64)
+    }
+}
+
+pub fn col(name: &str) -> Operand {
+    Operand::Column(name.to_string())
+}
+
+pub struct RuleBuilder {
+    pub column: String,
+    pub constraint: Vec<Constraint>,
+}
+
+impl RuleBuilder {
+    pub fn not_null(mut self) -> Self {
+        self.constraint.push(Constraint::NotNull);
+        self
+    }
+
+    pub fn unique(mut self) -> Self {
+        self.constraint.push(Constraint::Unique);
+        self
+    }
+
+    pub fn gt(mut self, compare: impl Into<Operand>) -> Self {
+        self.constraint.push(Constraint::GreaterThan(compare.into()));
+        self
+    }
+
+    pub fn ge(mut self, compare: impl Into<Operand>) -> Self {
+        self.constraint.push(Constraint::GreaterThanOrEqual(compare.into()));
+        self
+    }
+
+    pub fn lt(mut self, compare: impl Into<Operand>) -> Self {
+        self.constraint.push(Constraint::LessThan(compare.into()));
+        self
+    }
+
+    pub fn le(mut self, compare: impl Into<Operand>) -> Self {
+        self.constraint.push(Constraint::LessThanOrEqual(compare.into()));
+        self
+    }
+
+    pub fn equal(mut self, compare: impl Into<Operand>) -> Self {
+        self.constraint.push(Constraint::Equal(compare.into()));
+        self
+    }
+
+    pub fn between(mut self, min: impl Into<Operand>, max: impl Into<Operand>) -> Self {
+        self.constraint.push(Constraint::Between { min: min.into(), max: max.into() });
+        self
+    }
+
+    pub fn in_set(mut self, values: InSetValues) -> Self {
+        self.constraint.push(Constraint::InSet(values));
+        self
+    }
+
+    pub fn matches_regex(mut self, pattern: &str) -> Self {
+        self.constraint.push(Constraint::MatchesRegex(pattern.to_string()));
+        self
+    }
+
+    pub fn contains(mut self, pattern: &str) -> Self {
+        self.constraint.push(Constraint::Contains(pattern.to_string()));
+        self
+    }
+
+    pub fn starts_with(mut self, pattern: &str) -> Self {
+        self.constraint.push(Constraint::StartsWith(pattern.to_string()));
+        self
+    }
+
+    pub fn ends_with(mut self, pattern: &str) -> Self {
+        self.constraint.push(Constraint::EndsWith(pattern.to_string()));
+        self
+    }
+
+    pub fn length_between(mut self, min: usize, max: usize) -> Self {
+        self.constraint.push(Constraint::LengthBetween { min, max });
+        self
+    }
+
+    pub fn build(self) -> Vec<Rule> {
+        self.constraint
+            .into_iter()
+            .map(|c| Rule { column: self.column.clone(), constraint: c })
+            .collect()
+    }
+}
+
+pub fn rule(col_name: &str) -> RuleBuilder {
+    RuleBuilder {
+        column: col_name.to_string(),
+        constraint: vec![],
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Constraint {
     // Null checks
     NotNull,
     Unique,
 
     // Numeric comparisons
-    GreaterThan(f64),
-    GreaterThanOrEqual(f64),
-    LessThan(f64),
-    LessThanOrEqual(f64),
-    Equal(f64),
-    Between { min: f64, max: f64 },
+    GreaterThan(Operand),
+    GreaterThanOrEqual(Operand),
+    LessThan(Operand),
+    LessThanOrEqual(Operand),
+    Equal(Operand),
+    Between { min: Operand, max: Operand },
 
     // String checks
     InSet(InSetValues),
@@ -88,27 +213,74 @@ impl std::fmt::Display for ValidationResult {
     }
 }
 
-fn validate_col_with_rule(
-    column: &Column,
-    rule: &Rule,
-) -> Result<ValidationResult, ValidationError> {
-    match &rule.constraint {
-        Constraint::NotNull => Ok(check_not_null(column, rule)),
-        Constraint::GreaterThan(v) => Ok(check_greater_than(column, *v, rule)),
-        Constraint::GreaterThanOrEqual(v) => Ok(check_greater_than_or_equal(column, *v, rule)),
-        Constraint::LessThan(v) => Ok(check_less_than(column, *v, rule)),
-        Constraint::LessThanOrEqual(v) => Ok(check_less_than_or_equal(column, *v, rule)),
-        Constraint::Equal(v) => Ok(check_equal(column, *v, rule)),
-        Constraint::Between { min, max } => Ok(check_between(column, *min, *max, rule)),
-        Constraint::MatchesRegex(p) => Ok(check_matches_regex(column, p, rule)),
-        Constraint::Contains(p) => Ok(check_contains(column, p, rule)),
-        Constraint::StartsWith(p) => Ok(check_starts_with(column, p, rule)),
-        Constraint::EndsWith(p) => Ok(check_ends_with(column, p, rule)),
-        Constraint::LengthBetween { min, max } => {
-            Ok(check_length_between(column, *min, *max, rule))
+fn validate_with_rule(data: &Dataset, rule: &Rule) -> Result<ValidationResult, ValidationError> {
+    if let Some(column) = data.get_column_by_name(&rule.column) {
+        match &rule.constraint {
+            Constraint::NotNull => Ok(check_not_null(column, rule)),
+            Constraint::GreaterThan(operand) => match operand {
+                Operand::Literal(v) => Ok(check_greater_than_val(column, *v, rule)),
+                Operand::Column(name) => {
+                    if let Some(other) = data.get_column_by_name(name) {
+                        Ok(check_greater_than_col(column, other, name, rule))
+                    } else {
+                        Err(ValidationError::ColumnNotFound {
+                            name: name.to_string(),
+                        })
+                    }
+                }
+            },
+            Constraint::GreaterThanOrEqual(operand) => match operand {
+                Operand::Literal(v) => Ok(check_greater_than_or_equal_val(column, *v, rule)),
+                Operand::Column(name) => resolve_col(data, name)
+                    .map(|other| check_greater_than_or_equal_col(column, other, name, rule)),
+            },
+            Constraint::LessThan(operand) => match operand {
+                Operand::Literal(v) => Ok(check_less_than_val(column, *v, rule)),
+                Operand::Column(name) => resolve_col(data, name)
+                    .map(|other| check_less_than_col(column, other, name, rule)),
+            },
+            Constraint::LessThanOrEqual(operand) => match operand {
+                Operand::Literal(v) => Ok(check_less_than_or_equal_val(column, *v, rule)),
+                Operand::Column(name) => resolve_col(data, name)
+                    .map(|other| check_less_than_or_equal_col(column, other, name, rule)),
+            },
+            Constraint::Equal(operand) => match operand {
+                Operand::Literal(v) => Ok(check_equal_val(column, *v, rule)),
+                Operand::Column(name) => {
+                    resolve_col(data, name).map(|other| check_equal_col(column, other, name, rule))
+                }
+            },
+            Constraint::Between { min, max } => match (min, max) {
+                (Operand::Literal(lo), Operand::Literal(hi)) => {
+                    Ok(check_between(column, *lo, *hi, rule))
+                }
+                _ => {
+                    let len = column.len();
+                    let lo: Column = match min {
+                        Operand::Literal(v) => Column::Float(FloatColumn(vec![Some(*v); len])),
+                        Operand::Column(name) => resolve_col(data, name)?.clone(),
+                    };
+                    let hi: Column = match max {
+                        Operand::Literal(v) => Column::Float(FloatColumn(vec![Some(*v); len])),
+                        Operand::Column(name) => resolve_col(data, name)?.clone(),
+                    };
+                    Ok(check_between_cols(column, &lo, &hi, rule))
+                }
+            },
+            Constraint::MatchesRegex(p) => Ok(check_matches_regex(column, p, rule)),
+            Constraint::Contains(p) => Ok(check_contains(column, p, rule)),
+            Constraint::StartsWith(p) => Ok(check_starts_with(column, p, rule)),
+            Constraint::EndsWith(p) => Ok(check_ends_with(column, p, rule)),
+            Constraint::LengthBetween { min, max } => {
+                Ok(check_length_between(column, *min, *max, rule))
+            }
+            Constraint::Unique => Ok(check_unique(column, rule)),
+            Constraint::InSet(other) => Ok(check_is_in_set(column, other, rule)),
         }
-        Constraint::Unique => Ok(check_unique(column, rule)),
-        Constraint::InSet(other) => Ok(check_is_in_set(column, other, rule)),
+    } else {
+        Err(ValidationError::ColumnNotFound {
+            name: rule.column.to_string(),
+        })
     }
 }
 
@@ -116,17 +288,8 @@ pub fn validate(data: &Dataset, rules: &[Rule]) -> Vec<ValidationResult> {
     rules
         .iter()
         .map(|rule| {
-            let col = data.get_column_by_name(&rule.column);
-            match col {
-                Some(col) => validate_col_with_rule(col, rule)
-                    .unwrap_or_else(|e| ValidationResult::failed(rule, 0, &e.to_string())),
-                None => {
-                    let error = ValidationError::ColumnNotFound {
-                        name: rule.column.clone(),
-                    };
-                    ValidationResult::failed(rule, 0, &error.to_string())
-                }
-            }
+            validate_with_rule(data, rule)
+                .unwrap_or_else(|e| ValidationResult::failed(rule, 0, &e.to_string()))
         })
         .collect()
 }
@@ -140,7 +303,7 @@ fn check_not_null(col: &Column, rule: &Rule) -> ValidationResult {
     }
 }
 
-fn check_greater_than(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
+fn check_greater_than_val(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
     let failed = col
         .gt(value)
         .iter()
@@ -153,9 +316,14 @@ fn check_greater_than(col: &Column, value: f64, rule: &Rule) -> ValidationResult
     }
 }
 
-fn check_greater_than_or_equal(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
+fn check_greater_than_col(
+    col: &Column,
+    other: &Column,
+    other_name: &str,
+    rule: &Rule,
+) -> ValidationResult {
     let failed = col
-        .ge(value)
+        .gt(other)
         .iter()
         .filter(|v| !matches!(v, Some(true)))
         .count();
@@ -165,12 +333,54 @@ fn check_greater_than_or_equal(col: &Column, value: f64, rule: &Rule) -> Validat
         ValidationResult::failed(
             rule,
             failed,
-            &format!("values not greater than or equal to {}", value),
+            &format!("values not greater than other column: {}", other_name),
         )
     }
 }
 
-fn check_less_than(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
+fn resolve_col<'a>(data: &'a Dataset, name: &str) -> Result<&'a Column, ValidationError> {
+    data.get_column_by_name(name)
+        .ok_or(ValidationError::ColumnNotFound {
+            name: name.to_string(),
+        })
+}
+
+fn check_greater_than_or_equal_val(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
+    let failed = col
+        .ge(value)
+        .iter()
+        .filter(|v| !matches!(v, Some(true)))
+        .count();
+    if failed == 0 {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(rule, failed, &format!("values not >= {}", value))
+    }
+}
+
+fn check_greater_than_or_equal_col(
+    col: &Column,
+    other: &Column,
+    other_name: &str,
+    rule: &Rule,
+) -> ValidationResult {
+    let failed = col
+        .ge(other)
+        .iter()
+        .filter(|v| !matches!(v, Some(true)))
+        .count();
+    if failed == 0 {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed,
+            &format!("values not >= column: {}", other_name),
+        )
+    }
+}
+
+fn check_less_than_val(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
     let failed = col
         .lt(value)
         .iter()
@@ -183,7 +393,29 @@ fn check_less_than(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
     }
 }
 
-fn check_less_than_or_equal(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
+fn check_less_than_col(
+    col: &Column,
+    other: &Column,
+    other_name: &str,
+    rule: &Rule,
+) -> ValidationResult {
+    let failed = col
+        .lt(other)
+        .iter()
+        .filter(|v| !matches!(v, Some(true)))
+        .count();
+    if failed == 0 {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed,
+            &format!("values not < column: {}", other_name),
+        )
+    }
+}
+
+fn check_less_than_or_equal_val(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
     let failed = col
         .le(value)
         .iter()
@@ -200,7 +432,29 @@ fn check_less_than_or_equal(col: &Column, value: f64, rule: &Rule) -> Validation
     }
 }
 
-fn check_equal(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
+fn check_less_than_or_equal_col(
+    col: &Column,
+    other: &Column,
+    other_name: &str,
+    rule: &Rule,
+) -> ValidationResult {
+    let failed = col
+        .le(other)
+        .iter()
+        .filter(|v| !matches!(v, Some(true)))
+        .count();
+    if failed == 0 {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed,
+            &format!("values not <= column: {}", other_name),
+        )
+    }
+}
+
+fn check_equal_val(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
     let failed = col
         .equal(value)
         .iter()
@@ -210,6 +464,28 @@ fn check_equal(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(rule, failed, &format!("values not equal to {}", value))
+    }
+}
+
+fn check_equal_col(
+    col: &Column,
+    other: &Column,
+    other_name: &str,
+    rule: &Rule,
+) -> ValidationResult {
+    let failed = col
+        .equal(other)
+        .iter()
+        .filter(|v| !matches!(v, Some(true)))
+        .count();
+    if failed == 0 {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed,
+            &format!("values not equal to column: {}", other_name),
+        )
     }
 }
 
@@ -227,6 +503,19 @@ fn check_between(col: &Column, min: f64, max: f64, rule: &Rule) -> ValidationRes
             failed,
             &format!("values not between {} and {}", min, max),
         )
+    }
+}
+
+fn check_between_cols(col: &Column, lo: &Column, hi: &Column, rule: &Rule) -> ValidationResult {
+    let failed = col
+        .between(lo, hi)
+        .iter()
+        .filter(|v| !matches!(v, Some(true)))
+        .count();
+    if failed == 0 {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(rule, failed, "values not between column bounds")
     }
 }
 
@@ -296,7 +585,7 @@ fn check_ends_with(col: &Column, pattern: &str, rule: &Rule) -> ValidationResult
 
 fn check_length_between(col: &Column, min: usize, max: usize, rule: &Rule) -> ValidationResult {
     let failed = col
-        .str_length()
+        .length()
         .iter()
         .map(|opt| opt.is_some_and(|v| (v >= min) && (v <= max)))
         .filter(|v| !v)
