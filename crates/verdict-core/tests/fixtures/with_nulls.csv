@@ -2,5 +2,5 @@ id,name,score,active
 ,,,
 2,bob,,false
 ,charlie,3.3,
-4,,,no
+4,,,false
 ,,5.5,

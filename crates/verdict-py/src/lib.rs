@@ -4,8 +4,9 @@ use verdict_core::{
     dataset::{
         BoolColumn, Column, DataType, Dataset, Field, FloatColumn, InSetValues, IntColumn, Schema,
         StrColumn,
+        ops::{ComparableOps, StringOps},
     },
-    rules::{Constraint, Rule, ValidationResult, validate},
+    rules::{Constraint, Operand, Rule, RuleBuilder, ValidationResult, validate},
 };
 
 fn format_values<T>(values: &[Option<T>], fmt: impl Fn(&T) -> String) -> String {
@@ -23,6 +24,180 @@ fn format_values<T>(values: &[Option<T>], fmt: impl Fn(&T) -> String) -> String 
         format!("{}, ... ({} total)", items.join(", "), len)
     } else {
         items.join(", ")
+    }
+}
+
+#[pyclass(name = "RuleBuilder")]
+struct PyRuleBuilder {
+    inner: RuleBuilder,
+}
+
+#[pymethods]
+impl PyRuleBuilder {
+    #[new]
+    fn new(column: String) -> Self {
+        PyRuleBuilder {
+            inner: RuleBuilder {
+                column,
+                constraint: vec![],
+            },
+        }
+    }
+
+    fn not_null(slf: Bound<'_, Self>) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.not_null();
+        slf
+    }
+
+    fn unique(slf: Bound<'_, Self>) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.unique();
+        slf
+    }
+
+    fn gt<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.gt(op);
+        Ok(slf)
+    }
+
+    fn ge<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.ge(op);
+        Ok(slf)
+    }
+
+    fn lt<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.lt(op);
+        Ok(slf)
+    }
+
+    fn le<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.le(op);
+        Ok(slf)
+    }
+
+    fn equal<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.equal(op);
+        Ok(slf)
+    }
+
+    fn between<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        min: Py<PyAny>,
+        max: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let min_op = extract_operand(py, &min)?;
+        let max_op = extract_operand(py, &max)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.between(min_op, max_op);
+        Ok(slf)
+    }
+
+    fn is_in<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        values: Vec<Py<PyAny>>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let set = if let Ok(v) = values
+            .iter()
+            .map(|v| v.extract::<i64>(py))
+            .collect::<PyResult<Vec<_>>>()
+        {
+            InSetValues::IntSet(v)
+        } else if let Ok(v) = values
+            .iter()
+            .map(|v| v.extract::<f64>(py))
+            .collect::<PyResult<Vec<_>>>()
+        {
+            InSetValues::FloatSet(v)
+        } else if let Ok(v) = values
+            .iter()
+            .map(|v| v.extract::<String>(py))
+            .collect::<PyResult<Vec<_>>>()
+        {
+            InSetValues::StrSet(v)
+        } else {
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "in_set values must be all integers, floats, or strings",
+            ));
+        };
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.in_set(set);
+        Ok(slf)
+    }
+
+    fn matches_regex(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.matches_regex(&pattern);
+        slf
+    }
+
+    fn contains(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.contains(&pattern);
+        slf
+    }
+
+    fn starts_with(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.starts_with(&pattern);
+        slf
+    }
+
+    fn ends_with(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.ends_with(&pattern);
+        slf
+    }
+
+    fn length_between(slf: Bound<'_, Self>, min: usize, max: usize) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.length_between(min, max);
+        slf
+    }
+
+    fn build(slf: PyRef<'_, Self>) -> Vec<PyRule> {
+        slf.inner
+            .constraint
+            .iter()
+            .map(|c| PyRule {
+                inner: Rule {
+                    column: slf.inner.column.clone(),
+                    constraint: c.clone(),
+                },
+            })
+            .collect()
     }
 }
 
@@ -139,7 +314,7 @@ impl PyColumn {
 
     fn equal(&self, py: Python<'_>, compare: Py<PyAny>) -> Vec<Option<bool>> {
         if let Ok(v) = compare.extract::<String>(py) {
-            self.inner.equal_str(&v)
+            self.inner.equal(v.as_str())
         } else if let Ok(v) = compare.extract::<f64>(py) {
             self.inner.equal(v)
         } else {
@@ -168,7 +343,7 @@ impl PyColumn {
     }
 
     fn str_length(&self) -> Vec<Option<usize>> {
-        self.inner.str_length()
+        self.inner.length()
     }
 
     fn is_in(&self, py: Python<'_>, values: Vec<Py<PyAny>>) -> Vec<Option<bool>> {
@@ -343,42 +518,45 @@ impl PyConstraint {
     #[staticmethod]
     fn gt(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::GreaterThan(compare),
+            inner: Constraint::GreaterThan(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn ge(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::GreaterThanOrEqual(compare),
+            inner: Constraint::GreaterThanOrEqual(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn lt(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::LessThan(compare),
+            inner: Constraint::LessThan(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn le(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::LessThanOrEqual(compare),
+            inner: Constraint::LessThanOrEqual(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn eq(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::Equal(compare),
+            inner: Constraint::Equal(Operand::Literal(compare)),
         }
     }
 
     #[staticmethod]
     fn between(min: f64, max: f64) -> Self {
         PyConstraint {
-            inner: Constraint::Between { min, max },
+            inner: Constraint::Between {
+                min: min.into(),
+                max: max.into(),
+            },
         }
     }
 
@@ -521,12 +699,25 @@ fn py_validate(
     Ok(results)
 }
 
+fn extract_operand(py: Python<'_>, operand: &Py<PyAny>) -> PyResult<Operand> {
+    if let Ok(s) = operand.extract::<String>(py) {
+        Ok(Operand::Column(s))
+    } else if let Ok(f) = operand.extract::<f64>(py) {
+        Ok(Operand::Literal(f))
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or column name string.",
+        ))
+    }
+}
+
 #[pymodule]
 fn verdict_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyDataset>()?;
     m.add_class::<PyColumn>()?;
     m.add_class::<PyConstraint>()?;
     m.add_class::<PyRule>()?;
+    m.add_class::<PyRuleBuilder>()?;
     m.add_class::<PyValidationResult>()?;
     m.add_class::<PySchema>()?;
     m.add_class::<PyDataType>()?;
