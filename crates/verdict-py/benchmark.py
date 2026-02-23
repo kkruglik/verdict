@@ -3,8 +3,7 @@ from verdict_py import (
     Dataset,
     Schema,
     DataType,
-    Constraint,
-    Rule,
+    RuleBuilder,
     py_validate,
 )
 
@@ -24,18 +23,14 @@ SCHEMA = Schema(
 )
 
 RULES = [
-    Rule("user_id", Constraint.not_null()),
-    Rule("user_id", Constraint.unique()),
-    Rule("score", Constraint.not_null()),
-    Rule("score", Constraint.between(0.0, 100.0)),
-    Rule("age", Constraint.not_null()),
-    Rule("age", Constraint.between(18.0, 90.0)),
-    Rule("is_active", Constraint.not_null()),
-    Rule("country", Constraint.not_null()),
-    Rule("country", Constraint.is_in(["US", "UK", "DE", "FR", "JP"])),
-    Rule("age_with_nulls", Constraint.between(18.0, 90.0)),
-    Rule("score_with_nulls", Constraint.between(0.0, 100.0)),
-    Rule("country_with_nulls", Constraint.is_in(["US", "UK", "DE", "FR", "JP"])),
+    *RuleBuilder("user_id").not_null().unique().build(),
+    *RuleBuilder("score").not_null().between(0.0, 100.0).build(),
+    *RuleBuilder("age").not_null().between(18.0, 90.0).build(),
+    *RuleBuilder("is_active").not_null().build(),
+    *RuleBuilder("country").not_null().is_in(["US", "UK", "DE", "FR", "JP"]).build(),
+    *RuleBuilder("age_with_nulls").between(18.0, 90.0).build(),
+    *RuleBuilder("score_with_nulls").between(0.0, 100.0).build(),
+    *RuleBuilder("country_with_nulls").is_in(["US", "UK", "DE", "FR", "JP"]).build(),
 ]
 
 RUNS = 10

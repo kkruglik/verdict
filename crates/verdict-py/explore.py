@@ -1,4 +1,4 @@
-from verdict_py import Dataset, Column, Constraint, Rule, py_validate
+from verdict_py import Dataset, Column, RuleBuilder, py_validate
 
 dataset = Dataset(
     headers=["id", "name", "share", "age"],
@@ -88,19 +88,17 @@ def explore_string_ops():
 def explore_validation():
     section("Validation")
     rules = [
-        Rule("id", Constraint.not_null()),
-        Rule("id", Constraint.unique()),
-        Rule("age", Constraint.not_null()),
-        Rule("age", Constraint.gt(0.0)),
-        Rule("age", Constraint.between(18.0, 99.0)),
-        Rule("name", Constraint.not_null()),
-        Rule("name", Constraint.contains("a")),
-        Rule("share", Constraint.gt(0.0)),
-        Rule("share", Constraint.between(1.0, 50.0)),
-        Rule("name", Constraint.is_in(["ann", "clark", "lana", "lex"])),
-        Rule("name", Constraint.starts_with("a")),
-        Rule("name", Constraint.matches_regex("^[a-z]+")),
-        Rule("name", Constraint.length_between(2, 10)),
+        *RuleBuilder("id").not_null().unique().build(),
+        *RuleBuilder("age").not_null().gt(0.0).between(18.0, 99.0).build(),
+        *RuleBuilder("name")
+            .not_null()
+            .contains("a")
+            .is_in(["ann", "clark", "lana", "lex"])
+            .starts_with("a")
+            .matches_regex("^[a-z]+")
+            .length_between(2, 10)
+            .build(),
+        *RuleBuilder("share").gt(0.0).between(1.0, 50.0).build(),
     ]
     results = py_validate(dataset, rules)
     for r in results:

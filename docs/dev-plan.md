@@ -42,7 +42,7 @@
 
 ### Known Issues
 
-- [ ] `sum()` on all-null column returns `0.0` instead of `None` — investigate in `verdict-core` numeric ops
+- [x] `sum()` on all-null column returns `0.0` instead of `None` — fixed in `verdict-core` numeric ops
 
 ### 2.2 Rules System
 
@@ -133,6 +133,33 @@ where T: Copy + std::iter::Sum + PartialOrd
 ```
 
 Consider this when trait impl duplication becomes painful (4+ types).
+
+## Optional: Split ComparableOps into EqualityOps + OrderOps
+
+Currently `ComparableOps<T>` is a single trait with 6 methods: `gt`, `ge`, `lt`, `le`, `equal`, `between`. Every type that implements it must implement all 6.
+
+**The problem:** `BoolColumn` has a legitimate use for `equal` — checking that two flag columns match row-by-row (`is_verified == is_active`). But `gt`, `ge`, `lt`, `le`, `between` on booleans are semantically meaningless in a validation context. Nobody writes a rule saying "column A must be greater than column B" for booleans. Right now we implement all 6 anyway because the trait requires it, which ships nonsensical operations as part of the public API.
+
+**Proposed split:**
+```rust
+pub trait EqualityOps<T> {
+    fn equal(&self, compare: T) -> Vec<Option<bool>>;
+}
+
+pub trait OrderOps<T>: EqualityOps<T> {
+    fn gt(&self, compare: T) -> Vec<Option<bool>>;
+    fn ge(&self, compare: T) -> Vec<Option<bool>>;
+    fn lt(&self, compare: T) -> Vec<Option<bool>>;
+    fn le(&self, compare: T) -> Vec<Option<bool>>;
+    fn between(&self, lower: T, upper: T) -> Vec<Option<bool>>;
+}
+```
+
+- `IntColumn`, `FloatColumn`, `StrColumn` implement both
+- `BoolColumn` implements only `EqualityOps`
+- `Constraint::Equal` requires `EqualityOps`, the rest require `OrderOps`
+
+Do this when the bool `gt`/`le`/`between` dead weight becomes confusing — not before.
 
 ## ~~Optional: Generic ComparableOps~~ (Done)
 
