@@ -88,9 +88,27 @@ mod tests {
                 "high".to_string(),
             ],
             vec![
-                Column::Float(FloatColumn(vec![Some(1.0), None, Some(3.0), Some(4.0), None])),
-                Column::Float(FloatColumn(vec![Some(2.0), Some(5.0), None, Some(5.0), None])),
-                Column::Float(FloatColumn(vec![Some(1.0), None, Some(3.0), Some(4.0), None])),
+                Column::Float(FloatColumn(vec![
+                    Some(1.0),
+                    None,
+                    Some(3.0),
+                    Some(4.0),
+                    None,
+                ])),
+                Column::Float(FloatColumn(vec![
+                    Some(2.0),
+                    Some(5.0),
+                    None,
+                    Some(5.0),
+                    None,
+                ])),
+                Column::Float(FloatColumn(vec![
+                    Some(1.0),
+                    None,
+                    Some(3.0),
+                    Some(4.0),
+                    None,
+                ])),
                 Column::Float(FloatColumn(vec![
                     Some(100.0),
                     Some(100.0),
@@ -661,8 +679,16 @@ mod tests {
         let ds = Dataset::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StrColumn(vec![Some("foo".into()), Some("bar".into()), None])),
-                Column::Str(StrColumn(vec![Some("foo".into()), Some("bar".into()), None])),
+                Column::Str(StrColumn(vec![
+                    Some("foo".into()),
+                    Some("bar".into()),
+                    None,
+                ])),
+                Column::Str(StrColumn(vec![
+                    Some("foo".into()),
+                    Some("bar".into()),
+                    None,
+                ])),
             ],
         );
         // same values: rows 0,1 pass; row 2 both null → None → failure
