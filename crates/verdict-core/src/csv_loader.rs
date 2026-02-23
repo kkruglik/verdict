@@ -1,8 +1,7 @@
 use crate::dataset::{
     BoolColumn, Column, DataType, Dataset, FloatColumn, IntColumn, Schema, StrColumn,
 };
-use csv::Reader;
-
+use csv::ReaderBuilder;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -26,109 +25,114 @@ pub trait DatasetCsvExt {
     fn from_csv(path: &str, schema: &Schema) -> Result<Dataset, CsvLoadingError>;
 }
 
+enum ColBuilder {
+    Int(Vec<Option<i64>>),
+    Float(Vec<Option<f64>>),
+    Str(Vec<Option<String>>),
+    Bool(Vec<Option<bool>>),
+}
+
 impl DatasetCsvExt for Dataset {
     fn from_csv(path: &str, schema: &Schema) -> Result<Dataset, CsvLoadingError> {
-        let mut reader = Reader::from_path(path)?;
+        let mut reader = ReaderBuilder::new()
+            .buffer_capacity(512 * 1024)
+            .from_path(path)?;
 
         let headers: Vec<String> = reader.headers()?.iter().map(|s| s.to_string()).collect();
-        let num_columns = headers.len();
-        let mut raw_columns: Vec<Vec<Option<String>>> = vec![vec![]; num_columns];
 
-        for record in reader.records() {
+        let field_names: Vec<String> = schema.fields.iter().map(|f| f.name.clone()).collect();
+        let field_expected: Vec<&'static str> = schema
+            .fields
+            .iter()
+            .map(|f| match f.dtype {
+                DataType::Int => "Int",
+                DataType::Float => "Float",
+                DataType::Str => "Str",
+                DataType::Bool => "Bool",
+            })
+            .collect();
+
+        let mut builders: Vec<ColBuilder> = schema
+            .fields
+            .iter()
+            .map(|f| match f.dtype {
+                DataType::Int => ColBuilder::Int(Vec::new()),
+                DataType::Float => ColBuilder::Float(Vec::new()),
+                DataType::Str => ColBuilder::Str(Vec::new()),
+                DataType::Bool => ColBuilder::Bool(Vec::new()),
+            })
+            .collect();
+
+        for (row_idx, record) in reader.records().enumerate() {
             let record = record?;
-            for (i, field) in record.iter().enumerate() {
-                let value = if field.is_empty() {
-                    None
-                } else {
-                    Some(field.to_string())
-                };
-                raw_columns[i].push(value);
+            for (col_idx, (builder, s)) in
+                builders.iter_mut().zip(record.iter()).enumerate()
+            {
+                if s.is_empty() {
+                    match builder {
+                        ColBuilder::Int(v) => v.push(None),
+                        ColBuilder::Float(v) => v.push(None),
+                        ColBuilder::Str(v) => v.push(None),
+                        ColBuilder::Bool(v) => v.push(None),
+                    }
+                    continue;
+                }
+                match builder {
+                    ColBuilder::Int(v) => {
+                        v.push(Some(s.parse::<i64>().map_err(|_| {
+                            CsvLoadingError::ParseError {
+                                column: field_names[col_idx].clone(),
+                                row: row_idx,
+                                value: s.to_string(),
+                                expected: field_expected[col_idx].to_string(),
+                            }
+                        })?));
+                    }
+                    ColBuilder::Float(v) => {
+                        v.push(Some(s.parse::<f64>().map_err(|_| {
+                            CsvLoadingError::ParseError {
+                                column: field_names[col_idx].clone(),
+                                row: row_idx,
+                                value: s.to_string(),
+                                expected: field_expected[col_idx].to_string(),
+                            }
+                        })?));
+                    }
+                    ColBuilder::Str(v) => {
+                        v.push(Some(s.to_string()));
+                    }
+                    ColBuilder::Bool(v) => {
+                        v.push(Some(parse_bool(s).ok_or_else(|| {
+                            CsvLoadingError::ParseError {
+                                column: field_names[col_idx].clone(),
+                                row: row_idx,
+                                value: s.to_string(),
+                                expected: field_expected[col_idx].to_string(),
+                            }
+                        })?));
+                    }
+                }
             }
         }
 
-        let mut columns: Vec<Column> = Vec::with_capacity(schema.fields.len());
-
-        for (col_idx, field) in schema.fields.iter().enumerate() {
-            let raw_col = &raw_columns[col_idx];
-
-            let column = match field.dtype {
-                DataType::Int => {
-                    let parsed: Result<Vec<Option<i64>>, _> = raw_col
-                        .iter()
-                        .enumerate()
-                        .map(|(row_idx, val)| {
-                            val.as_ref()
-                                .map(|s| {
-                                    s.parse::<i64>().map_err(|_| CsvLoadingError::ParseError {
-                                        column: field.name.clone(),
-                                        row: row_idx,
-                                        value: s.clone(),
-                                        expected: "Int".to_string(),
-                                    })
-                                })
-                                .transpose()
-                        })
-                        .collect();
-                    Column::Int(IntColumn(parsed?))
-                }
-
-                DataType::Float => {
-                    let parsed: Result<Vec<Option<f64>>, _> = raw_col
-                        .iter()
-                        .enumerate()
-                        .map(|(row_idx, val)| {
-                            val.as_ref()
-                                .map(|s| {
-                                    s.parse::<f64>().map_err(|_| CsvLoadingError::ParseError {
-                                        column: field.name.clone(),
-                                        row: row_idx,
-                                        value: s.clone(),
-                                        expected: "Float".to_string(),
-                                    })
-                                })
-                                .transpose()
-                        })
-                        .collect();
-                    Column::Float(FloatColumn(parsed?))
-                }
-
-                DataType::Str => {
-                    let parsed: Vec<Option<String>> = raw_col.clone();
-                    Column::Str(StrColumn(parsed))
-                }
-
-                DataType::Bool => {
-                    let parsed: Result<Vec<Option<bool>>, _> = raw_col
-                        .iter()
-                        .enumerate()
-                        .map(|(row_idx, val)| {
-                            val.as_ref()
-                                .map(|s| {
-                                    parse_bool(s).ok_or_else(|| CsvLoadingError::ParseError {
-                                        column: field.name.clone(),
-                                        row: row_idx,
-                                        value: s.clone(),
-                                        expected: "Bool".to_string(),
-                                    })
-                                })
-                                .transpose()
-                        })
-                        .collect();
-                    Column::Bool(BoolColumn(parsed?))
-                }
-            };
-
-            columns.push(column);
-        }
+        let columns = builders
+            .into_iter()
+            .map(|b| match b {
+                ColBuilder::Int(v) => Column::Int(IntColumn(v)),
+                ColBuilder::Float(v) => Column::Float(FloatColumn(v)),
+                ColBuilder::Str(v) => Column::Str(StrColumn(v)),
+                ColBuilder::Bool(v) => Column::Bool(BoolColumn(v)),
+            })
+            .collect();
 
         Ok(Dataset { headers, columns })
     }
 }
 
 fn parse_bool(s: &str) -> Option<bool> {
-    match s.to_lowercase().as_str() {
-        "true" | "1" | "yes" => Some(true),
-        "false" | "0" | "no" => Some(false),
+    match s {
+        "true" | "True" | "TRUE" | "1" => Some(true),
+        "false" | "False" | "FALSE" | "0" => Some(false),
         _ => None,
     }
 }
