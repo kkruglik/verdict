@@ -65,9 +65,7 @@ impl DatasetCsvExt for Dataset {
 
         for (row_idx, record) in reader.records().enumerate() {
             let record = record?;
-            for (col_idx, (builder, s)) in
-                builders.iter_mut().zip(record.iter()).enumerate()
-            {
+            for (col_idx, (builder, s)) in builders.iter_mut().zip(record.iter()).enumerate() {
                 if s.is_empty() {
                     match builder {
                         ColBuilder::Int(v) => v.push(None),
