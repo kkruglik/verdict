@@ -43,6 +43,7 @@ pub fn col(name: &str) -> Operand {
     Operand::Column(name.to_string())
 }
 
+#[derive(Default)]
 pub struct RuleBuilder {
     pub column: String,
     pub constraint: Vec<Constraint>,
@@ -60,12 +61,14 @@ impl RuleBuilder {
     }
 
     pub fn gt(mut self, compare: impl Into<Operand>) -> Self {
-        self.constraint.push(Constraint::GreaterThan(compare.into()));
+        self.constraint
+            .push(Constraint::GreaterThan(compare.into()));
         self
     }
 
     pub fn ge(mut self, compare: impl Into<Operand>) -> Self {
-        self.constraint.push(Constraint::GreaterThanOrEqual(compare.into()));
+        self.constraint
+            .push(Constraint::GreaterThanOrEqual(compare.into()));
         self
     }
 
@@ -75,7 +78,8 @@ impl RuleBuilder {
     }
 
     pub fn le(mut self, compare: impl Into<Operand>) -> Self {
-        self.constraint.push(Constraint::LessThanOrEqual(compare.into()));
+        self.constraint
+            .push(Constraint::LessThanOrEqual(compare.into()));
         self
     }
 
@@ -85,7 +89,10 @@ impl RuleBuilder {
     }
 
     pub fn between(mut self, min: impl Into<Operand>, max: impl Into<Operand>) -> Self {
-        self.constraint.push(Constraint::Between { min: min.into(), max: max.into() });
+        self.constraint.push(Constraint::Between {
+            min: min.into(),
+            max: max.into(),
+        });
         self
     }
 
@@ -95,22 +102,26 @@ impl RuleBuilder {
     }
 
     pub fn matches_regex(mut self, pattern: &str) -> Self {
-        self.constraint.push(Constraint::MatchesRegex(pattern.to_string()));
+        self.constraint
+            .push(Constraint::MatchesRegex(pattern.to_string()));
         self
     }
 
     pub fn contains(mut self, pattern: &str) -> Self {
-        self.constraint.push(Constraint::Contains(pattern.to_string()));
+        self.constraint
+            .push(Constraint::Contains(pattern.to_string()));
         self
     }
 
     pub fn starts_with(mut self, pattern: &str) -> Self {
-        self.constraint.push(Constraint::StartsWith(pattern.to_string()));
+        self.constraint
+            .push(Constraint::StartsWith(pattern.to_string()));
         self
     }
 
     pub fn ends_with(mut self, pattern: &str) -> Self {
-        self.constraint.push(Constraint::EndsWith(pattern.to_string()));
+        self.constraint
+            .push(Constraint::EndsWith(pattern.to_string()));
         self
     }
 
@@ -122,7 +133,10 @@ impl RuleBuilder {
     pub fn build(self) -> Vec<Rule> {
         self.constraint
             .into_iter()
-            .map(|c| Rule { column: self.column.clone(), constraint: c })
+            .map(|c| Rule {
+                column: self.column.clone(),
+                constraint: c,
+            })
             .collect()
     }
 }
@@ -174,11 +188,32 @@ impl Rule {
     }
 }
 
+impl std::fmt::Display for Constraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Constraint::NotNull => write!(f, "not_null"),
+            Constraint::Unique => write!(f, "unique"),
+            Constraint::GreaterThan(op) => write!(f, "gt({})", op),
+            Constraint::GreaterThanOrEqual(op) => write!(f, "ge({})", op),
+            Constraint::LessThan(op) => write!(f, "lt({})", op),
+            Constraint::LessThanOrEqual(op) => write!(f, "le({})", op),
+            Constraint::Equal(op) => write!(f, "eq({})", op),
+            Constraint::Between { min, max } => write!(f, "between({}, {})", min, max),
+            Constraint::InSet(_) => write!(f, "in_set"),
+            Constraint::MatchesRegex(p) => write!(f, "matches_regex({})", p),
+            Constraint::Contains(p) => write!(f, "contains({})", p),
+            Constraint::StartsWith(p) => write!(f, "starts_with({})", p),
+            Constraint::EndsWith(p) => write!(f, "ends_with({})", p),
+            Constraint::LengthBetween { min, max } => write!(f, "length_between({}, {})", min, max),
+        }
+    }
+}
+
 impl ValidationResult {
     pub fn passed(rule: &Rule) -> Self {
         ValidationResult {
             column: rule.column.clone(),
-            constraint: format!("{:?}", rule.constraint),
+            constraint: format!("{}", rule.constraint),
             passed: true,
             failed_count: 0,
             error: None,
@@ -188,7 +223,7 @@ impl ValidationResult {
     pub fn failed(rule: &Rule, failed_count: usize, error: &str) -> Self {
         ValidationResult {
             column: rule.column.clone(),
-            constraint: format!("{:?}", rule.constraint),
+            constraint: format!("{}", rule.constraint),
             passed: false,
             failed_count,
             error: Some(error.to_string()),
