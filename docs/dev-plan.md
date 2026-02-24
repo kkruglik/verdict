@@ -100,6 +100,52 @@
 
 ---
 
+## Phase 5: CLI
+
+**Goal:** zero-dependency data quality gate for CI pipelines. Drop a binary, point it at a CSV and a schema file, get exit code 0 or 1.
+
+### 5.1 New crate: `verdict-cli`
+
+- [ ] Add `crates/verdict-cli` as a binary crate depending on `verdict-core` (csv feature)
+- [ ] `cargo build --release -p verdict-cli` produces a single static binary
+
+### 5.2 Schema config file
+
+- [ ] YAML schema format — column names + types + rules, no code required
+- [ ] Example:
+  ```yaml
+  columns:
+    user_id: integer
+    score: float
+    country: string
+
+  rules:
+    - column: user_id
+      not_null: true
+      unique: true
+    - column: score
+      between: [0, 100]
+    - column: country
+      is_in: [US, UK, DE, FR, JP]
+  ```
+- [ ] `SchemaConfig` and `RuleConfig` structs parsed with `serde` + `serde_yaml`
+
+### 5.3 CLI interface
+
+- [ ] `verdict validate <csv> <schema.yaml>` — main command
+- [ ] Exit code 0 on all rules passed, 1 on any failure
+- [ ] Human-readable output by default (table of results)
+- [ ] `--format json` for machine-readable output (for CI log parsing)
+- [ ] `--fail-fast` flag — stop on first failure
+- [ ] `--quiet` — only print failures
+
+### 5.4 CI integration
+
+- [ ] Works as a GitHub Actions step with no setup beyond downloading the binary
+- [ ] Example workflow snippet in README
+
+---
+
 ## Optional: Generic Column Refactor
 
 Refactor separate column structs into a single generic `TypedColumn<T>` to eliminate duplicated trait impls via blanket implementations:
