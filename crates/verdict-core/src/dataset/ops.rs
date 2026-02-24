@@ -777,7 +777,8 @@ impl StringOps for StrColumn {
     }
 
     fn matches_regex(&self, pat: &str) -> Vec<Option<bool>> {
-        let re = Regex::new(pat).expect("invalid regex pattern");
+        let re =
+            Regex::new(pat).unwrap_or_else(|e| panic!("invalid regex pattern '{}': {}", pat, e));
         self.0
             .iter()
             .map(|v| v.as_ref().map(|s| re.is_match(s)))
