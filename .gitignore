@@ -25,3 +25,6 @@ target
 
 /target
 .DS_Store
+
+# Large fixture files
+fixtures/sample_10m.csv

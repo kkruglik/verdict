@@ -56,7 +56,7 @@ print(f"{'=' * 60}")
 print(f"  Benchmark — sample.csv (100,000 rows, {RUNS} runs each)")
 print(f"{'=' * 60}\n")
 
-dataset = benchmark("load from csv", lambda: Dataset.from_csv("sample.csv", SCHEMA))
+dataset = benchmark("load from csv", lambda: Dataset.from_csv("../../fixtures/sample.csv", SCHEMA))
 print(f"  loaded: {dataset}\n")
 
 results = benchmark(
