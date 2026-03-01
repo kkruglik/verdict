@@ -1152,4 +1152,39 @@ mod csv_tests {
         let result = Dataset::from_csv("tests/fixtures/all_types.csv", &schema);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_load_csv_schema_too_few_columns() {
+        let schema = Schema::new(vec![
+            Field::new("id", DataType::Int),
+            Field::new("name", DataType::Str),
+        ]);
+        let result = Dataset::from_csv("tests/fixtures/all_types.csv", &schema);
+        assert!(matches!(
+            result,
+            Err(verdict_core::csv_loader::CsvLoadingError::ShapeError {
+                expected: 2,
+                found: 4
+            })
+        ));
+    }
+
+    #[test]
+    fn test_load_csv_schema_too_many_columns() {
+        let schema = Schema::new(vec![
+            Field::new("id", DataType::Int),
+            Field::new("name", DataType::Str),
+            Field::new("score", DataType::Float),
+            Field::new("active", DataType::Bool),
+            Field::new("extra", DataType::Int),
+        ]);
+        let result = Dataset::from_csv("tests/fixtures/all_types.csv", &schema);
+        assert!(matches!(
+            result,
+            Err(verdict_core::csv_loader::CsvLoadingError::ShapeError {
+                expected: 5,
+                found: 4
+            })
+        ));
+    }
 }

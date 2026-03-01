@@ -27,188 +27,81 @@ fn format_values<T>(values: &[Option<T>], fmt: impl Fn(&T) -> String) -> String 
     }
 }
 
-#[pyclass(name = "RuleBuilder")]
-struct PyRuleBuilder {
-    inner: RuleBuilder,
+fn extract_operand(py: Python<'_>, operand: &Py<PyAny>) -> PyResult<Operand> {
+    if let Ok(s) = operand.extract::<String>(py) {
+        Ok(Operand::Column(s))
+    } else if let Ok(f) = operand.extract::<f64>(py) {
+        Ok(Operand::Literal(f))
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or column name string.",
+        ))
+    }
+}
+
+#[pyclass(name = "DataType")]
+struct PyDataType {
+    inner: DataType,
 }
 
 #[pymethods]
-impl PyRuleBuilder {
-    #[new]
-    fn new(column: String) -> Self {
-        PyRuleBuilder {
-            inner: RuleBuilder {
-                column,
-                constraint: vec![],
-            },
+impl PyDataType {
+    #[staticmethod]
+    fn integer() -> Self {
+        PyDataType {
+            inner: DataType::Int,
         }
     }
 
-    fn not_null(slf: Bound<'_, Self>) -> Bound<'_, Self> {
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.not_null();
-        slf
+    #[staticmethod]
+    fn float() -> Self {
+        PyDataType {
+            inner: DataType::Float,
+        }
     }
 
-    fn unique(slf: Bound<'_, Self>) -> Bound<'_, Self> {
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.unique();
-        slf
+    #[staticmethod]
+    fn string() -> Self {
+        PyDataType {
+            inner: DataType::Str,
+        }
     }
 
-    fn gt<'py>(
-        slf: Bound<'py, Self>,
-        py: Python<'_>,
-        compare: Py<PyAny>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let op = extract_operand(py, &compare)?;
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.gt(op);
-        Ok(slf)
+    #[staticmethod]
+    fn boolean() -> Self {
+        PyDataType {
+            inner: DataType::Bool,
+        }
     }
+}
 
-    fn ge<'py>(
-        slf: Bound<'py, Self>,
-        py: Python<'_>,
-        compare: Py<PyAny>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let op = extract_operand(py, &compare)?;
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.ge(op);
-        Ok(slf)
-    }
+#[pyclass(name = "Schema")]
+struct PySchema {
+    inner: Schema,
+}
 
-    fn lt<'py>(
-        slf: Bound<'py, Self>,
-        py: Python<'_>,
-        compare: Py<PyAny>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let op = extract_operand(py, &compare)?;
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.lt(op);
-        Ok(slf)
-    }
-
-    fn le<'py>(
-        slf: Bound<'py, Self>,
-        py: Python<'_>,
-        compare: Py<PyAny>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let op = extract_operand(py, &compare)?;
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.le(op);
-        Ok(slf)
-    }
-
-    fn equal<'py>(
-        slf: Bound<'py, Self>,
-        py: Python<'_>,
-        compare: Py<PyAny>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let op = extract_operand(py, &compare)?;
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.equal(op);
-        Ok(slf)
-    }
-
-    fn between<'py>(
-        slf: Bound<'py, Self>,
-        py: Python<'_>,
-        min: Py<PyAny>,
-        max: Py<PyAny>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let min_op = extract_operand(py, &min)?;
-        let max_op = extract_operand(py, &max)?;
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.between(min_op, max_op);
-        Ok(slf)
-    }
-
-    fn is_in<'py>(
-        slf: Bound<'py, Self>,
-        py: Python<'_>,
-        values: Vec<Py<PyAny>>,
-    ) -> PyResult<Bound<'py, Self>> {
-        let set = if let Ok(v) = values
+#[pymethods]
+impl PySchema {
+    #[new]
+    fn new(py: Python<'_>, fields: Vec<(String, Py<PyDataType>)>) -> Self {
+        let core_fields = fields
             .iter()
-            .map(|v| v.extract::<i64>(py))
-            .collect::<PyResult<Vec<_>>>()
-        {
-            InSetValues::IntSet(v)
-        } else if let Ok(v) = values
-            .iter()
-            .map(|v| v.extract::<f64>(py))
-            .collect::<PyResult<Vec<_>>>()
-        {
-            InSetValues::FloatSet(v)
-        } else if let Ok(v) = values
-            .iter()
-            .map(|v| v.extract::<String>(py))
-            .collect::<PyResult<Vec<_>>>()
-        {
-            InSetValues::StrSet(v)
-        } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err(
-                "in_set values must be all integers, floats, or strings",
-            ));
-        };
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.in_set(set);
-        Ok(slf)
-    }
-
-    fn matches_regex(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.matches_regex(&pattern);
-        slf
-    }
-
-    fn contains(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.contains(&pattern);
-        slf
-    }
-
-    fn starts_with(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.starts_with(&pattern);
-        slf
-    }
-
-    fn ends_with(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.ends_with(&pattern);
-        slf
-    }
-
-    fn length_between(slf: Bound<'_, Self>, min: usize, max: usize) -> Bound<'_, Self> {
-        let old = std::mem::take(&mut slf.borrow_mut().inner);
-        slf.borrow_mut().inner = old.length_between(min, max);
-        slf
-    }
-
-    fn build(slf: PyRef<'_, Self>) -> Vec<PyRule> {
-        slf.inner
-            .constraint
-            .iter()
-            .map(|c| PyRule {
-                inner: Rule {
-                    column: slf.inner.column.clone(),
-                    constraint: c.clone(),
-                },
+            .map(|(name, dtype)| Field {
+                name: name.clone(),
+                dtype: dtype.borrow(py).inner.clone(),
             })
-            .collect()
+            .collect();
+        PySchema {
+            inner: Schema {
+                fields: core_fields,
+            },
+        }
     }
 }
 
 #[pyclass(name = "Column")]
 struct PyColumn {
     inner: Column,
-}
-
-#[pyclass(name = "Dataset")]
-struct PyDataset {
-    inner: Dataset,
 }
 
 #[pymethods]
@@ -385,64 +278,9 @@ impl PyColumn {
     }
 }
 
-#[pyclass(name = "DataType")]
-struct PyDataType {
-    inner: DataType,
-}
-
-#[pymethods]
-impl PyDataType {
-    #[staticmethod]
-    fn integer() -> Self {
-        PyDataType {
-            inner: DataType::Int,
-        }
-    }
-
-    #[staticmethod]
-    fn float() -> Self {
-        PyDataType {
-            inner: DataType::Float,
-        }
-    }
-
-    #[staticmethod]
-    fn string() -> Self {
-        PyDataType {
-            inner: DataType::Str,
-        }
-    }
-
-    #[staticmethod]
-    fn boolean() -> Self {
-        PyDataType {
-            inner: DataType::Bool,
-        }
-    }
-}
-
-#[pyclass(name = "Schema")]
-struct PySchema {
-    inner: Schema,
-}
-
-#[pymethods]
-impl PySchema {
-    #[new]
-    fn new(py: Python<'_>, fields: Vec<(String, Py<PyDataType>)>) -> Self {
-        let core_fields = fields
-            .iter()
-            .map(|(name, dtype)| Field {
-                name: name.clone(),
-                dtype: dtype.borrow(py).inner.clone(),
-            })
-            .collect();
-        PySchema {
-            inner: Schema {
-                fields: core_fields,
-            },
-        }
-    }
+#[pyclass(name = "Dataset")]
+struct PyDataset {
+    inner: Dataset,
 }
 
 #[pymethods]
@@ -644,6 +482,180 @@ impl PyRule {
     }
 }
 
+#[pyclass(name = "RuleBuilder")]
+struct PyRuleBuilder {
+    inner: RuleBuilder,
+}
+
+#[pymethods]
+impl PyRuleBuilder {
+    #[new]
+    fn new(column: String) -> Self {
+        PyRuleBuilder {
+            inner: RuleBuilder {
+                column,
+                constraint: vec![],
+            },
+        }
+    }
+
+    fn not_null(slf: Bound<'_, Self>) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.not_null();
+        slf
+    }
+
+    fn unique(slf: Bound<'_, Self>) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.unique();
+        slf
+    }
+
+    fn gt<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.gt(op);
+        Ok(slf)
+    }
+
+    fn ge<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.ge(op);
+        Ok(slf)
+    }
+
+    fn lt<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.lt(op);
+        Ok(slf)
+    }
+
+    fn le<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.le(op);
+        Ok(slf)
+    }
+
+    fn equal<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        compare: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let op = extract_operand(py, &compare)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.equal(op);
+        Ok(slf)
+    }
+
+    fn between<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        min: Py<PyAny>,
+        max: Py<PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let min_op = extract_operand(py, &min)?;
+        let max_op = extract_operand(py, &max)?;
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.between(min_op, max_op);
+        Ok(slf)
+    }
+
+    fn is_in<'py>(
+        slf: Bound<'py, Self>,
+        py: Python<'_>,
+        values: Vec<Py<PyAny>>,
+    ) -> PyResult<Bound<'py, Self>> {
+        let set = if let Ok(v) = values
+            .iter()
+            .map(|v| v.extract::<i64>(py))
+            .collect::<PyResult<Vec<_>>>()
+        {
+            InSetValues::IntSet(v)
+        } else if let Ok(v) = values
+            .iter()
+            .map(|v| v.extract::<f64>(py))
+            .collect::<PyResult<Vec<_>>>()
+        {
+            InSetValues::FloatSet(v)
+        } else if let Ok(v) = values
+            .iter()
+            .map(|v| v.extract::<String>(py))
+            .collect::<PyResult<Vec<_>>>()
+        {
+            InSetValues::StrSet(v)
+        } else {
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "in_set values must be all integers, floats, or strings",
+            ));
+        };
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.in_set(set);
+        Ok(slf)
+    }
+
+    fn matches_regex(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.matches_regex(&pattern);
+        slf
+    }
+
+    fn contains(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.contains(&pattern);
+        slf
+    }
+
+    fn starts_with(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.starts_with(&pattern);
+        slf
+    }
+
+    fn ends_with(slf: Bound<'_, Self>, pattern: String) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.ends_with(&pattern);
+        slf
+    }
+
+    fn length_between(slf: Bound<'_, Self>, min: usize, max: usize) -> Bound<'_, Self> {
+        let old = std::mem::take(&mut slf.borrow_mut().inner);
+        slf.borrow_mut().inner = old.length_between(min, max);
+        slf
+    }
+
+    fn build(slf: PyRef<'_, Self>) -> Vec<PyRule> {
+        slf.inner
+            .constraint
+            .iter()
+            .map(|c| PyRule {
+                inner: Rule {
+                    column: slf.inner.column.clone(),
+                    constraint: c.clone(),
+                },
+            })
+            .collect()
+    }
+}
+
 #[pyclass(name = "ValidationResult")]
 struct PyValidationResult {
     inner: ValidationResult,
@@ -697,18 +709,6 @@ fn py_validate(
         .map(|r| PyValidationResult { inner: r })
         .collect();
     Ok(results)
-}
-
-fn extract_operand(py: Python<'_>, operand: &Py<PyAny>) -> PyResult<Operand> {
-    if let Ok(s) = operand.extract::<String>(py) {
-        Ok(Operand::Column(s))
-    } else if let Ok(f) = operand.extract::<f64>(py) {
-        Ok(Operand::Literal(f))
-    } else {
-        Err(pyo3::exceptions::PyTypeError::new_err(
-            "Expected float or column name string.",
-        ))
-    }
 }
 
 #[pymodule]
