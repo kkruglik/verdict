@@ -19,6 +19,9 @@ pub enum CsvLoadingError {
         value: String,
         expected: String,
     },
+
+    #[error("Schema does not match CSV: expected {expected} columns, found {found}")]
+    ShapeError { expected: usize, found: usize },
 }
 
 pub trait DatasetCsvExt {
@@ -40,6 +43,13 @@ impl DatasetCsvExt for Dataset {
 
         let headers: Vec<String> = reader.headers()?.iter().map(|s| s.to_string()).collect();
 
+        if schema.fields.len() != headers.len() {
+            return Err(CsvLoadingError::ShapeError {
+                expected: schema.fields.len(),
+                found: headers.len(),
+            });
+        }
+
         let field_names: Vec<String> = schema.fields.iter().map(|f| f.name.clone()).collect();
         let field_expected: Vec<&'static str> = schema
             .fields
@@ -52,22 +62,22 @@ impl DatasetCsvExt for Dataset {
             })
             .collect();
 
-        let mut builders: Vec<ColBuilder> = schema
+        let mut columns_data: Vec<ColBuilder> = schema
             .fields
             .iter()
             .map(|f| match f.dtype {
-                DataType::Int => ColBuilder::Int(Vec::new()),
-                DataType::Float => ColBuilder::Float(Vec::new()),
-                DataType::Str => ColBuilder::Str(Vec::new()),
-                DataType::Bool => ColBuilder::Bool(Vec::new()),
+                DataType::Int => ColBuilder::Int(Vec::with_capacity(4096)),
+                DataType::Float => ColBuilder::Float(Vec::with_capacity(4096)),
+                DataType::Str => ColBuilder::Str(Vec::with_capacity(4096)),
+                DataType::Bool => ColBuilder::Bool(Vec::with_capacity(4096)),
             })
             .collect();
 
         for (row_idx, record) in reader.records().enumerate() {
             let record = record?;
-            for (col_idx, (builder, s)) in builders.iter_mut().zip(record.iter()).enumerate() {
-                if s.is_empty() {
-                    match builder {
+            for (col_idx, val) in record.iter().enumerate() {
+                if val.is_empty() {
+                    match &mut columns_data[col_idx] {
                         ColBuilder::Int(v) => v.push(None),
                         ColBuilder::Float(v) => v.push(None),
                         ColBuilder::Str(v) => v.push(None),
@@ -75,36 +85,37 @@ impl DatasetCsvExt for Dataset {
                     }
                     continue;
                 }
-                match builder {
+
+                match &mut columns_data[col_idx] {
                     ColBuilder::Int(v) => {
-                        v.push(Some(s.parse::<i64>().map_err(|_| {
+                        v.push(Some(val.parse::<i64>().map_err(|_| {
                             CsvLoadingError::ParseError {
                                 column: field_names[col_idx].clone(),
                                 row: row_idx,
-                                value: s.to_string(),
+                                value: val.to_string(),
                                 expected: field_expected[col_idx].to_string(),
                             }
                         })?));
                     }
                     ColBuilder::Float(v) => {
-                        v.push(Some(s.parse::<f64>().map_err(|_| {
+                        v.push(Some(val.parse::<f64>().map_err(|_| {
                             CsvLoadingError::ParseError {
                                 column: field_names[col_idx].clone(),
                                 row: row_idx,
-                                value: s.to_string(),
+                                value: val.to_string(),
                                 expected: field_expected[col_idx].to_string(),
                             }
                         })?));
                     }
                     ColBuilder::Str(v) => {
-                        v.push(Some(s.to_string()));
+                        v.push(Some(val.to_string()));
                     }
                     ColBuilder::Bool(v) => {
-                        v.push(Some(parse_bool(s).ok_or_else(|| {
+                        v.push(Some(parse_bool(val).ok_or_else(|| {
                             CsvLoadingError::ParseError {
                                 column: field_names[col_idx].clone(),
                                 row: row_idx,
-                                value: s.to_string(),
+                                value: val.to_string(),
                                 expected: field_expected[col_idx].to_string(),
                             }
                         })?));
@@ -113,7 +124,7 @@ impl DatasetCsvExt for Dataset {
             }
         }
 
-        let columns = builders
+        let columns = columns_data
             .into_iter()
             .map(|b| match b {
                 ColBuilder::Int(v) => Column::Int(IntColumn(v)),
