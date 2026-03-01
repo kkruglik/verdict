@@ -6,12 +6,6 @@ use crate::{
     errors::ValidationError,
 };
 
-#[derive(Clone)]
-pub struct Rule {
-    pub column: String,
-    pub constraint: Constraint,
-}
-
 #[derive(Debug, Clone)]
 pub enum Operand {
     Column(String),
@@ -41,6 +35,65 @@ impl From<i64> for Operand {
 
 pub fn col(name: &str) -> Operand {
     Operand::Column(name.to_string())
+}
+
+#[derive(Debug, Clone)]
+pub enum Constraint {
+    // Null checks
+    NotNull,
+    Unique,
+
+    // Numeric comparisons
+    GreaterThan(Operand),
+    GreaterThanOrEqual(Operand),
+    LessThan(Operand),
+    LessThanOrEqual(Operand),
+    Equal(Operand),
+    Between { min: Operand, max: Operand },
+
+    // String checks
+    InSet(InSetValues),
+    MatchesRegex(String),
+    Contains(String),
+    StartsWith(String),
+    EndsWith(String),
+    LengthBetween { min: usize, max: usize },
+}
+
+impl std::fmt::Display for Constraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Constraint::NotNull => write!(f, "not_null"),
+            Constraint::Unique => write!(f, "unique"),
+            Constraint::GreaterThan(op) => write!(f, "gt({})", op),
+            Constraint::GreaterThanOrEqual(op) => write!(f, "ge({})", op),
+            Constraint::LessThan(op) => write!(f, "lt({})", op),
+            Constraint::LessThanOrEqual(op) => write!(f, "le({})", op),
+            Constraint::Equal(op) => write!(f, "eq({})", op),
+            Constraint::Between { min, max } => write!(f, "between({}, {})", min, max),
+            Constraint::InSet(_) => write!(f, "in_set"),
+            Constraint::MatchesRegex(p) => write!(f, "matches_regex({})", p),
+            Constraint::Contains(p) => write!(f, "contains({})", p),
+            Constraint::StartsWith(p) => write!(f, "starts_with({})", p),
+            Constraint::EndsWith(p) => write!(f, "ends_with({})", p),
+            Constraint::LengthBetween { min, max } => write!(f, "length_between({}, {})", min, max),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Rule {
+    pub column: String,
+    pub constraint: Constraint,
+}
+
+impl Rule {
+    pub fn new(column: &str, constraint: Constraint) -> Rule {
+        Rule {
+            column: column.to_string(),
+            constraint,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -148,65 +201,12 @@ pub fn rule(col_name: &str) -> RuleBuilder {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Constraint {
-    // Null checks
-    NotNull,
-    Unique,
-
-    // Numeric comparisons
-    GreaterThan(Operand),
-    GreaterThanOrEqual(Operand),
-    LessThan(Operand),
-    LessThanOrEqual(Operand),
-    Equal(Operand),
-    Between { min: Operand, max: Operand },
-
-    // String checks
-    InSet(InSetValues),
-    MatchesRegex(String),
-    Contains(String),
-    StartsWith(String),
-    EndsWith(String),
-    LengthBetween { min: usize, max: usize },
-}
-
 pub struct ValidationResult {
     pub column: String,
     pub constraint: String,
     pub passed: bool,
     pub failed_count: usize,
     pub error: Option<String>,
-}
-
-impl Rule {
-    pub fn new(column: &str, constraint: Constraint) -> Rule {
-        Rule {
-            column: column.to_string(),
-            constraint,
-        }
-    }
-}
-
-impl std::fmt::Display for Constraint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Constraint::NotNull => write!(f, "not_null"),
-            Constraint::Unique => write!(f, "unique"),
-            Constraint::GreaterThan(op) => write!(f, "gt({})", op),
-            Constraint::GreaterThanOrEqual(op) => write!(f, "ge({})", op),
-            Constraint::LessThan(op) => write!(f, "lt({})", op),
-            Constraint::LessThanOrEqual(op) => write!(f, "le({})", op),
-            Constraint::Equal(op) => write!(f, "eq({})", op),
-            Constraint::Between { min, max } => write!(f, "between({}, {})", min, max),
-            Constraint::InSet(_) => write!(f, "in_set"),
-            Constraint::MatchesRegex(p) => write!(f, "matches_regex({})", p),
-            Constraint::Contains(p) => write!(f, "contains({})", p),
-            Constraint::StartsWith(p) => write!(f, "starts_with({})", p),
-            Constraint::EndsWith(p) => write!(f, "ends_with({})", p),
-            Constraint::LengthBetween { min, max } => write!(f, "length_between({}, {})", min, max),
-        }
-    }
 }
 
 impl ValidationResult {
@@ -246,6 +246,16 @@ impl std::fmt::Display for ValidationResult {
             )
         }
     }
+}
+
+pub fn validate(data: &Dataset, rules: &[Rule]) -> Vec<ValidationResult> {
+    rules
+        .iter()
+        .map(|rule| {
+            validate_with_rule(data, rule)
+                .unwrap_or_else(|e| ValidationResult::failed(rule, 0, &e.to_string()))
+        })
+        .collect()
 }
 
 fn validate_with_rule(data: &Dataset, rule: &Rule) -> Result<ValidationResult, ValidationError> {
@@ -319,14 +329,11 @@ fn validate_with_rule(data: &Dataset, rule: &Rule) -> Result<ValidationResult, V
     }
 }
 
-pub fn validate(data: &Dataset, rules: &[Rule]) -> Vec<ValidationResult> {
-    rules
-        .iter()
-        .map(|rule| {
-            validate_with_rule(data, rule)
-                .unwrap_or_else(|e| ValidationResult::failed(rule, 0, &e.to_string()))
+fn resolve_col<'a>(data: &'a Dataset, name: &str) -> Result<&'a Column, ValidationError> {
+    data.get_column_by_name(name)
+        .ok_or(ValidationError::ColumnNotFound {
+            name: name.to_string(),
         })
-        .collect()
 }
 
 fn check_not_null(col: &Column, rule: &Rule) -> ValidationResult {
@@ -371,13 +378,6 @@ fn check_greater_than_col(
             &format!("values not greater than other column: {}", other_name),
         )
     }
-}
-
-fn resolve_col<'a>(data: &'a Dataset, name: &str) -> Result<&'a Column, ValidationError> {
-    data.get_column_by_name(name)
-        .ok_or(ValidationError::ColumnNotFound {
-            name: name.to_string(),
-        })
 }
 
 fn check_greater_than_or_equal_val(col: &Column, value: f64, rule: &Rule) -> ValidationResult {

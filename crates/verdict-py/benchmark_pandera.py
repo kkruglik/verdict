@@ -70,10 +70,10 @@ def pandera_validate(df):
 # ── sizes ─────────────────────────────────────────────────────────────────────
 
 SIZES = [
-    ("10K",  "sample_10k.csv",  10),
-    ("100K", "sample_100k.csv", 10),
-    ("1M",   "sample_1m.csv",    5),
-    ("10M",  "sample_10m.csv",   3),
+    ("10K",  "../../fixtures/sample_10k.csv",  10),
+    ("100K", "../../fixtures/sample_100k.csv", 10),
+    ("1M",   "../../fixtures/sample_1m.csv",    5),
+    ("10M",  "../../fixtures/sample_10m.csv",   3),
 ]
 
 # allow filtering from CLI: python benchmark_pandera.py 1M 10M

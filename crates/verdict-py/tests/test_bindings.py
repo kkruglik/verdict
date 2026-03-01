@@ -356,6 +356,26 @@ class TestCsvLoading:
         with pytest.raises(ValueError):
             Dataset.from_csv(str(csv), schema)
 
+    def test_from_csv_schema_too_few_columns(self, csv_path):
+        schema = Schema([
+            ("id", DataType.integer()),
+            ("name", DataType.string()),
+        ])
+        with pytest.raises(ValueError):
+            Dataset.from_csv(csv_path, schema)
+
+    def test_from_csv_schema_too_many_columns(self, csv_path):
+        schema = Schema([
+            ("id", DataType.integer()),
+            ("name", DataType.string()),
+            ("score", DataType.float()),
+            ("age", DataType.integer()),
+            ("active", DataType.boolean()),
+            ("extra", DataType.integer()),
+        ])
+        with pytest.raises(ValueError):
+            Dataset.from_csv(csv_path, schema)
+
     def test_from_csv_and_validate(self, csv_path):
         schema = Schema([
             ("id", DataType.integer()),
