@@ -808,10 +808,7 @@ mod tests {
         // all ids are 1-5, so all > 0
         let results = validate(
             &dataset,
-            &[Rule::new(
-                "id",
-                Constraint::GreaterThan(Operand::Literal(0.0)),
-            )],
+            &[Rule::new("id", Constraint::GreaterThan(Operand::Num(0.0)))],
         );
         assert!(results[0].passed);
         assert_eq!(results[0].failed_count, 0);
@@ -819,10 +816,7 @@ mod tests {
         // not all ids > 3
         let results = validate(
             &dataset,
-            &[Rule::new(
-                "id",
-                Constraint::GreaterThan(Operand::Literal(3.0)),
-            )],
+            &[Rule::new("id", Constraint::GreaterThan(Operand::Num(3.0)))],
         );
         assert!(!results[0].passed);
         assert_eq!(results[0].failed_count, 3);
