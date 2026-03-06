@@ -1,4 +1,19 @@
+from typing import Self
 from verdict_py import Dataset, Column, RuleBuilder, py_validate
+from enum import StrEnum
+
+
+class Dtype(StrEnum):
+    string = "STRING"
+    floating = "FLOATING"
+    integer = "INTEGER"
+
+
+# NOTE: API design sketches below — not functional, kept for reference.
+# class BaseColumn: ...
+# class BaseDataset: ...
+# class VerdictColumn: ...
+
 
 dataset = Dataset(
     headers=["id", "name", "share", "age"],
@@ -12,9 +27,9 @@ dataset = Dataset(
 
 
 def section(title):
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"  {title}")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
 
 
 def explore_dataset():
@@ -28,61 +43,11 @@ def explore_dataset():
     print(f"missing column:    {dataset.get_column_by_name('nonexistent')}")
 
 
-def explore_basic_ops():
-    section("Column basic ops (age — int with nulls)")
-    age = dataset.get_column_by_name("age")
-    print(f"repr:              {age}")
-    print(f"len:               {age.len()}")
-    print(f"is_empty:          {age.is_empty()}")
-    print(f"is_null:           {age.is_null()}")
-    print(f"null_count:        {age.null_count()}")
-    print(f"not_null_count:    {age.not_null_count()}")
-    print(f"unique_count:      {age.unique_count()}")
-    print(f"duplicates_count:  {age.duplicates_count()}")
-
-
-def explore_numeric_ops():
-    section("Numeric ops (age — int)")
-    age = dataset.get_column_by_name("age")
-    print(f"sum:               {age.sum()}")
-    print(f"mean:              {age.mean()}")
-    print(f"min:               {age.min()}")
-    print(f"max:               {age.max()}")
-    print(f"std:               {age.std()}")
-    print(f"median:            {age.median()}")
-
-    section("Numeric ops (share — float)")
-    share = dataset.get_column_by_name("share")
-    print(f"sum:               {share.sum()}")
-    print(f"mean:              {share.mean()}")
-    print(f"min:               {share.min()}")
-    print(f"max:               {share.max()}")
-    print(f"std:               {share.std()}")
-    print(f"median:            {share.median()}")
-
-
-def explore_comparison_ops():
-    section("Comparison ops (age — int)")
-    age = dataset.get_column_by_name("age")
-    print(f"gt(25):            {age.gt(25.0)}")
-    print(f"ge(30):            {age.ge(30.0)}")
-    print(f"lt(35):            {age.lt(35.0)}")
-    print(f"le(30):            {age.le(30.0)}")
-    print(f"equal(30):         {age.equal(30.0)}")
-    print(f"between(20, 35):   {age.between(20.0, 35.0)}")
-
-
-def explore_string_ops():
-    section("String ops (name — str)")
-    name = dataset.get_column_by_name("name")
-    print(f"repr:              {name}")
-    print(f"equal('clark'):    {name.equal('clark')}")
-    print(f"contains('an'):    {name.contains('an')}")
-    print(f"starts_with('l'):  {name.starts_with('l')}")
-    print(f"ends_with('x'):    {name.ends_with('x')}")
-    print(f"matches_regex:     {name.matches_regex('^[a-c]')}")
-    print(f"str_length:        {name.str_length()}")
-    print(f"is_in:             {name.is_in(['clark', 'ann'])}")
+# NOTE: column ops commented out — see lib.rs for rationale.
+# def explore_basic_ops(): ...
+# def explore_numeric_ops(): ...
+# def explore_comparison_ops(): ...
+# def explore_string_ops(): ...
 
 
 def explore_validation():
@@ -91,13 +56,13 @@ def explore_validation():
         *RuleBuilder("id").not_null().unique().build(),
         *RuleBuilder("age").not_null().gt(0.0).between(18.0, 99.0).build(),
         *RuleBuilder("name")
-            .not_null()
-            .contains("a")
-            .is_in(["ann", "clark", "lana", "lex"])
-            .starts_with("a")
-            .matches_regex("^[a-z]+")
-            .length_between(2, 10)
-            .build(),
+        .not_null()
+        .contains("a")
+        .is_in(["ann", "clark", "lana", "lex"])
+        .starts_with("a")
+        .matches_regex("^[a-z]+")
+        .length_between(2, 10)
+        .build(),
         *RuleBuilder("share").gt(0.0).between(1.0, 50.0).build(),
     ]
     results = py_validate(dataset, rules)
@@ -107,8 +72,4 @@ def explore_validation():
 
 if __name__ == "__main__":
     explore_dataset()
-    explore_basic_ops()
-    explore_numeric_ops()
-    explore_comparison_ops()
-    explore_string_ops()
     explore_validation()

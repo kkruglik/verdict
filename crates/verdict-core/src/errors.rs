@@ -10,4 +10,7 @@ pub enum ValidationError {
 
     #[error("Unknown constraint '{name}'")]
     UnknownConstraint { name: String },
+
+    #[error("Mismatched types: recieved '{recieved}', expected '{expected}'")]
+    MismatchedTypes { recieved: String, expected: String },
 }

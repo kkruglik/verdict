@@ -27,11 +27,19 @@ fn format_values<T>(values: &[Option<T>], fmt: impl Fn(&T) -> String) -> String 
     }
 }
 
+#[pyfunction(name = "col")]
+fn py_col(name: &str) -> PyOperand {
+    PyOperand {
+        inner: Operand::Column(name.to_string()),
+    }
+}
 fn extract_operand(py: Python<'_>, operand: &Py<PyAny>) -> PyResult<Operand> {
     if let Ok(s) = operand.extract::<String>(py) {
-        Ok(Operand::Column(s))
+        Ok(Operand::Str(s))
     } else if let Ok(f) = operand.extract::<f64>(py) {
-        Ok(Operand::Literal(f))
+        Ok(Operand::Num(f))
+    } else if let Ok(op) = operand.extract::<PyRef<PyOperand>>(py) {
+        Ok(op.inner.clone())
     } else {
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or column name string.",
@@ -99,6 +107,11 @@ impl PySchema {
     }
 }
 
+#[pyclass(name = "Operand")]
+struct PyOperand {
+    inner: Operand,
+}
+
 #[pyclass(name = "Column")]
 struct PyColumn {
     inner: Column,
@@ -138,131 +151,35 @@ impl PyColumn {
         }
     }
 
-    fn len(&self) -> usize {
-        self.inner.len()
-    }
+    // NOTE: column ops commented out — unclear if needed in a declarative validation library.
+    // No competitor (Pandera, Great Expectations) exposes per-column ops.
+    // Keeping for reference, revisit before public API release.
 
-    fn is_null(&self) -> Vec<bool> {
-        self.inner.is_null()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.inner.is_empty()
-    }
-
-    fn null_count(&self) -> usize {
-        self.inner.null_count()
-    }
-
-    fn not_null_count(&self) -> usize {
-        self.inner.not_null_count()
-    }
-
-    fn unique_count(&self) -> usize {
-        self.inner.unique_count()
-    }
-
-    fn duplicates_count(&self) -> usize {
-        self.inner.duplicates_count()
-    }
-
-    fn sum(&self) -> Option<f64> {
-        self.inner.sum()
-    }
-
-    fn mean(&self) -> Option<f64> {
-        self.inner.mean()
-    }
-
-    fn min(&self) -> Option<f64> {
-        self.inner.min()
-    }
-
-    fn max(&self) -> Option<f64> {
-        self.inner.max()
-    }
-
-    fn std(&self) -> Option<f64> {
-        self.inner.std()
-    }
-
-    fn median(&self) -> Option<f64> {
-        self.inner.median()
-    }
-
-    fn gt(&self, compare: f64) -> Vec<Option<bool>> {
-        self.inner.gt(compare)
-    }
-    fn ge(&self, compare: f64) -> Vec<Option<bool>> {
-        self.inner.ge(compare)
-    }
-
-    fn lt(&self, compare: f64) -> Vec<Option<bool>> {
-        self.inner.lt(compare)
-    }
-
-    fn le(&self, compare: f64) -> Vec<Option<bool>> {
-        self.inner.le(compare)
-    }
-
-    fn equal(&self, py: Python<'_>, compare: Py<PyAny>) -> Vec<Option<bool>> {
-        if let Ok(v) = compare.extract::<String>(py) {
-            self.inner.equal(v.as_str())
-        } else if let Ok(v) = compare.extract::<f64>(py) {
-            self.inner.equal(v)
-        } else {
-            vec![None; self.inner.len()]
-        }
-    }
-
-    fn between(&self, lower: f64, upper: f64) -> Vec<Option<bool>> {
-        self.inner.between(lower, upper)
-    }
-
-    fn contains(&self, pat: &str) -> Vec<Option<bool>> {
-        self.inner.contains(pat)
-    }
-
-    fn starts_with(&self, pat: &str) -> Vec<Option<bool>> {
-        self.inner.starts_with(pat)
-    }
-
-    fn ends_with(&self, pat: &str) -> Vec<Option<bool>> {
-        self.inner.ends_with(pat)
-    }
-
-    fn matches_regex(&self, pat: &str) -> Vec<Option<bool>> {
-        self.inner.matches_regex(pat)
-    }
-
-    fn str_length(&self) -> Vec<Option<usize>> {
-        self.inner.length()
-    }
-
-    fn is_in(&self, py: Python<'_>, values: Vec<Py<PyAny>>) -> Vec<Option<bool>> {
-        let set = if let Ok(v) = values
-            .iter()
-            .map(|v| v.extract::<i64>(py))
-            .collect::<PyResult<Vec<_>>>()
-        {
-            InSetValues::IntSet(v)
-        } else if let Ok(v) = values
-            .iter()
-            .map(|v| v.extract::<f64>(py))
-            .collect::<PyResult<Vec<_>>>()
-        {
-            InSetValues::FloatSet(v)
-        } else if let Ok(v) = values
-            .iter()
-            .map(|v| v.extract::<String>(py))
-            .collect::<PyResult<Vec<_>>>()
-        {
-            InSetValues::StrSet(v)
-        } else {
-            return vec![None; self.inner.len()];
-        };
-        self.inner.is_in(&set)
-    }
+    // fn len(&self) -> usize { self.inner.len() }
+    // fn is_null(&self) -> Vec<bool> { self.inner.is_null() }
+    // fn is_empty(&self) -> bool { self.inner.is_empty() }
+    // fn null_count(&self) -> usize { self.inner.null_count() }
+    // fn not_null_count(&self) -> usize { self.inner.not_null_count() }
+    // fn unique_count(&self) -> usize { self.inner.unique_count() }
+    // fn duplicates_count(&self) -> usize { self.inner.duplicates_count() }
+    // fn sum(&self) -> Option<f64> { self.inner.sum() }
+    // fn mean(&self) -> Option<f64> { self.inner.mean() }
+    // fn min(&self) -> Option<f64> { self.inner.min() }
+    // fn max(&self) -> Option<f64> { self.inner.max() }
+    // fn std(&self) -> Option<f64> { self.inner.std() }
+    // fn median(&self) -> Option<f64> { self.inner.median() }
+    // fn gt(&self, py: Python<'_>, compare: Py<PyAny>) -> PyResult<Vec<Option<bool>>> { ... }
+    // fn ge(&self, compare: f64) -> Vec<Option<bool>> { self.inner.ge(compare) }
+    // fn lt(&self, compare: f64) -> Vec<Option<bool>> { self.inner.lt(compare) }
+    // fn le(&self, compare: f64) -> Vec<Option<bool>> { self.inner.le(compare) }
+    // fn equal(&self, py: Python<'_>, compare: Py<PyAny>) -> Vec<Option<bool>> { ... }
+    // fn between(&self, lower: f64, upper: f64) -> Vec<Option<bool>> { self.inner.between(lower, upper) }
+    // fn contains(&self, pat: &str) -> Vec<Option<bool>> { self.inner.contains(pat) }
+    // fn starts_with(&self, pat: &str) -> Vec<Option<bool>> { self.inner.starts_with(pat) }
+    // fn ends_with(&self, pat: &str) -> Vec<Option<bool>> { self.inner.ends_with(pat) }
+    // fn matches_regex(&self, pat: &str) -> Vec<Option<bool>> { self.inner.matches_regex(pat) }
+    // fn str_length(&self) -> Vec<Option<usize>> { self.inner.length() }
+    // fn is_in(&self, py: Python<'_>, values: Vec<Py<PyAny>>) -> Vec<Option<bool>> { ... }
 
     fn __repr__(&self) -> String {
         let (dtype, values) = match &self.inner {
@@ -356,35 +273,35 @@ impl PyConstraint {
     #[staticmethod]
     fn gt(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::GreaterThan(Operand::Literal(compare)),
+            inner: Constraint::GreaterThan(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn ge(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::GreaterThanOrEqual(Operand::Literal(compare)),
+            inner: Constraint::GreaterThanOrEqual(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn lt(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::LessThan(Operand::Literal(compare)),
+            inner: Constraint::LessThan(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn le(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::LessThanOrEqual(Operand::Literal(compare)),
+            inner: Constraint::LessThanOrEqual(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn eq(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::Equal(Operand::Literal(compare)),
+            inner: Constraint::Equal(Operand::Num(compare)),
         }
     }
 
@@ -722,5 +639,6 @@ fn verdict_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PySchema>()?;
     m.add_class::<PyDataType>()?;
     m.add_function(wrap_pyfunction!(py_validate, m)?)?;
+    m.add_function(wrap_pyfunction!(py_col, m)?)?;
     Ok(())
 }
