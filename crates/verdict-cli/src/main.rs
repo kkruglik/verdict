@@ -368,16 +368,21 @@ mod tests {
     #[test]
     fn parse_constraint_ge_with_column_ref() {
         let result = parse_constraint("ge", &json!({"col": "other"})).unwrap();
-        assert!(matches!(result, Constraint::GreaterThanOrEqual(Operand::Column(s)) if s == "other"));
+        assert!(
+            matches!(result, Constraint::GreaterThanOrEqual(Operand::Column(s)) if s == "other")
+        );
     }
 
     #[test]
     fn parse_constraint_between_two_numbers() {
         let result = parse_constraint("between", &json!([0, 100])).unwrap();
-        assert!(matches!(result, Constraint::Between {
-            min: Operand::Num(_),
-            max: Operand::Num(_),
-        }));
+        assert!(matches!(
+            result,
+            Constraint::Between {
+                min: Operand::Num(_),
+                max: Operand::Num(_),
+            }
+        ));
     }
 
     #[test]
@@ -395,14 +400,22 @@ mod tests {
     #[test]
     fn parse_constraint_length_between() {
         let result = parse_constraint("length_between", &json!([1, 50])).unwrap();
-        assert!(matches!(result, Constraint::LengthBetween { min: 1, max: 50 }));
+        assert!(matches!(
+            result,
+            Constraint::LengthBetween { min: 1, max: 50 }
+        ));
     }
 
     #[test]
     fn parse_constraint_errors_on_unknown_name() {
         let result = parse_constraint("nonexistent", &json!(null));
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("unsupported constraint"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("unsupported constraint")
+        );
     }
 }
 
@@ -419,8 +432,7 @@ fn main() -> Result<()> {
 
     let config_json = File::open(cli.schema).context("failed to open schema file")?;
     let reader = BufReader::new(config_json);
-    let config: ValidationConfig =
-        from_reader(reader).context("failed to parse schema file")?;
+    let config: ValidationConfig = from_reader(reader).context("failed to parse schema file")?;
 
     let mut dataset_rules: Vec<Rule> = Vec::new();
 
@@ -429,7 +441,10 @@ fn main() -> Result<()> {
             let mut col_constraints: Vec<Constraint> = Vec::new();
             for c in constraints {
                 col_constraints.push(parse_constraint(&c.constraint, &c.value).context(
-                    format!("invalid constraint '{}' on column '{}'", &c.constraint, &col_config.name),
+                    format!(
+                        "invalid constraint '{}' on column '{}'",
+                        &c.constraint, &col_config.name
+                    ),
                 )?);
             }
             let col_rules = RuleBuilder {
@@ -449,8 +464,10 @@ fn main() -> Result<()> {
             .collect(),
     );
 
-    let data = Dataset::from_csv(cli.filename.to_str().unwrap(), &data_schema)
-        .context(format!("failed to load dataset: {}", cli.filename.display()))?;
+    let data = Dataset::from_csv(cli.filename.to_str().unwrap(), &data_schema).context(format!(
+        "failed to load dataset: {}",
+        cli.filename.display()
+    ))?;
     let results = validate(&data, &dataset_rules);
     let any_failed = results.iter().any(|r| !r.passed);
 
