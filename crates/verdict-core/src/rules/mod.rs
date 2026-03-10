@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::dataset::ops::{ComparableOps, StringOps};
 use crate::{
-    dataset::{Column, Dataset, FloatColumn, InSetValues},
+    dataset::{Column, Dataset, InSetValues},
     errors::ValidationError,
 };
 
