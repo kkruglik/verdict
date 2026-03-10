@@ -4,7 +4,6 @@ use verdict_core::{
     dataset::{
         BoolColumn, Column, DataType, Dataset, Field, FloatColumn, InSetValues, IntColumn, Schema,
         StrColumn,
-        ops::{ComparableOps, StringOps},
     },
     rules::{Constraint, Operand, Rule, RuleBuilder, ValidationResult, validate},
 };
