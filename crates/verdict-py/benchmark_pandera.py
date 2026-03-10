@@ -44,6 +44,27 @@ PANDERA_SCHEMA = pa.DataFrameSchema(
     },
 )
 
+REGEX_PATTERN = r"^[A-Z]{2}$"
+
+VERDICT_REGEX_RULES = [
+    *RuleBuilder("country").matches_regex(REGEX_PATTERN).build(),
+    *RuleBuilder("country_with_nulls").matches_regex(REGEX_PATTERN).build(),
+]
+
+PANDERA_REGEX_SCHEMA = pa.DataFrameSchema(
+    columns={
+        "country": pa.Column(str, pa.Check.str_matches(REGEX_PATTERN), nullable=False),
+        "country_with_nulls": pa.Column(str, pa.Check.str_matches(REGEX_PATTERN), nullable=True),
+    },
+)
+
+
+def pandera_regex_validate(df):
+    try:
+        PANDERA_REGEX_SCHEMA.validate(df, lazy=True)
+    except pa.errors.SchemaErrors:
+        pass
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def bench(label, fn, runs):
@@ -105,4 +126,9 @@ for label, csv_path, runs in SIZES:
         Dataset.from_csv(p, VERDICT_SCHEMA), VERDICT_RULES
     ), runs)
     bench("pandera  end-to-end", lambda p=csv_path: pandera_validate(pd.read_csv(p)), runs)
+    print()
+
+    print(f"  [regex — {len(VERDICT_REGEX_RULES)} rules, pattern: '{REGEX_PATTERN}']")
+    bench("verdict  matches_regex", lambda: py_validate(verdict_ds, VERDICT_REGEX_RULES), runs)
+    bench("pandera  str_matches",   lambda: pandera_regex_validate(df), runs)
     print()
