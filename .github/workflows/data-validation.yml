@@ -20,3 +20,5 @@ jobs:
       run: cargo build --release -p verdict-cli
     - name: Validate sample data
       run: ./target/release/verdict-cli fixtures/sample.csv config/entry.json
+    - name: Validate 100k sample data
+      run: ./target/release/verdict-cli fixtures/sample_100k.csv config/entry.json
