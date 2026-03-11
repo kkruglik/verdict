@@ -19,13 +19,13 @@ enum OutputFormat {
 #[derive(Parser, Debug)]
 #[command(name = "verdict-cli")]
 struct Cli {
-    #[arg(short, long, help = "Dataset file path")]
+    #[arg(help = "Dataset file path")]
     filename: PathBuf,
 
-    #[arg(short, long, help = "Schema file path")]
+    #[arg(help = "Schema file path")]
     schema: PathBuf,
 
-    #[arg(long, value_enum, default_value = "text", help = "Output format")]
+    #[arg(long, value_enum, default_value = "json", help = "Output format")]
     format: OutputFormat,
 }
 
@@ -464,7 +464,7 @@ fn main() -> Result<()> {
             .collect(),
     );
 
-    let data = Dataset::from_csv(cli.filename.to_str().unwrap(), &data_schema).context(format!(
+    let data = Dataset::from_csv(&cli.filename, &data_schema).context(format!(
         "failed to load dataset: {}",
         cli.filename.display()
     ))?;
