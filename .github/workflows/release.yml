@@ -18,16 +18,12 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            binary: verdict-cli
           - os: macos-latest
             target: x86_64-apple-darwin
-            binary: verdict-cli
           - os: macos-latest
             target: aarch64-apple-darwin
-            binary: verdict-cli
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: verdict-cli.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -43,11 +39,21 @@ jobs:
       - name: Build
         run: cargo build --release -p verdict-cli --target ${{ matrix.target }}
 
-      - name: Upload binary
+      - name: Rename binary
+        shell: bash
+        run: |
+          src="target/${{ matrix.target }}/release/verdict-cli"
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            mv "${src}.exe" "verdict-cli-${{ matrix.target }}.exe"
+          else
+            mv "$src" "verdict-cli-${{ matrix.target }}"
+          fi
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: verdict-cli-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/${{ matrix.binary }}
+          path: verdict-cli-${{ matrix.target }}*
 
   release:
     name: Create Release
@@ -60,22 +66,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: Rename binaries with target suffix
-        run: |
-          for dir in artifacts/verdict-cli-*/; do
-            target="${dir#artifacts/verdict-cli-}"
-            target="${target%/}"
-            for f in "$dir"*; do
-              filename=$(basename "$f")
-              ext="${filename##*.}"
-              if [ "$ext" = "exe" ]; then
-                mv "$f" "artifacts/verdict-cli-${target}.exe"
-              else
-                mv "$f" "artifacts/verdict-cli-${target}"
-              fi
-            done
-          done
+          pattern: verdict-cli-*
+          merge-multiple: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
