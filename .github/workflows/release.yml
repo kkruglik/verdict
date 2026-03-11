@@ -61,7 +61,23 @@ jobs:
         with:
           path: artifacts
 
+      - name: Rename binaries with target suffix
+        run: |
+          for dir in artifacts/verdict-cli-*/; do
+            target="${dir#artifacts/verdict-cli-}"
+            target="${target%/}"
+            for f in "$dir"*; do
+              filename=$(basename "$f")
+              ext="${filename##*.}"
+              if [ "$ext" = "exe" ]; then
+                mv "$f" "artifacts/verdict-cli-${target}.exe"
+              else
+                mv "$f" "artifacts/verdict-cli-${target}"
+              fi
+            done
+          done
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: artifacts/verdict-cli-*
