@@ -1,4 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
+use std::path::Path;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataset::{DataType, Dataset, Field, Schema},
@@ -24,15 +25,15 @@ fn bench_csv_loading(c: &mut Criterion) {
     let mut group = c.benchmark_group("csv_loading");
 
     group.bench_function("10k rows", |b| {
-        b.iter(|| Dataset::from_csv("../../fixtures/sample_10k.csv", &schema).unwrap())
+        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_10k.csv"), &schema).unwrap())
     });
 
     group.bench_function("100k rows", |b| {
-        b.iter(|| Dataset::from_csv("../../fixtures/sample_100k.csv", &schema).unwrap())
+        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap())
     });
 
     group.bench_function("1m rows", |b| {
-        b.iter(|| Dataset::from_csv("../../fixtures/sample_1m.csv", &schema).unwrap())
+        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap())
     });
 
     group.finish();
