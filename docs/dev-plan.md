@@ -106,36 +106,22 @@
 
 ### 5.1 New crate: `verdict-cli`
 
-- [ ] Add `crates/verdict-cli` as a binary crate depending on `verdict-core` (csv feature)
-- [ ] `cargo build --release -p verdict-cli` produces a single static binary
+- [x] Add `crates/verdict-cli` as a binary crate depending on `verdict-core` (csv feature)
+- [x] `cargo build --release -p verdict-cli` produces a single static binary
 
 ### 5.2 Schema config file
 
-- [ ] YAML schema format — column names + types + rules, no code required
-- [ ] Example:
-  ```yaml
-  columns:
-    user_id: integer
-    score: float
-    country: string
-
-  rules:
-    - column: user_id
-      not_null: true
-      unique: true
-    - column: score
-      between: [0, 100]
-    - column: country
-      is_in: [US, UK, DE, FR, JP]
-  ```
-- [ ] `SchemaConfig` and `RuleConfig` structs parsed with `serde` + `serde_yaml`
+- [x] JSON schema format — column names + types + constraints, no code required
+- [x] Example: `config/entry.json`
+- [x] `ValidationConfig`, `ColumnConfig`, `ConstraintConfig` structs parsed with `serde_json`
+- [x] `constraints` field optional — declare all columns for schema, only constrain what matters
 
 ### 5.3 CLI interface
 
-- [ ] `verdict validate <csv> <schema.yaml>` — main command
-- [ ] Exit code 0 on all rules passed, 1 on any failure
-- [ ] Human-readable output by default (table of results)
-- [ ] `--format json` for machine-readable output (for CI log parsing)
+- [x] `verdict-cli <csv> <schema.json>` — positional args
+- [x] Exit code 0 on all constraints passed, 1 on any failure
+- [x] JSON output by default — machine-readable array of results
+- [x] `--format text` for human-readable output
 - [ ] `--fail-fast` flag — stop on first failure
 - [ ] `--quiet` — only print failures
 

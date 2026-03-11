@@ -14,6 +14,7 @@ Verdict lets you define typed schemas and validation rules for tabular data, the
 - **4 typed column kinds** — `Int`, `Float`, `Str`, `Bool`, each with appropriate operations
 - **CSV loading** — feature-gated CSV reader with typed schema enforcement
 - **Python bindings** — clean PyO3 API with a fluent `RuleBuilder`
+- **CLI binary** — zero-dependency binary for CI/CD pipelines, JSON output, exit codes
 - **Zero I/O in core** — `verdict-core` has no filesystem dependencies by default
 
 ---
@@ -22,12 +23,14 @@ Verdict lets you define typed schemas and validation rules for tabular data, the
 
 ```
 verdict-core  ←  verdict-py
+verdict-core  ←  verdict-cli
 ```
 
 | Crate | Description |
 |---|---|
 | `verdict-core` | Pure Rust validation engine. CSV support behind the `csv` feature flag. |
 | `verdict-py` | PyO3 bindings that expose verdict to Python. |
+| `verdict-cli` | CLI binary for CI/CD pipelines. Reads CSV + JSON schema, outputs results. |
 
 ---
 
@@ -92,6 +95,41 @@ Pass a column name instead of a literal to compare two columns row-by-row:
 
 ```python
 Rule("high", Constraint.gt("low"))  # validates high > low for every row
+```
+
+---
+
+## CLI
+
+```bash
+cargo build --release -p verdict-cli
+./target/release/verdict-cli data.csv schema.json
+```
+
+Schema format (`schema.json`):
+
+```json
+{
+  "columns": [
+    { "name": "user_id", "dtype": "int", "constraints": [
+      { "constraint": "not_null", "value": true },
+      { "constraint": "unique",   "value": true }
+    ]},
+    { "name": "score", "dtype": "float", "constraints": [
+      { "constraint": "between", "value": [0, 100] }
+    ]},
+    { "name": "country", "dtype": "str" }
+  ]
+}
+```
+
+- Columns without `constraints` are still required for schema — they're just not validated
+- Exit code `0` — all constraints pass; `1` — at least one fails
+- Default output is JSON; `--format text` for human-readable
+
+```bash
+# CI usage
+verdict-cli data.csv schema.json && echo "data quality OK"
 ```
 
 ---

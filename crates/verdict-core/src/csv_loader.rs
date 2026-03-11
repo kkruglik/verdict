@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::dataset::{
     BoolColumn, Column, DataType, Dataset, FloatColumn, IntColumn, Schema, StrColumn,
 };
@@ -25,7 +27,7 @@ pub enum CsvLoadingError {
 }
 
 pub trait DatasetCsvExt {
-    fn from_csv(path: &str, schema: &Schema) -> Result<Dataset, CsvLoadingError>;
+    fn from_csv(path: &Path, schema: &Schema) -> Result<Dataset, CsvLoadingError>;
 }
 
 enum ColBuilder {
@@ -36,7 +38,7 @@ enum ColBuilder {
 }
 
 impl DatasetCsvExt for Dataset {
-    fn from_csv(path: &str, schema: &Schema) -> Result<Dataset, CsvLoadingError> {
+    fn from_csv(path: &Path, schema: &Schema) -> Result<Dataset, CsvLoadingError> {
         let mut reader = ReaderBuilder::new()
             .buffer_capacity(512 * 1024)
             .from_path(path)?;
