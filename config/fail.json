@@ -1,0 +1,15 @@
+{
+  "columns": [
+    { "name": "user_id", "dtype": "int" },
+    { "name": "score", "dtype": "float", "constraints": [
+      { "constraint": "le", "value": 0.0 }
+    ]},
+    { "name": "score_with_nulls", "dtype": "float" },
+    { "name": "age", "dtype": "int" },
+    { "name": "age_with_nulls", "dtype": "int" },
+    { "name": "is_active", "dtype": "bool" },
+    { "name": "is_active_with_nulls", "dtype": "bool" },
+    { "name": "country", "dtype": "str" },
+    { "name": "country_with_nulls", "dtype": "str" }
+  ]
+}

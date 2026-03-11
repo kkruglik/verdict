@@ -1,0 +1,26 @@
+name: Data Validation
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
+    - name: Build verdict-cli
+      run: cargo build --release -p verdict-cli
+    - name: Validate sample data
+      run: ./target/release/verdict-cli fixtures/sample.csv config/entry.json
+    - name: Validate 100k sample data
+      run: ./target/release/verdict-cli fixtures/sample_100k.csv config/entry.json
+    - name: Expect validation failure (exit code check)
+      run: ./target/release/verdict-cli fixtures/sample.csv config/fail.json && exit 1 || exit 0
