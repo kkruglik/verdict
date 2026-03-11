@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use pyo3::prelude::*;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
@@ -217,7 +219,7 @@ impl PyDataset {
 
     #[staticmethod]
     fn from_csv(path: &str, schema: &PySchema) -> PyResult<Self> {
-        let inner = Dataset::from_csv(path, &schema.inner)
+        let inner = Dataset::from_csv(Path::new(path), &schema.inner)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(PyDataset { inner })
     }
