@@ -1088,6 +1088,7 @@ mod tests {
 
 #[cfg(feature = "csv")]
 mod csv_tests {
+    use std::path::Path;
     use verdict_core::{
         csv_loader::DatasetCsvExt,
         dataset::{DataType, Dataset, Field, Schema},
@@ -1105,7 +1106,8 @@ mod csv_tests {
     #[test]
     fn test_load_csv() {
         let schema = make_schema();
-        let dataset = Dataset::from_csv("tests/fixtures/all_types.csv", &schema).unwrap();
+        let dataset =
+            Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
         assert_eq!(dataset.headers, vec!["id", "name", "score", "active"]);
         assert_eq!(dataset.shape(), (5, 4));
     }
@@ -1113,7 +1115,8 @@ mod csv_tests {
     #[test]
     fn test_load_csv_with_nulls() {
         let schema = make_schema();
-        let dataset = Dataset::from_csv("tests/fixtures/with_nulls.csv", &schema).unwrap();
+        let dataset =
+            Dataset::from_csv(Path::new("tests/fixtures/with_nulls.csv"), &schema).unwrap();
         assert_eq!(dataset.headers, vec!["id", "name", "score", "active"]);
         assert_eq!(dataset.shape(), (5, 4));
     }
@@ -1121,14 +1124,15 @@ mod csv_tests {
     #[test]
     fn test_load_csv_invalid_path() {
         let schema = Schema::new(vec![Field::new("id", DataType::Int)]);
-        let result = Dataset::from_csv("nonexistent.csv", &schema);
+        let result = Dataset::from_csv(Path::new("nonexistent.csv"), &schema);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_bool_values() {
         let schema = make_schema();
-        let dataset = Dataset::from_csv("tests/fixtures/all_types.csv", &schema).unwrap();
+        let dataset =
+            Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
         let col = dataset.get_column_by_name("active").unwrap();
         assert_eq!(col.len(), 5);
         assert_eq!(col.null_count(), 0);
@@ -1137,7 +1141,7 @@ mod csv_tests {
     #[test]
     fn test_parse_bool_invalid() {
         let schema = Schema::new(vec![Field::new("name", DataType::Bool)]);
-        let result = Dataset::from_csv("tests/fixtures/all_types.csv", &schema);
+        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(result.is_err());
     }
 
@@ -1149,7 +1153,7 @@ mod csv_tests {
             Field::new("score", DataType::Float),
             Field::new("active", DataType::Bool),
         ]);
-        let result = Dataset::from_csv("tests/fixtures/all_types.csv", &schema);
+        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(result.is_err());
     }
 
@@ -1159,7 +1163,7 @@ mod csv_tests {
             Field::new("id", DataType::Int),
             Field::new("name", DataType::Str),
         ]);
-        let result = Dataset::from_csv("tests/fixtures/all_types.csv", &schema);
+        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(matches!(
             result,
             Err(verdict_core::csv_loader::CsvLoadingError::ShapeError {
@@ -1178,7 +1182,7 @@ mod csv_tests {
             Field::new("active", DataType::Bool),
             Field::new("extra", DataType::Int),
         ]);
-        let result = Dataset::from_csv("tests/fixtures/all_types.csv", &schema);
+        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(matches!(
             result,
             Err(verdict_core::csv_loader::CsvLoadingError::ShapeError {
