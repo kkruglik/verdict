@@ -22,3 +22,5 @@ jobs:
       run: ./target/release/verdict-cli fixtures/sample.csv config/entry.json
     - name: Validate 100k sample data
       run: ./target/release/verdict-cli fixtures/sample_100k.csv config/entry.json
+    - name: Expect validation failure (exit code check)
+      run: ./target/release/verdict-cli fixtures/sample.csv config/fail.json && exit 1 || exit 0
