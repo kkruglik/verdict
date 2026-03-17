@@ -1,0 +1,20 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0](https://github.com/kkruglik/verdict/releases/tag/verdict-cli-v0.1.0) - 2026-03-17
+
+### Other
+
+- passed value from cli to core
+- add crates.io metadata to verdict-cli
+- enable json feature in verdict-cli
+- update cli to use ValidationReport and ValidateConfig
+- apply fmt and positional args, json default format
+- addapplied fmt
+- add verdict-cli binary crate with JSON output and exit codes
