@@ -475,7 +475,13 @@ fn main() -> Result<()> {
         "failed to load dataset: {}",
         cli.filename.display()
     ))?;
-    let report = validate(&data, &dataset_rules, ValidateConfig::default());
+    let report = validate(
+        &data,
+        &dataset_rules,
+        ValidateConfig {
+            max_failed_samples: cli.max_failed_samples,
+        },
+    );
 
     match cli.format {
         OutputFormat::Text => {
