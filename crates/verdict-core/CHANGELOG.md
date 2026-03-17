@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/kkruglik/verdict/compare/verdict-core-v0.1.3...verdict-core-v0.1.4) - 2026-03-17
+
+### Other
+
+- Merge pull request #23 from kkruglik/feature/19-fix-docs
+- add crates.io badge to verdict-core README
+
 ## [0.1.3](https://github.com/kkruglik/verdict/compare/verdict-core-v0.1.2...verdict-core-v0.1.3) - 2026-03-17
 
 ### Fixed
