@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.3...verdict-cli-v0.1.4) - 2026-03-17
+
+### Other
+
+- Merge pull request #23 from kkruglik/feature/19-fix-docs
+- improve verdict-cli SEO: title, description, Cargo.toml
+- rewrite verdict-cli README with SEO and CI examples
+
 ## [0.1.3](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.2...verdict-cli-v0.1.3) - 2026-03-17
 
 ### Other
