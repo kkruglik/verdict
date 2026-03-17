@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'verdict-cli-v*'
+  release:
+    types: [published]
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,6 +11,7 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    if: startsWith(github.event.release.tag_name, 'verdict-cli-v')
 
     strategy:
       matrix:
@@ -55,8 +55,8 @@ jobs:
           name: verdict-cli-${{ matrix.target }}
           path: verdict-cli-${{ matrix.target }}*
 
-  release:
-    name: Create Release
+  upload-assets:
+    name: Upload assets
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -69,7 +69,8 @@ jobs:
           pattern: verdict-cli-*
           merge-multiple: true
 
-      - name: Create GitHub Release
+      - name: Upload binaries to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.release.tag_name }}
           files: artifacts/verdict-cli-*
