@@ -38,7 +38,7 @@
 - [x] `ValidationResult::passed()` / `ValidationResult::failed()` constructors
 - [x] Track: passed/failed, failed count, error message
 - [x] Implement `Display` for human-readable output
-- [ ] `Report` struct wrapping `Vec<ValidationResult>` with `all_passed()`, `failed()`
+- [x] `ValidationReport` wrapping `Vec<ValidationResult>` with `passed`, `passed_count`, `failed_count`, `total_rules`
 
 ### Known Issues
 
@@ -61,6 +61,7 @@
 
 #### Not yet implemented:
 - [ ] Row-level: `column_pair_unique`, `column_a_gt_b`
+- [ ] Mixed `Between` operands: `between(literal, col)` and `between(col, literal)` — 3 tests already written and ignored
 
 ---
 
@@ -94,8 +95,9 @@
 
 - [x] Expose `Constraint` with all 14 variants as static constructors
 - [x] Expose `Rule(column, constraint)`
-- [x] Expose `validate(dataset, rules) -> list[ValidationResult]`
-- [x] `ValidationResult` with getters: `column`, `constraint`, `is_passed`, `failed_count`, `error`
+- [x] Expose `validate(dataset, rules) -> ValidationReport`
+- [x] `ValidationReport` with getters: `passed`, `total_rules`, `passed_count`, `failed_count`, `results`
+- [x] `ValidationResult` with getters: `column`, `constraint`, `is_passed`, `failed_count`, `error`, `failed_values`
 - [x] `__repr__` on `ValidationResult` using core `Display`
 
 ---
@@ -129,6 +131,131 @@
 
 - [ ] Works as a GitHub Actions step with no setup beyond downloading the binary
 - [ ] Example workflow snippet in README
+
+---
+
+## Phase 6: Actionable Output
+
+**Goal:** make validation failures debuggable. Right now verdict tells you *how many* rows failed. This phase makes it tell you *which* rows and *what* values.
+
+### 6.1 Failed row samples in ValidationResult
+
+- [x] Add `failed_values: Option<Vec<(usize, String)>>` to `ValidationResult` — row index + string-formatted value, capped at `max_failed_samples`
+- [x] Populate samples in all `check_*` functions
+- [x] Expose samples in Python: `ValidationResult.failed_values -> list[tuple[int, str]] | None`
+- [x] Include samples in CLI JSON output via serde: `"failed_values": [[3, "-1.5"], [7, "null"]]`
+- [x] Include samples in CLI text output via `Display`: `row N: value` lines under each failure
+
+### 6.2 Report struct
+
+- [x] `ValidationReport` wrapping `Vec<ValidationResult>` in `verdict-core`
+- [x] `passed: bool`, `passed_count: usize`, `failed_count: usize`, `total_rules: usize`
+- [x] `Display` for summary: `"Validation Report: PASSED/FAILED (N/M rules passed)"`
+- [x] JSON serialization via `to_json()` (behind `json` feature flag)
+- [x] Expose `ValidationReport` in Python bindings
+- [x] `validate()` returns `ValidationReport` instead of `Vec<ValidationResult>`
+- [x] `ValidateConfig { max_failed_samples: usize }` controls sample cap (default 100)
+
+---
+
+## Phase 7: Date and Datetime Support
+
+**Goal:** make verdict usable on real-world datasets. Most production data has timestamps.
+
+### 7.1 DateColumn and DateTimeColumn types
+
+- [ ] Add `DateColumn(Vec<Option<NaiveDate>>)` and `DateTimeColumn(Vec<Option<NaiveDateTime>>)` using `chrono`
+- [ ] Add `DataType::Date` and `DataType::DateTime` variants
+- [ ] Add `Column::Date` and `Column::DateTime` enum variants
+- [ ] Common ops: `len`, `is_empty`, `null_count`, `is_null`, `unique_count`
+
+### 7.2 Date constraints
+
+- [ ] `After(date)` — all values after a given date
+- [ ] `Before(date)` — all values before a given date
+- [ ] `BetweenDates { min, max }` — values in date range
+- [ ] `NotNull`, `Unique` already work via Column enum (wire up)
+- [ ] Date format config for CSV parsing (default: `%Y-%m-%d` / `%Y-%m-%dT%H:%M:%S`)
+
+### 7.3 Expose in Python and CLI
+
+- [ ] `DataType.date()`, `DataType.datetime()` in Python
+- [ ] `Column.date([...])`, `Column.datetime([...])` constructors
+- [ ] `Constraint.after(date_str)`, `Constraint.before(date_str)`, `Constraint.between_dates(min, max)`
+- [ ] `"date"` / `"datetime"` dtype in CLI JSON schema
+
+---
+
+## Phase 8: Table-level Constraints
+
+**Goal:** validate the dataset itself, not just individual columns. Very common first check in GE/Soda.
+
+- [ ] `TableConstraint` enum separate from column `Constraint`
+- [ ] `RowCountBetween { min: usize, max: usize }` — dataset has expected number of rows
+- [ ] `ColumnCountEquals(usize)` — dataset has expected number of columns
+- [ ] `ColumnsExist(Vec<String>)` — named columns are present
+- [ ] Wire into `validate()` or a separate `validate_table()` function
+- [ ] Expose in Python and CLI schema format
+
+---
+
+## Phase 9: CLI DX
+
+**Goal:** make the CLI pleasant to use day-to-day.
+
+### 9.1 YAML schema support
+
+- [ ] Add `serde_yaml` dependency to `verdict-cli`
+- [ ] Auto-detect schema format by file extension (`.yaml`/`.yml` vs `.json`)
+- [ ] Same `ValidationConfig` struct, just a different deserializer
+- [ ] Add YAML example to README
+
+### 9.2 CLI flags
+
+- [ ] `--fail-fast` — stop on first constraint failure, exit 1
+- [ ] `--quiet` — only print failed constraints (suppress passes)
+- [ ] `--only-failed` equivalent in JSON output: filter to `passed: false` entries only
+
+### 9.3 Severity levels
+
+- [ ] Add `severity: "error" | "warn"` field to `ConstraintConfig` in schema (default: `"error"`)
+- [ ] `warn` constraints appear in output but do not set exit code 1
+- [ ] Reflect severity in `ValidationResult` output: `[WARN]` vs `[FAIL]`
+
+---
+
+## Phase 10: Parquet Support
+
+**Goal:** make verdict usable in modern data stacks where Parquet is the default format.
+
+- [ ] Add `parquet` feature flag to `verdict-core`
+- [ ] `DatasetParquetExt` trait with `Dataset::from_parquet(path, schema)`
+- [ ] `ParquetLoadingError` mirrors `CsvLoadingError`
+- [ ] Support in `verdict-cli`: auto-detect by `.parquet` extension
+- [ ] CI workflow: validate a sample `.parquet` file
+
+---
+
+## Phase 11: Statistical Constraints
+
+**Goal:** make verdict useful for ML pipelines and data scientists checking data distributions.
+
+- [ ] `MeanBetween { min: f64, max: f64 }` — column mean in range (Int, Float)
+- [ ] `StdLe(f64)` — standard deviation below threshold (Int, Float)
+- [ ] `MedianBetween { min: f64, max: f64 }` (Int, Float)
+- [ ] `NullRatioLe(f64)` — at most N% nulls (all types) — e.g. `null_ratio_le(0.05)` = max 5% nulls
+- [ ] Expose all in Python and CLI schema
+
+---
+
+## Phase 12: Pandas Integration (Python)
+
+**Goal:** fit into existing Python data science workflows. Pandera's biggest advantage is zero-friction pandas adoption.
+
+- [ ] `Dataset.from_pandas(df: pd.DataFrame) -> Dataset` — convert pandas DataFrame in Python bindings
+- [ ] Auto-map pandas dtypes to verdict `DataType`
+- [ ] `ValidationResult.to_pandas() -> pd.DataFrame` — convert results back to DataFrame for analysis
+- [ ] Optional: `Report.to_pandas()` summary DataFrame
 
 ---
 
