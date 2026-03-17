@@ -766,6 +766,8 @@ dependencies = [
  "criterion",
  "csv",
  "regex",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
