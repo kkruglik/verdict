@@ -38,7 +38,7 @@
 - [x] `ValidationResult::passed()` / `ValidationResult::failed()` constructors
 - [x] Track: passed/failed, failed count, error message
 - [x] Implement `Display` for human-readable output
-- [ ] `Report` struct wrapping `Vec<ValidationResult>` with `all_passed()`, `failed()`
+- [x] `ValidationReport` wrapping `Vec<ValidationResult>` with `passed`, `passed_count`, `failed_count`, `total_rules`
 
 ### Known Issues
 
@@ -95,8 +95,9 @@
 
 - [x] Expose `Constraint` with all 14 variants as static constructors
 - [x] Expose `Rule(column, constraint)`
-- [x] Expose `validate(dataset, rules) -> list[ValidationResult]`
-- [x] `ValidationResult` with getters: `column`, `constraint`, `is_passed`, `failed_count`, `error`
+- [x] Expose `validate(dataset, rules) -> ValidationReport`
+- [x] `ValidationReport` with getters: `passed`, `total_rules`, `passed_count`, `failed_count`, `results`
+- [x] `ValidationResult` with getters: `column`, `constraint`, `is_passed`, `failed_count`, `error`, `failed_values`
 - [x] `__repr__` on `ValidationResult` using core `Display`
 
 ---
@@ -139,21 +140,21 @@
 
 ### 6.1 Failed row samples in ValidationResult
 
-- [ ] Add `failed_samples: Vec<(usize, String)>` to `ValidationResult` — row index + string-formatted value, capped at 5
-- [ ] Populate samples in all `check_*` functions
-- [ ] Expose samples in Python: `ValidationResult.failed_samples -> list[tuple[int, str]]`
-- [ ] Include samples in CLI JSON output: `"failed_samples": [[3, "-1.5"], [7, "null"]]`
-- [ ] Include samples in CLI text output: `FAIL: score / between(0, 100) — 42 failures (e.g. row 3: -1.5, row 7: -0.2)`
+- [x] Add `failed_values: Option<Vec<(usize, String)>>` to `ValidationResult` — row index + string-formatted value, capped at `max_failed_samples`
+- [x] Populate samples in all `check_*` functions
+- [x] Expose samples in Python: `ValidationResult.failed_values -> list[tuple[int, str]] | None`
+- [x] Include samples in CLI JSON output via serde: `"failed_values": [[3, "-1.5"], [7, "null"]]`
+- [x] Include samples in CLI text output via `Display`: `row N: value` lines under each failure
 
 ### 6.2 Report struct
 
-- [ ] `Report` wrapping `Vec<ValidationResult>` in `verdict-core`
-- [ ] `Report::all_passed() -> bool`
-- [ ] `Report::failed() -> Vec<&ValidationResult>`
-- [ ] `Report::passed_count() -> usize` / `Report::failed_count() -> usize`
-- [ ] `Display` for summary: `"3/14 checks passed, 11 failed"`
-- [ ] Expose `Report` in Python bindings
-- [ ] `validate()` returns `Report` instead of `Vec<ValidationResult>`
+- [x] `ValidationReport` wrapping `Vec<ValidationResult>` in `verdict-core`
+- [x] `passed: bool`, `passed_count: usize`, `failed_count: usize`, `total_rules: usize`
+- [x] `Display` for summary: `"Validation Report: PASSED/FAILED (N/M rules passed)"`
+- [x] JSON serialization via `to_json()` (behind `json` feature flag)
+- [x] Expose `ValidationReport` in Python bindings
+- [x] `validate()` returns `ValidationReport` instead of `Vec<ValidationResult>`
+- [x] `ValidateConfig { max_failed_samples: usize }` controls sample cap (default 100)
 
 ---
 
