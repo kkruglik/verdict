@@ -1,8 +1,8 @@
-# verdict-cli
+# verdict-cli — Fast CSV Data Validation for CI/CD Pipelines
 
-**CSV data validation from the command line.** Define rules in a JSON schema, run verdict-cli against your data, get structured results and a non-zero exit code on failure.
+**Validate CSV files against a schema from the command line.** Define data quality rules in JSON, run verdict-cli in your pipeline, get structured results and a non-zero exit code when data fails.
 
-Built on [verdict-core](https://crates.io/crates/verdict-core) — a high-performance Rust validation engine.
+Built on [verdict-core](https://crates.io/crates/verdict-core) — a Rust validation engine with zero I/O overhead.
 
 [![crates.io](https://img.shields.io/crates/v/verdict-cli)](https://crates.io/crates/verdict-cli)
 

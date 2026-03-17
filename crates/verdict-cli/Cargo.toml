@@ -2,7 +2,7 @@
 name = "verdict-cli"
 version = "0.1.2"
 edition = "2024"
-description = "CLI tool for validating CSV files against a JSON schema"
+description = "Fast CSV data validation for CI/CD pipelines. Schema-driven rules, structured output, non-zero exit on failure."
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/kkruglik/verdict"
