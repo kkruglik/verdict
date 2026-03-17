@@ -1,5 +1,18 @@
 use std::fmt::Display;
 
+pub struct ValidateConfig {
+    pub max_failed_samples: usize,
+}
+
+impl Default for ValidateConfig {
+    fn default() -> Self {
+        Self {
+            max_failed_samples: 100,
+        }
+    }
+}
+
+use crate::dataset::Keep;
 use crate::dataset::ops::{ComparableOps, StringOps};
 use crate::{
     dataset::{Column, Dataset, InSetValues},
@@ -213,12 +226,66 @@ pub fn rule(col_name: &str) -> RuleBuilder {
     }
 }
 
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[derive(Debug, Clone)]
 pub struct ValidationResult {
     pub column: String,
     pub constraint: String,
     pub passed: bool,
     pub failed_count: usize,
     pub error: Option<String>,
+    pub failed_values: Option<Vec<(usize, String)>>,
+}
+
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[derive(Debug, Clone)]
+pub struct ValidationReport {
+    pub passed: bool,
+    pub total_rules: usize,
+    pub passed_count: usize,
+    pub failed_count: usize,
+    pub results: Vec<ValidationResult>,
+}
+
+impl ValidationReport {
+    #[cfg(feature = "json")]
+    pub fn to_json(&self) -> String {
+        serde_json::to_string_pretty(self).unwrap()
+    }
+}
+
+impl Display for ValidationReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.passed {
+            writeln!(
+                f,
+                "Validation Report: PASSED ({}/{} rules passed)",
+                self.passed_count, self.total_rules
+            )?;
+        } else {
+            writeln!(
+                f,
+                "Validation Report: FAILED ({}/{} rules passed)",
+                self.passed_count, self.total_rules
+            )?;
+            for result in self.results.iter().filter(|r| !r.passed) {
+                writeln!(
+                    f,
+                    "  FAIL: column '{}' — {} — {} values failed: {}",
+                    result.column,
+                    result.constraint,
+                    result.failed_count,
+                    result.error.as_deref().unwrap_or("unknown error")
+                )?;
+                if let Some(values) = &result.failed_values {
+                    for (idx, val) in values {
+                        writeln!(f, "    row {}: {}", idx, val)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl ValidationResult {
@@ -229,16 +296,23 @@ impl ValidationResult {
             passed: true,
             failed_count: 0,
             error: None,
+            failed_values: None,
         }
     }
 
-    pub fn failed(rule: &Rule, failed_count: usize, error: &str) -> Self {
+    pub fn failed(
+        rule: &Rule,
+        failed_count: usize,
+        error: &str,
+        failed_values: Option<Vec<(usize, String)>>,
+    ) -> Self {
         ValidationResult {
             column: rule.column.clone(),
             constraint: format!("{}", rule.constraint),
             passed: false,
             failed_count,
             error: Some(error.to_string()),
+            failed_values,
         }
     }
 }
@@ -260,82 +334,100 @@ impl std::fmt::Display for ValidationResult {
     }
 }
 
-pub fn validate(data: &Dataset, rules: &[Rule]) -> Vec<ValidationResult> {
-    rules
+pub fn validate(data: &Dataset, rules: &[Rule], config: ValidateConfig) -> ValidationReport {
+    let results: Vec<ValidationResult> = rules
         .iter()
         .map(|rule| {
-            validate_with_rule(data, rule)
-                .unwrap_or_else(|e| ValidationResult::failed(rule, 0, &e.to_string()))
+            validate_with_rule(data, rule, &config)
+                .unwrap_or_else(|e| ValidationResult::failed(rule, 0, &e.to_string(), None))
         })
-        .collect()
+        .collect();
+
+    let passed_count = results.iter().map(|r| if r.passed { 1 } else { 0 }).sum();
+    let total_rules = results.len();
+    let failed_count = total_rules - passed_count;
+    let passed = failed_count == 0;
+    ValidationReport {
+        passed,
+        passed_count,
+        total_rules,
+        results,
+        failed_count,
+    }
 }
 
-fn validate_with_rule(data: &Dataset, rule: &Rule) -> Result<ValidationResult, ValidationError> {
+fn validate_with_rule(
+    data: &Dataset,
+    rule: &Rule,
+    config: &ValidateConfig,
+) -> Result<ValidationResult, ValidationError> {
     if let Some(column) = data.get_column_by_name(&rule.column) {
+        let n = config.max_failed_samples;
         match &rule.constraint {
-            Constraint::NotNull => Ok(check_not_null(column, rule)),
+            Constraint::NotNull => Ok(check_not_null(column, rule, n)),
             Constraint::GreaterThan(operand) => match operand {
-                Operand::Num(v) => Ok(check_greater_than_num(column, *v, rule)),
+                Operand::Num(v) => Ok(check_greater_than_num(column, *v, rule, n)),
                 Operand::Column(name) => {
                     if let Some(other) = data.get_column_by_name(name) {
-                        Ok(check_greater_than_col(column, other, name, rule))
+                        Ok(check_greater_than_col(column, other, name, rule, n))
                     } else {
                         Err(ValidationError::ColumnNotFound {
                             name: name.to_string(),
                         })
                     }
                 }
-                Operand::Str(v) => Ok(check_greater_than_str(column, v, rule)),
+                Operand::Str(v) => Ok(check_greater_than_str(column, v, rule, n)),
             },
             Constraint::GreaterThanOrEqual(operand) => match operand {
-                Operand::Num(v) => Ok(check_greater_than_or_equal_num(column, *v, rule)),
-                Operand::Str(v) => Ok(check_greater_than_or_equal_str(column, v, rule)),
+                Operand::Num(v) => Ok(check_greater_than_or_equal_num(column, *v, rule, n)),
+                Operand::Str(v) => Ok(check_greater_than_or_equal_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
-                    .map(|other| check_greater_than_or_equal_col(column, other, name, rule)),
+                    .map(|other| check_greater_than_or_equal_col(column, other, name, rule, n)),
             },
             Constraint::LessThan(operand) => match operand {
-                Operand::Num(v) => Ok(check_less_than_num(column, *v, rule)),
-                Operand::Str(v) => Ok(check_less_than_str(column, v, rule)),
+                Operand::Num(v) => Ok(check_less_than_num(column, *v, rule, n)),
+                Operand::Str(v) => Ok(check_less_than_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
-                    .map(|other| check_less_than_col(column, other, name, rule)),
+                    .map(|other| check_less_than_col(column, other, name, rule, n)),
             },
             Constraint::LessThanOrEqual(operand) => match operand {
-                Operand::Num(v) => Ok(check_less_than_or_equal_num(column, *v, rule)),
-                Operand::Str(v) => Ok(check_less_than_or_equal_str(column, v, rule)),
+                Operand::Num(v) => Ok(check_less_than_or_equal_num(column, *v, rule, n)),
+                Operand::Str(v) => Ok(check_less_than_or_equal_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
-                    .map(|other| check_less_than_or_equal_col(column, other, name, rule)),
+                    .map(|other| check_less_than_or_equal_col(column, other, name, rule, n)),
             },
             Constraint::Equal(operand) => match operand {
-                Operand::Num(v) => Ok(check_equal_num(column, *v, rule)),
-                Operand::Str(v) => Ok(check_equal_str(column, v, rule)),
-                Operand::Column(name) => {
-                    resolve_col(data, name).map(|other| check_equal_col(column, other, name, rule))
-                }
+                Operand::Num(v) => Ok(check_equal_num(column, *v, rule, n)),
+                Operand::Str(v) => Ok(check_equal_str(column, v, rule, n)),
+                Operand::Column(name) => resolve_col(data, name)
+                    .map(|other| check_equal_col(column, other, name, rule, n)),
             },
             Constraint::Between { min, max } => match (min, max) {
                 (Operand::Num(lo), Operand::Num(hi)) => {
-                    Ok(check_between_num(column, *lo, *hi, rule))
+                    Ok(check_between_num(column, *lo, *hi, rule, n))
                 }
-                (Operand::Str(lo), Operand::Str(hi)) => Ok(check_between_str(column, lo, hi, rule)),
+                (Operand::Str(lo), Operand::Str(hi)) => {
+                    Ok(check_between_str(column, lo, hi, rule, n))
+                }
                 (Operand::Column(lo), Operand::Column(hi)) => {
                     let lo_col = resolve_col(data, lo)?;
                     let hi_col = resolve_col(data, hi)?;
-                    Ok(check_between_cols(column, lo_col, hi_col, rule))
+                    Ok(check_between_cols(column, lo_col, hi_col, rule, n))
                 }
                 _ => Err(ValidationError::MismatchedTypes {
                     recieved: format!("recieved: {}, {}", min.type_name(), max.type_name()),
                     expected: "(num, num) | (str, str) | (col, col)".to_string(),
                 }),
             },
-            Constraint::MatchesRegex(p) => Ok(check_matches_regex(column, p, rule)),
-            Constraint::Contains(p) => Ok(check_contains(column, p, rule)),
-            Constraint::StartsWith(p) => Ok(check_starts_with(column, p, rule)),
-            Constraint::EndsWith(p) => Ok(check_ends_with(column, p, rule)),
+            Constraint::MatchesRegex(p) => Ok(check_matches_regex(column, p, rule, n)),
+            Constraint::Contains(p) => Ok(check_contains(column, p, rule, n)),
+            Constraint::StartsWith(p) => Ok(check_starts_with(column, p, rule, n)),
+            Constraint::EndsWith(p) => Ok(check_ends_with(column, p, rule, n)),
             Constraint::LengthBetween { min, max } => {
-                Ok(check_length_between(column, *min, *max, rule))
+                Ok(check_length_between(column, *min, *max, rule, n))
             }
-            Constraint::Unique => Ok(check_unique(column, rule)),
-            Constraint::InSet(other) => Ok(check_is_in_set(column, other, rule)),
+            Constraint::Unique => Ok(check_unique(column, rule, n)),
+            Constraint::InSet(other) => Ok(check_is_in_set(column, other, rule, n)),
         }
     } else {
         Err(ValidationError::ColumnNotFound {
@@ -351,38 +443,88 @@ fn resolve_col<'a>(data: &'a Dataset, name: &str) -> Result<&'a Column, Validati
         })
 }
 
-fn check_not_null(col: &Column, rule: &Rule) -> ValidationResult {
-    let failed = col.null_count();
-    if failed == 0 {
+fn check_not_null(col: &Column, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.is_null();
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| **val)
+        .map(|(idx, _)| (idx, "null".to_string()))
+        .take(n)
+        .collect();
+
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, "null values found")
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            "null values found",
+            Some(failed_values),
+        )
     }
 }
 
-fn check_greater_than_num(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .gt(value)
+fn check_greater_than_num(col: &Column, value: f64, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.gt(value);
+
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            _ => unreachable!("gt(f64) on non-numeric column"),
+        })
+        .take(n)
+        .collect();
+
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, &format!("values not greater than {}", value))
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not greater than {}", value),
+            Some(failed_values),
+        )
     }
 }
 
-fn check_greater_than_str(col: &Column, value: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .gt(value)
+fn check_greater_than_str(col: &Column, value: &str, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.gt(value);
+
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("gt(str) on non-str column"),
+        })
+        .take(n)
+        .collect();
+
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, &format!("values not greater than {}", value))
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not greater than {}", value),
+            Some(failed_values),
+        )
     }
 }
 
@@ -391,46 +533,116 @@ fn check_greater_than_col(
     other: &Column,
     other_name: &str,
     rule: &Rule,
+    n: usize,
 ) -> ValidationResult {
-    let failed = col
-        .gt(other)
+    let mask = col.gt(other);
+
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+        })
+        .take(n)
+        .collect();
+
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
-            &format!("values not greater than other column: {}", other_name),
+            failed_values.len(),
+            &format!("values not greater than {}", other_name),
+            Some(failed_values),
         )
     }
 }
 
-fn check_greater_than_or_equal_num(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .ge(value)
+fn check_greater_than_or_equal_num(
+    col: &Column,
+    value: f64,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.ge(value);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            _ => unreachable!("ge(f64) on non-numeric column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, &format!("values not >= {}", value))
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not >= {}", value),
+            Some(failed_values),
+        )
     }
 }
 
-fn check_greater_than_or_equal_str(col: &Column, value: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .ge(value)
+fn check_greater_than_or_equal_str(
+    col: &Column,
+    value: &str,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.ge(value);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("ge(str) on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, &format!("values not >= {}", value))
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not >= {}", value),
+            Some(failed_values),
+        )
     }
 }
 
@@ -439,148 +651,326 @@ fn check_greater_than_or_equal_col(
     other: &Column,
     other_name: &str,
     rule: &Rule,
+    n: usize,
 ) -> ValidationResult {
-    let failed = col
-        .ge(other)
+    let mask = col.ge(other);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
             &format!("values not >= column: {}", other_name),
+            Some(failed_values),
         )
     }
 }
 
-fn check_less_than_num(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .lt(value)
+fn check_less_than_num(col: &Column, value: f64, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.lt(value);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            _ => unreachable!("lt(f64) on non-numeric column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, &format!("values not less than {}", value))
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not less than {}", value),
+            Some(failed_values),
+        )
     }
 }
 
-fn check_less_than_str(col: &Column, value: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .lt(value)
+fn check_less_than_str(col: &Column, value: &str, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.lt(value);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("lt(str) on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, &format!("values not less than {}", value))
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not less than {}", value),
+            Some(failed_values),
+        )
     }
 }
+
 fn check_less_than_col(
     col: &Column,
     other: &Column,
     other_name: &str,
     rule: &Rule,
+    n: usize,
 ) -> ValidationResult {
-    let failed = col
-        .lt(other)
+    let mask = col.lt(other);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
             &format!("values not < column: {}", other_name),
+            Some(failed_values),
         )
     }
 }
 
-fn check_less_than_or_equal_num(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .le(value)
+fn check_less_than_or_equal_num(
+    col: &Column,
+    value: f64,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.le(value);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            _ => unreachable!("le(f64) on non-numeric column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
-            &format!("values not less than or equal to {}", value),
+            failed_values.len(),
+            &format!("values not <= {}", value),
+            Some(failed_values),
         )
     }
 }
 
-fn check_less_than_or_equal_str(col: &Column, value: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .le(value)
+fn check_less_than_or_equal_str(
+    col: &Column,
+    value: &str,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.le(value);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("le(str) on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
-            &format!("values not less than or equal to {}", value),
+            failed_values.len(),
+            &format!("values not <= {}", value),
+            Some(failed_values),
         )
     }
 }
+
 fn check_less_than_or_equal_col(
     col: &Column,
     other: &Column,
     other_name: &str,
     rule: &Rule,
+    n: usize,
 ) -> ValidationResult {
-    let failed = col
-        .le(other)
+    let mask = col.le(other);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
             &format!("values not <= column: {}", other_name),
+            Some(failed_values),
         )
     }
 }
 
-fn check_equal_num(col: &Column, value: f64, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .equal(value)
+fn check_equal_num(col: &Column, value: f64, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.equal(value);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            _ => unreachable!("equal(f64) on non-numeric column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, &format!("values not equal to {}", value))
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not equal to {}", value),
+            Some(failed_values),
+        )
     }
 }
 
-fn check_equal_str(col: &Column, value: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .equal(value)
+fn check_equal_str(col: &Column, value: &str, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.equal(value);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("equal(str) on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
-        ValidationResult::failed(rule, failed, &format!("values not equal to {}", value))
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not equal to {}", value),
+            Some(failed_values),
+        )
     }
 }
 
@@ -589,173 +979,363 @@ fn check_equal_col(
     other: &Column,
     other_name: &str,
     rule: &Rule,
+    n: usize,
 ) -> ValidationResult {
-    let failed = col
-        .equal(other)
+    let mask = col.equal(other);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
             &format!("values not equal to column: {}", other_name),
+            Some(failed_values),
         )
     }
 }
 
-fn check_between_num(col: &Column, min: f64, max: f64, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .between(min, max)
+fn check_between_num(col: &Column, min: f64, max: f64, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.between(min, max);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            _ => unreachable!("between(f64) on non-numeric column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
             &format!("values not between {} and {}", min, max),
+            Some(failed_values),
         )
     }
 }
 
-fn check_between_str(col: &Column, min: &str, max: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .between(min, max)
+fn check_between_str(
+    col: &Column,
+    min: &str,
+    max: &str,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.between(min, max);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("between(str) on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
             &format!("values not between {} and {}", min, max),
+            Some(failed_values),
         )
     }
 }
-fn check_between_cols(col: &Column, lo: &Column, hi: &Column, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .between(lo, hi)
-        .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
-        ValidationResult::passed(rule)
-    } else {
-        ValidationResult::failed(rule, failed, "values not between column bounds")
-    }
-}
 
-fn check_matches_regex(col: &Column, pattern: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .matches_regex(pattern)
+fn check_between_cols(
+    col: &Column,
+    lo: &Column,
+    hi: &Column,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.between(lo, hi);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
+            "values not between column bounds",
+            Some(failed_values),
+        )
+    }
+}
+
+fn check_matches_regex(col: &Column, pattern: &str, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.matches_regex(pattern);
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("matches_regex on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
             &format!("values don't match regex '{}'", pattern),
+            Some(failed_values),
         )
     }
 }
 
-fn check_contains(col: &Column, pattern: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .contains(pattern)
+fn check_contains(col: &Column, pattern: &str, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.contains(pattern);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
-        ValidationResult::passed(rule)
-    } else {
-        ValidationResult::failed(rule, failed, &format!("values don't contain '{}'", pattern))
-    }
-}
-
-fn check_starts_with(col: &Column, pattern: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .starts_with(pattern)
-        .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("contains on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
+            &format!("values don't contain '{}'", pattern),
+            Some(failed_values),
+        )
+    }
+}
+
+fn check_starts_with(col: &Column, pattern: &str, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.starts_with(pattern);
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("starts_with on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
             &format!("values don't start with '{}'", pattern),
+            Some(failed_values),
         )
     }
 }
 
-fn check_ends_with(col: &Column, pattern: &str, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .ends_with(pattern)
+fn check_ends_with(col: &Column, pattern: &str, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.ends_with(pattern);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("ends_with on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
             &format!("values don't end with '{}'", pattern),
+            Some(failed_values),
         )
     }
 }
 
-fn check_length_between(col: &Column, min: usize, max: usize, rule: &Rule) -> ValidationResult {
-    let failed = col
-        .length()
+fn check_length_between(
+    col: &Column,
+    min: usize,
+    max: usize,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.length();
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .map(|opt| opt.is_some_and(|v| (v >= min) && (v <= max)))
-        .filter(|v| !v)
-        .count();
-    if failed == 0 {
+        .enumerate()
+        .filter(|(_, len)| !len.is_some_and(|v| v >= min && v <= max))
+        .map(|(idx, _)| match col {
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            _ => unreachable!("length_between on non-str column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed,
+            failed_values.len(),
             &format!("string lengths not between {} and {}", min, max),
+            Some(failed_values),
         )
     }
 }
 
-fn check_is_in_set(col: &Column, other: &InSetValues, rule: &Rule) -> ValidationResult {
-    let failed_count = col
-        .is_in(other)
+fn check_is_in_set(col: &Column, other: &InSetValues, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.is_in(other);
+    let failed_values: Vec<(usize, String)> = mask
         .iter()
-        .filter(|v| !matches!(v, Some(true)))
-        .count();
-    if failed_count == 0 {
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
         ValidationResult::passed(rule)
     } else {
         ValidationResult::failed(
             rule,
-            failed_count,
+            failed_values.len(),
             &format!("column values are not in set: {:?}", other),
+            Some(failed_values),
         )
     }
 }
 
-fn check_unique(col: &Column, rule: &Rule) -> ValidationResult {
-    let failed_count = col.duplicates_count();
-    if failed_count == 0 {
-        ValidationResult::passed(rule)
-    } else {
-        ValidationResult::failed(rule, failed_count, "column values are not unique")
+fn check_unique(col: &Column, rule: &Rule, n: usize) -> ValidationResult {
+    if col.duplicates_count() == 0 {
+        return ValidationResult::passed(rule);
     }
+    let mask = col.duplicated(Keep::None);
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| **val)
+        .map(|(idx, _)| match col {
+            Column::Int(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Float(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
+            Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+        })
+        .take(n)
+        .collect();
+    ValidationResult::failed(
+        rule,
+        failed_values.len(),
+        "column values are not unique",
+        Some(failed_values),
+    )
 }
