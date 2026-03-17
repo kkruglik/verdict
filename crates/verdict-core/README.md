@@ -2,6 +2,8 @@
 
 High-performance data validation engine for tabular data, written in Rust.
 
+[![crates.io](https://img.shields.io/crates/v/verdict-core)](https://crates.io/crates/verdict-core)
+
 Define typed schemas and validation rules, then run them against `Dataset` objects loaded from CSV or constructed in memory. All logic is pure Rust with no I/O dependencies by default.
 
 ## Usage
