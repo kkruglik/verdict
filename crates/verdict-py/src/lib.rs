@@ -7,7 +7,10 @@ use verdict_core::{
         BoolColumn, Column, DataType, Dataset, Field, FloatColumn, InSetValues, IntColumn, Schema,
         StrColumn,
     },
-    rules::{Constraint, Operand, Rule, RuleBuilder, ValidationResult, validate},
+    rules::{
+        Constraint, Operand, Rule, RuleBuilder, ValidateConfig, ValidationReport, ValidationResult,
+        validate,
+    },
 };
 
 fn format_values<T>(values: &[Option<T>], fmt: impl Fn(&T) -> String) -> String {
@@ -579,6 +582,43 @@ struct PyValidationResult {
     inner: ValidationResult,
 }
 
+#[pyclass(name = "ValidationReport")]
+struct PyValidationReport {
+    inner: ValidationReport,
+}
+
+#[pymethods]
+impl PyValidationReport {
+    #[getter]
+    fn results(&self) -> Vec<PyValidationResult> {
+        self.inner
+            .results
+            .iter()
+            .map(|res| PyValidationResult { inner: res.clone() })
+            .collect()
+    }
+
+    #[getter]
+    fn passed(&self) -> bool {
+        self.inner.passed
+    }
+
+    #[getter]
+    fn total_rules(&self) -> usize {
+        self.inner.total_rules
+    }
+
+    #[getter]
+    fn passed_count(&self) -> usize {
+        self.inner.passed_count
+    }
+
+    #[getter]
+    fn failed_count(&self) -> usize {
+        self.inner.failed_count
+    }
+}
+
 #[pymethods]
 impl PyValidationResult {
     #[getter]
@@ -606,6 +646,11 @@ impl PyValidationResult {
         self.inner.error.as_deref()
     }
 
+    #[getter]
+    fn failed_values(&self) -> Option<Vec<(usize, String)>> {
+        self.inner.failed_values.clone()
+    }
+
     fn __repr__(&self) -> String {
         self.inner.to_string()
     }
@@ -616,17 +661,19 @@ fn py_validate(
     py: Python<'_>,
     data: Py<PyDataset>,
     rules: Vec<Py<PyRule>>,
-) -> PyResult<Vec<PyValidationResult>> {
+) -> PyResult<PyValidationReport> {
     let core_rules: Vec<Rule> = rules
         .into_iter()
         .map(|v| v.borrow(py).inner.clone())
         .collect();
 
-    let results = validate(&data.borrow(py).inner, &core_rules)
-        .into_iter()
-        .map(|r| PyValidationResult { inner: r })
-        .collect();
-    Ok(results)
+    let results = validate(
+        &data.borrow(py).inner,
+        &core_rules,
+        ValidateConfig::default(),
+    );
+    let report = PyValidationReport { inner: results };
+    Ok(report)
 }
 
 #[pymodule]
@@ -637,6 +684,7 @@ fn verdict_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyRule>()?;
     m.add_class::<PyRuleBuilder>()?;
     m.add_class::<PyValidationResult>()?;
+    m.add_class::<PyValidationReport>()?;
     m.add_class::<PySchema>()?;
     m.add_class::<PyDataType>()?;
     m.add_function(wrap_pyfunction!(py_validate, m)?)?;
