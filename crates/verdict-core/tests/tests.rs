@@ -465,8 +465,16 @@ mod tests {
         let dataset = make_all_types_dataset();
         let null_dataset = make_with_nulls_dataset();
 
-        let passed_result = validate(&dataset, &[Rule::new("id", Constraint::NotNull)], ValidateConfig::default());
-        let failed_result = validate(&null_dataset, &[Rule::new("id", Constraint::NotNull)], ValidateConfig::default());
+        let passed_result = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::NotNull)],
+            ValidateConfig::default(),
+        );
+        let failed_result = validate(
+            &null_dataset,
+            &[Rule::new("id", Constraint::NotNull)],
+            ValidateConfig::default(),
+        );
 
         assert!(passed_result.results[0].passed);
         assert!(!failed_result.results[0].passed);
@@ -475,10 +483,18 @@ mod tests {
     #[test]
     fn test_validate_unique() {
         let dataset = make_all_types_dataset();
-        let results = validate(&dataset, &[Rule::new("id", Constraint::Unique)], ValidateConfig::default());
+        let results = validate(
+            &dataset,
+            &[Rule::new("id", Constraint::Unique)],
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
 
-        let results = validate(&dataset, &[Rule::new("active", Constraint::Unique)], ValidateConfig::default());
+        let results = validate(
+            &dataset,
+            &[Rule::new("active", Constraint::Unique)],
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
     }
 
@@ -506,7 +522,11 @@ mod tests {
     fn test_col_pair_gt_passes() {
         let ds = make_compare_dataset();
         // y=[6,7,8,9,10] > x=[1,2,3,4,5] — always true
-        let results = validate(&ds, &rule("y").gt(col("x")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("y").gt(col("x")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -516,7 +536,11 @@ mod tests {
         let ds = make_compare_dataset();
         // x=[1,2,3,4,5] > z=[28,1,0.5,4,0.9]
         // row 0: 1>28 false, row 3: 4>4 false → 2 failures
-        let results = validate(&ds, &rule("x").gt(col("z")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").gt(col("z")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
     }
@@ -527,7 +551,11 @@ mod tests {
     fn test_col_pair_ge_passes() {
         let ds = make_compare_dataset();
         // y >= x always
-        let results = validate(&ds, &rule("y").ge(col("x")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("y").ge(col("x")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -537,7 +565,11 @@ mod tests {
         let ds = make_compare_dataset();
         // x=[1,2,3,4,5] >= z=[28,1,0.5,4,0.9]
         // row 3: 4>=4 true; row 0: 1>=28 false → 1 failure
-        let results = validate(&ds, &rule("x").ge(col("z")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").ge(col("z")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 1);
     }
@@ -548,7 +580,11 @@ mod tests {
     fn test_col_pair_lt_passes() {
         let ds = make_compare_dataset();
         // x < y always
-        let results = validate(&ds, &rule("x").lt(col("y")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").lt(col("y")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -558,7 +594,11 @@ mod tests {
         let ds = make_compare_dataset();
         // z=[28,1,0.5,4,0.9] < x=[1,2,3,4,5]
         // row 0: 28<1 false, row 3: 4<4 false → 2 failures
-        let results = validate(&ds, &rule("z").lt(col("x")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("z").lt(col("x")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
     }
@@ -569,7 +609,11 @@ mod tests {
     fn test_col_pair_le_passes() {
         let ds = make_compare_dataset();
         // x <= y always
-        let results = validate(&ds, &rule("x").le(col("y")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").le(col("y")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -579,7 +623,11 @@ mod tests {
         let ds = make_compare_dataset();
         // x=[1,2,3,4,5] <= z=[28,1,0.5,4,0.9]
         // row 1: 2<=1 false, row 2: 3<=0.5 false, row 4: 5<=0.9 false → 3 failures
-        let results = validate(&ds, &rule("x").le(col("z")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").le(col("z")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
     }
@@ -590,7 +638,11 @@ mod tests {
     fn test_col_pair_equal_same_column() {
         let ds = make_compare_dataset();
         // x == x: every value equals itself
-        let results = validate(&ds, &rule("x").equal(col("x")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").equal(col("x")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -599,7 +651,11 @@ mod tests {
     fn test_col_pair_equal_fails() {
         let ds = make_compare_dataset();
         // x=[1,2,3,4,5] != y=[6,7,8,9,10] for every row → 5 failures
-        let results = validate(&ds, &rule("x").equal(col("y")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").equal(col("y")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 5);
     }
@@ -612,7 +668,11 @@ mod tests {
     fn test_col_pair_between_literal_col_passes() {
         let ds = make_compare_dataset();
         // 0.0 <= x <= y: x=[1..5], y=[6..10] — all pass
-        let results = validate(&ds, &rule("x").between(0.0, col("y")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").between(0.0, col("y")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -623,7 +683,11 @@ mod tests {
     fn test_col_pair_between_col_literal_passes() {
         let ds = make_compare_dataset();
         // x <= y <= 100.0: y=[6..10], x=[1..5] — all pass
-        let results = validate(&ds, &rule("y").between(col("x"), 100.0).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("y").between(col("x"), 100.0).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -633,7 +697,11 @@ mod tests {
         let ds = make_compare_dataset();
         // z=[28,1,0.5,4,0.9] between x=[1,2,3,4,5] and y=[6,7,8,9,10]
         // row 0: 1<=28<=6 false (28>6), row 1: 2<=1 false, row 2: 3<=0.5 false, row 4: 5<=0.9 false → 4 failures
-        let results = validate(&ds, &rule("z").between(col("x"), col("y")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("z").between(col("x"), col("y")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4);
     }
@@ -644,7 +712,11 @@ mod tests {
     fn test_col_pair_null_counts_as_failure() {
         let ds = make_compare_nulls_dataset();
         // a < b: rows 0,3 pass; rows 1,2,4 have at least one null → None → skipped
-        let results = validate(&ds, &rule("a").lt(col("b")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").lt(col("b")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -653,7 +725,11 @@ mod tests {
     fn test_col_pair_one_sided_null_is_failure() {
         let ds = make_compare_nulls_dataset();
         // a < high: high has no nulls; a is null at rows 1,4 → None → skipped
-        let results = validate(&ds, &rule("a").lt(col("high")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").lt(col("high")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -662,7 +738,11 @@ mod tests {
     fn test_col_pair_both_null_is_failure() {
         let ds = make_compare_nulls_dataset();
         // a == c: same values/nulls; rows 1,4 both null → None → skipped
-        let results = validate(&ds, &rule("a").equal(col("c")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").equal(col("c")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -673,7 +753,11 @@ mod tests {
     fn test_col_pair_between_with_nulls() {
         let ds = make_compare_nulls_dataset();
         // 0.0 <= a <= high: a null at rows 1,4 → None → failure
-        let results = validate(&ds, &rule("a").between(0.0, col("high")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").between(0.0, col("high")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
     }
@@ -700,7 +784,11 @@ mod tests {
             ],
         );
         // same values: rows 0,1 pass; row 2 both null → None → skipped
-        let results = validate(&ds, &rule("a").equal(col("b")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").equal(col("b")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -715,7 +803,11 @@ mod tests {
             ],
         );
         // "apple" < "banana", "cat" < "dog" lexicographically
-        let results = validate(&ds, &rule("a").lt(col("b")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").lt(col("b")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -730,7 +822,11 @@ mod tests {
             ],
         );
         // "zoo" < "apple" false → 1 failure
-        let results = validate(&ds, &rule("a").lt(col("b")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").lt(col("b")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 1);
     }
@@ -747,7 +843,11 @@ mod tests {
             ],
         );
         // rows 0,1 match; row 2 both null → None → skipped
-        let results = validate(&ds, &rule("a").equal(col("b")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").equal(col("b")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -762,7 +862,11 @@ mod tests {
             ],
         );
         // a > b: true>false passes, false>true fails → 1 failure
-        let results = validate(&ds, &rule("a").gt(col("b")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").gt(col("b")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 1);
     }
@@ -773,7 +877,11 @@ mod tests {
     fn test_col_pair_type_mismatch_all_fail() {
         let ds = make_compare_dataset();
         // id (Int) vs x (Float) → ComparableOps<&Column> returns all None → all skipped
-        let results = validate(&ds, &rule("id").gt(col("x")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("id").gt(col("x")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -788,7 +896,11 @@ mod tests {
             ],
         );
         // all left values are None → all None → all skipped
-        let results = validate(&ds, &rule("a").lt(col("b")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("a").lt(col("b")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -797,7 +909,11 @@ mod tests {
     fn test_col_pair_between_type_mismatch_all_fail() {
         let ds = make_compare_dataset();
         // id (Int) between x (Float) and y (Float) → type mismatch in between_cols → all None → all skipped
-        let results = validate(&ds, &rule("id").between(col("x"), col("y")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("id").between(col("x"), col("y")).build(),
+            ValidateConfig::default(),
+        );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
     }
@@ -805,7 +921,11 @@ mod tests {
     #[test]
     fn test_col_pair_missing_column_error() {
         let ds = make_compare_dataset();
-        let results = validate(&ds, &rule("x").gt(col("nonexistent")).build(), ValidateConfig::default());
+        let results = validate(
+            &ds,
+            &rule("x").gt(col("nonexistent")).build(),
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert!(results.results[0].error.is_some());
     }
@@ -817,7 +937,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::GreaterThan(Operand::Num(0.0)))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -826,7 +946,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::GreaterThan(Operand::Num(3.0)))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -838,14 +958,14 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::GreaterThanOrEqual(1.0.into()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::GreaterThanOrEqual(3.0.into()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
@@ -857,14 +977,14 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::LessThan(6.0.into()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::LessThan(3.0.into()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -876,14 +996,14 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::LessThanOrEqual(5.0.into()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::LessThanOrEqual(3.0.into()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
@@ -895,7 +1015,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("score", Constraint::Equal(95.5.into()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4);
@@ -914,7 +1034,7 @@ mod tests {
                     max: 110.0.into(),
                 },
             )],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -927,7 +1047,7 @@ mod tests {
                     max: 100.0.into(),
                 },
             )],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2); // bob=87.3, diana=78.9
@@ -943,7 +1063,7 @@ mod tests {
                 "name",
                 Constraint::MatchesRegex(r"^[a-z]+$".to_string()),
             )],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -953,7 +1073,7 @@ mod tests {
                 "name",
                 Constraint::MatchesRegex(r"^a".to_string()),
             )],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4);
@@ -965,7 +1085,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("name", Constraint::Contains("li".to_string()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -974,7 +1094,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("name", Constraint::Contains("b".to_string()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4); // only bob contains "b"
@@ -986,7 +1106,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("name", Constraint::StartsWith("a".to_string()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4);
@@ -998,7 +1118,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("name", Constraint::EndsWith("e".to_string()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2); // bob, diana don't end with "e"
@@ -1014,7 +1134,7 @@ mod tests {
                 "name",
                 Constraint::LengthBetween { min: 3, max: 7 },
             )],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1024,7 +1144,7 @@ mod tests {
                 "name",
                 Constraint::LengthBetween { min: 4, max: 6 },
             )],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3); // bob(3), charlie(7), eve(3)
@@ -1045,7 +1165,7 @@ mod tests {
                     "eve".to_string(),
                 ])),
             )],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1058,7 +1178,7 @@ mod tests {
                     "bob".to_string(),
                 ])),
             )],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -1067,7 +1187,11 @@ mod tests {
     #[test]
     fn test_validate_column_not_found() {
         let dataset = make_all_types_dataset();
-        let results = validate(&dataset, &[Rule::new("nonexistent", Constraint::NotNull)], ValidateConfig::default());
+        let results = validate(
+            &dataset,
+            &[Rule::new("nonexistent", Constraint::NotNull)],
+            ValidateConfig::default(),
+        );
         assert!(!results.results[0].passed);
         assert!(results.results[0].error.is_some());
     }
@@ -1079,7 +1203,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[Rule::new("id", Constraint::GreaterThan(0.0.into()))],
-        ValidateConfig::default(),
+            ValidateConfig::default(),
         );
         // nulls are skipped; non-null values (2, 4) are both > 0 → passes
         assert!(results.results[0].passed);
@@ -1214,7 +1338,9 @@ mod tests {
         let report = validate(
             &dataset,
             &[Rule::new("id", Constraint::Equal(0.0.into()))],
-            ValidateConfig { max_failed_samples: 2 },
+            ValidateConfig {
+                max_failed_samples: 2,
+            },
         );
         let result = &report.results[0];
         assert!(!result.passed);
@@ -1232,7 +1358,9 @@ mod tests {
         let report = validate(
             &dataset,
             &[Rule::new("id", Constraint::GreaterThan(3.0.into()))],
-            ValidateConfig { max_failed_samples: 10 },
+            ValidateConfig {
+                max_failed_samples: 10,
+            },
         );
         let result = &report.results[0];
         assert!(!result.passed);
