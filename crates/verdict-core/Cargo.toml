@@ -3,6 +3,7 @@ name = "verdict-core"
 version = "0.1.1"
 edition = "2024"
 description = "High-performance data validation engine for tabular data"
+readme = "README.md"
 license = "MIT"
 repository = "https://github.com/kkruglik/verdict"
 keywords = ["validation", "data-quality", "csv", "tabular"]
