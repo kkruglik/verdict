@@ -10,11 +10,14 @@ Verdict lets you define typed schemas and validation rules for tabular data, the
 
 - **14 constraint types** — null checks, uniqueness, numeric comparisons, string patterns, set membership, and more
 - **Column-to-column comparisons** — validate that one column's values are greater than another's
-- **Null-aware operations** — all comparisons preserve null information without false failures
+- **Null-aware operations** — nulls are skipped in comparisons; use `not_null` to enforce presence
+- **Failed row samples** — each result includes the row index and value of up to N failed rows
+- **Structured report** — `ValidationReport` with pass/fail summary, counts, and per-rule results
+- **JSON export** — `--format json` in the CLI or `.to_json()` in Rust (behind `json` feature flag)
 - **4 typed column kinds** — `Int`, `Float`, `Str`, `Bool`, each with appropriate operations
 - **CSV loading** — feature-gated CSV reader with typed schema enforcement
 - **Python bindings** — clean PyO3 API with a fluent `RuleBuilder`
-- **CLI binary** — zero-dependency binary for CI/CD pipelines, JSON output, exit codes
+- **CLI binary** — validates CSV against a JSON schema, text or JSON output, exit codes for CI
 - **Zero I/O in core** — `verdict-core` has no filesystem dependencies by default
 
 ---
@@ -123,11 +126,24 @@ Schema format (`schema.json`):
 }
 ```
 
+**Flags:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--format` | `json` | Output format: `json` or `text` |
+| `--max-failed-samples` | `100` | Max failed row samples per rule in the report |
+
 - Columns without `constraints` are still required for schema — they're just not validated
-- Exit code `0` — all constraints pass; `1` — at least one fails
-- Default output is JSON; `--format text` for human-readable
+- Exit code `0` — all rules pass; `1` — at least one fails
+- JSON output includes `failed_values` with row index and value for each failed row (up to `--max-failed-samples`)
 
 ```bash
+# text output
+verdict-cli data.csv schema.json --format text
+
+# cap failed samples
+verdict-cli data.csv schema.json --max-failed-samples 10
+
 # CI usage
 verdict-cli data.csv schema.json && echo "data quality OK"
 ```
