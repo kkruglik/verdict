@@ -2,6 +2,11 @@
 name = "verdict-core"
 version = "0.1.0"
 edition = "2024"
+description = "High-performance data validation engine for tabular data"
+license = "MIT"
+repository = "https://github.com/kkruglik/verdict"
+keywords = ["validation", "data-quality", "csv", "tabular"]
+categories = ["data-structures", "parser-implementations"]
 
 [dependencies]
 regex = "1"
