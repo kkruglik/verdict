@@ -11,6 +11,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.27.0"
-verdict-core = { version = "0.1.1", path = "../verdict-core", features = [
+verdict-core = { version = "0.1.2", path = "../verdict-core", features = [
   "csv",
 ] }
