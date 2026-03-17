@@ -1,29 +1,48 @@
 # verdict-cli
 
-CLI tool for validating CSV files against a JSON schema.
+**CSV data validation from the command line.** Define rules in a JSON schema, run verdict-cli against your data, get structured results and a non-zero exit code on failure.
+
+Built on [verdict-core](https://crates.io/crates/verdict-core) — a high-performance Rust validation engine.
+
+[![crates.io](https://img.shields.io/crates/v/verdict-cli)](https://crates.io/crates/verdict-cli)
 
 ## Installation
-
-Download a pre-built binary from the [GitHub releases page](https://github.com/kkruglik/verdict/releases), or build from source:
 
 ```bash
 cargo install verdict-cli
 ```
 
+Or download a pre-built binary for Linux, macOS, or Windows from the [releases page](https://github.com/kkruglik/verdict/releases).
+
 ## Usage
 
 ```bash
 verdict-cli data.csv schema.json
+verdict-cli data.csv schema.json --format text
+verdict-cli data.csv schema.json --max-failed-samples 10
 ```
 
 Exit code `0` — all rules pass. Exit code `1` — at least one rule fails.
+
+## CI/CD integration
+
+```yaml
+# GitHub Actions
+- name: Validate data
+  run: verdict-cli data.csv schema.json
+```
+
+```bash
+# pre-commit / shell script
+verdict-cli data.csv schema.json || exit 1
+```
 
 ## Flags
 
 | Flag | Default | Description |
 |---|---|---|
 | `--format` | `json` | Output format: `json` or `text` |
-| `--max-failed-samples` | `100` | Max failed row samples per rule |
+| `--max-failed-samples` | `100` | Max failed row samples per rule in the report |
 
 ## Schema format
 
@@ -37,27 +56,36 @@ Exit code `0` — all rules pass. Exit code `1` — at least one rule fails.
     { "name": "score", "dtype": "float", "constraints": [
       { "constraint": "between", "value": [0, 100] }
     ]},
-    { "name": "country", "dtype": "str" }
+    { "name": "country", "dtype": "str", "constraints": [
+      { "constraint": "is_in", "value": ["US", "UK", "DE", "FR", "JP"] }
+    ]},
+    { "name": "created_at", "dtype": "str" }
   ]
 }
 ```
 
 Supported dtypes: `int`, `float`, `str`, `bool`.
 
-Columns without `constraints` are still declared in the schema — they're loaded and type-checked but not validated against any rules.
+Columns without `constraints` are still required in the schema — they are loaded and type-checked but not validated against any rules.
+
+## Supported constraints
+
+| Constraint | Dtypes | Example value |
+|---|---|---|
+| `not_null` | all | `true` |
+| `unique` | all | `true` |
+| `gt` / `ge` / `lt` / `le` | int, float | `18` |
+| `equal` | int, float, str | `"active"` |
+| `between` | int, float | `[0, 100]` |
+| `is_in` | int, float, str | `["US", "UK", "DE"]` |
+| `matches_regex` | str | `"^[A-Z]{2}$"` |
+| `contains` | str | `"@"` |
+| `starts_with` / `ends_with` | str | `"prod_"` |
+| `length_between` | str | `[2, 50]` |
 
 ## Output
 
-**Text:**
-
-```
-Validation Report: FAILED (2/3 rules passed)
-  FAIL: column 'age' — gt(18) — 5 values failed
-    row 3: 15
-    row 7: 12
-```
-
-**JSON:**
+**JSON** (default):
 
 ```json
 {
@@ -65,14 +93,25 @@ Validation Report: FAILED (2/3 rules passed)
   "total_rules": 3,
   "passed_count": 2,
   "failed_count": 1,
-  "results": [...]
+  "results": [
+    {
+      "column": "age",
+      "constraint": "gt(18)",
+      "passed": false,
+      "failed_count": 2,
+      "failed_values": [[3, "15"], [7, "12"]]
+    }
+  ]
 }
 ```
 
-## CI usage
+**Text** (`--format text`):
 
-```bash
-verdict-cli data.csv schema.json && echo "data quality OK"
+```
+Validation Report: FAILED (2/3 rules passed)
+  FAIL: column 'age' — gt(18) — 2 values failed
+    row 3: 15
+    row 7: 12
 ```
 
 ## License
