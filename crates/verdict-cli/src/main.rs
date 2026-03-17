@@ -1,13 +1,13 @@
 use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataset::{DataType, Dataset, Field, InSetValues, Schema},
-    rules::{Constraint, Operand, Rule, RuleBuilder, validate},
+    rules::{Constraint, Operand, Rule, RuleBuilder, ValidateConfig, validate},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, ValueEnum};
 use serde::Deserialize;
-use serde_json::{Value, from_reader, json, to_string_pretty};
+use serde_json::{Value, from_reader};
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -27,6 +27,13 @@ struct Cli {
 
     #[arg(long, value_enum, default_value = "json", help = "Output format")]
     format: OutputFormat,
+
+    #[arg(
+        long,
+        default_value_t = 100,
+        help = "Maximum number of failed samples to include in the report"
+    )]
+    max_failed_samples: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -468,33 +475,22 @@ fn main() -> Result<()> {
         "failed to load dataset: {}",
         cli.filename.display()
     ))?;
-    let results = validate(&data, &dataset_rules);
-    let any_failed = results.iter().any(|r| !r.passed);
+    let report = validate(
+        &data,
+        &dataset_rules,
+        ValidateConfig {
+            max_failed_samples: cli.max_failed_samples,
+        },
+    );
 
     match cli.format {
         OutputFormat::Text => {
-            for r in &results {
-                println!("{}", r);
-            }
+            println!("{}", report);
         }
-        OutputFormat::Json => {
-            let output: Vec<_> = results
-                .iter()
-                .map(|r| {
-                    json!({
-                        "column": r.column,
-                        "constraint": r.constraint,
-                        "passed": r.passed,
-                        "failed_count": r.failed_count,
-                        "error": r.error,
-                    })
-                })
-                .collect();
-            println!("{}", to_string_pretty(&output).unwrap());
-        }
+        OutputFormat::Json => println!("{}", report.to_json()),
     }
 
-    if any_failed {
+    if !&report.passed {
         std::process::exit(1);
     }
 

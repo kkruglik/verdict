@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::dataset::ops::NumericOps;
 
@@ -39,6 +39,10 @@ impl IntColumn {
         self.len() == 0
     }
 
+    pub fn is_null(&self) -> Vec<bool> {
+        self.0.iter().map(|v| v.is_none()).collect()
+    }
+
     pub fn not_null_count(&self) -> usize {
         self.0.iter().filter(|v| v.is_some()).count()
     }
@@ -52,6 +56,10 @@ impl FloatColumn {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn is_null(&self) -> Vec<bool> {
+        self.0.iter().map(|v| v.is_none()).collect()
     }
 
     pub fn not_null_count(&self) -> usize {
@@ -69,6 +77,10 @@ impl StrColumn {
         self.len() == 0
     }
 
+    pub fn is_null(&self) -> Vec<bool> {
+        self.0.iter().map(|v| v.is_none()).collect()
+    }
+
     pub fn not_null_count(&self) -> usize {
         self.0.iter().filter(|v| v.is_some()).count()
     }
@@ -82,6 +94,10 @@ impl BoolColumn {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn is_null(&self) -> Vec<bool> {
+        self.0.iter().map(|v| v.is_none()).collect()
     }
 
     pub fn not_null_count(&self) -> usize {
@@ -105,10 +121,10 @@ impl Column {
 
     pub fn is_null(&self) -> Vec<bool> {
         match self {
-            Column::Int(col) => col.0.iter().map(|v| v.is_none()).collect(),
-            Column::Float(col) => col.0.iter().map(|v| v.is_none()).collect(),
-            Column::Str(col) => col.0.iter().map(|v| v.is_none()).collect(),
-            Column::Bool(col) => col.0.iter().map(|v| v.is_none()).collect(),
+            Column::Int(col) => col.is_null(),
+            Column::Float(col) => col.is_null(),
+            Column::Str(col) => col.is_null(),
+            Column::Bool(col) => col.is_null(),
         }
     }
 
@@ -146,6 +162,19 @@ impl Column {
 
     pub fn duplicates_count(&self) -> usize {
         self.len() - self.unique_count()
+    }
+
+    pub fn duplicated(&self, keep: Keep) -> Vec<bool> {
+        match self {
+            Column::Int(c) => duplicated(&c.0, keep),
+            Column::Float(c) => {
+                let bits_values: Vec<Option<u64>> =
+                    c.0.iter().map(|v| v.map(|f| f.to_bits())).collect();
+                duplicated(&bits_values, keep)
+            }
+            Column::Str(c) => duplicated(&c.0, keep),
+            Column::Bool(c) => duplicated(&c.0, keep),
+        }
     }
 
     pub fn is_in(&self, other: &InSetValues) -> Vec<Option<bool>> {
@@ -216,4 +245,51 @@ impl Column {
             _ => None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Keep {
+    First,
+    Last,
+    None,
+}
+
+fn duplicated<T: Eq + std::hash::Hash>(vec: &[T], keep: Keep) -> Vec<bool> {
+    let mut counts: HashMap<&T, usize> = HashMap::new();
+    for val in vec {
+        *counts.entry(val).or_insert(0) += 1;
+    }
+
+    let mut seen: HashMap<&T, usize> = HashMap::new();
+    let mut mask = vec![false; vec.len()];
+
+    match keep {
+        Keep::First => {
+            for (i, val) in vec.iter().enumerate() {
+                let seen_count = seen.entry(val).or_insert(0);
+                if *seen_count > 0 {
+                    mask[i] = true;
+                }
+                *seen_count += 1;
+            }
+        }
+        Keep::Last => {
+            for (i, val) in vec.iter().enumerate().rev() {
+                let seen_count = seen.entry(val).or_insert(0);
+                if *seen_count > 0 {
+                    mask[i] = true;
+                }
+                *seen_count += 1;
+            }
+        }
+        Keep::None => {
+            for (i, val) in vec.iter().enumerate() {
+                if counts[val] > 1 {
+                    mask[i] = true;
+                }
+            }
+        }
+    }
+
+    mask
 }

@@ -59,16 +59,14 @@ print(f"{'=' * 60}\n")
 dataset = benchmark("load from csv", lambda: Dataset.from_csv("../../fixtures/sample.csv", SCHEMA))
 print(f"  loaded: {dataset}\n")
 
-results = benchmark(
+report = benchmark(
     f"validate ({len(RULES)} rules)", lambda: py_validate(dataset, RULES)
 )
 
-passed = sum(1 for r in results if r.is_passed)
-failed = len(results) - passed
-print(f"\n  {passed} passed / {failed} failed\n")
+print(f"\n  {report.passed_count} passed / {report.failed_count} failed\n")
 
 print(f"{'=' * 60}")
 print(f"  Results")
 print(f"{'=' * 60}")
-for r in results:
+for r in report.results:
     print(f"  {r}")

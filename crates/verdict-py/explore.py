@@ -65,8 +65,8 @@ def explore_validation():
         .build(),
         *RuleBuilder("share").gt(0.0).between(1.0, 50.0).build(),
     ]
-    results = py_validate(dataset, rules)
-    for r in results:
+    report = py_validate(dataset, rules)
+    for r in report.results:
         print(r)
 
 
