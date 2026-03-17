@@ -102,32 +102,32 @@ class TestDataset:
 
 class TestValidation:
     def test_passing_rule(self, dataset):
-        results = py_validate(dataset, RuleBuilder("id").not_null().build())
-        assert len(results) == 1
-        assert results[0].is_passed
+        report = py_validate(dataset, RuleBuilder("id").not_null().build())
+        assert len(report.results) == 1
+        assert report.results[0].is_passed
 
     def test_failing_rule(self, dataset):
-        results = py_validate(dataset, RuleBuilder("age").not_null().build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 1
+        report = py_validate(dataset, RuleBuilder("age").not_null().build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1
 
     def test_multiple_rules(self, dataset):
         rules = [
             *RuleBuilder("id").not_null().unique().build(),
             *RuleBuilder("age").not_null().build(),
         ]
-        results = py_validate(dataset, rules)
-        assert results[0].is_passed
-        assert results[1].is_passed
-        assert not results[2].is_passed
+        report = py_validate(dataset, rules)
+        assert report.results[0].is_passed
+        assert report.results[1].is_passed
+        assert not report.results[2].is_passed
 
     def test_missing_column(self, dataset):
-        results = py_validate(dataset, RuleBuilder("nonexistent").not_null().build())
-        assert not results[0].is_passed
+        report = py_validate(dataset, RuleBuilder("nonexistent").not_null().build())
+        assert not report.results[0].is_passed
 
     def test_result_fields(self, dataset):
-        results = py_validate(dataset, RuleBuilder("age").not_null().build())
-        r = results[0]
+        report = py_validate(dataset, RuleBuilder("age").not_null().build())
+        r = report.results[0]
         assert r.column == "age"
         assert r.constraint is not None
         assert r.failed_count == 1
@@ -138,13 +138,41 @@ class TestValidation:
             *RuleBuilder("id").not_null().unique().gt(0.0).ge(1.0).lt(10.0).le(4.0).between(1.0, 4.0).build(),
             *RuleBuilder("name").contains("a").starts_with("a").ends_with("x").matches_regex("^[a-z]+").length_between(2, 10).is_in(["ann", "clark", "lana", "lex"]).build(),
         ]
-        results = py_validate(dataset, rules)
-        assert len(results) == 13
+        report = py_validate(dataset, rules)
+        assert len(report.results) == 13
 
     def test_with_nulls_column(self, dataset):
-        results = py_validate(dataset, RuleBuilder("id_with_nulls").not_null().build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 2
+        report = py_validate(dataset, RuleBuilder("id_with_nulls").not_null().build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 2
+
+    def test_report_all_pass(self, dataset):
+        rules = [*RuleBuilder("id").not_null().unique().build()]
+        report = py_validate(dataset, rules)
+        assert report.passed is True
+        assert report.total_rules == 2
+        assert report.passed_count == 2
+        assert report.failed_count == 0
+
+    def test_report_partial_fail(self, dataset):
+        rules = [
+            *RuleBuilder("id").not_null().unique().build(),
+            *RuleBuilder("age").not_null().build(),
+        ]
+        report = py_validate(dataset, rules)
+        assert report.passed is False
+        assert report.total_rules == 3
+        assert report.passed_count == 2
+        assert report.failed_count == 1
+
+    def test_report_failed_values(self, dataset):
+        report = py_validate(dataset, RuleBuilder("age").not_null().build())
+        r = report.results[0]
+        assert r.failed_values is not None
+        assert len(r.failed_values) == 1
+        idx, val = r.failed_values[0]
+        assert isinstance(idx, int)
+        assert isinstance(val, str)
 
 
 # ── CSV loading ───────────────────────────────────────────────────────────────
@@ -201,8 +229,8 @@ class TestCsvLoading:
             *RuleBuilder("id").not_null().unique().build(),
             *RuleBuilder("score").between(0.0, 10.0).build(),
         ]
-        results = py_validate(ds, rules)
-        assert all(r.is_passed for r in results)
+        report = py_validate(ds, rules)
+        assert all(r.is_passed for r in report.results)
 
 
 # ── Column pair validation ────────────────────────────────────────────────────
@@ -213,71 +241,71 @@ class TestColumnPairValidation:
 
     def test_gt_passes(self, compare_dataset):
         # y=[6..10] > x=[1..5] — always true
-        results = py_validate(compare_dataset, RuleBuilder("y").gt(col("x")).build())
-        assert results[0].is_passed
-        assert results[0].failed_count == 0
+        report = py_validate(compare_dataset, RuleBuilder("y").gt(col("x")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_gt_fails(self, compare_dataset):
         # x=[1,2,3,4,5] > z=[28,1,0.5,4,0.9]: row 0: 1>28 false, row 3: 4>4 false → 2 failures
-        results = py_validate(compare_dataset, RuleBuilder("x").gt(col("z")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 2
+        report = py_validate(compare_dataset, RuleBuilder("x").gt(col("z")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 2
 
     # ── ge ───────────────────────────────────────────────────────────────────
 
     def test_ge_passes(self, compare_dataset):
         # y >= x always
-        results = py_validate(compare_dataset, RuleBuilder("y").ge(col("x")).build())
-        assert results[0].is_passed
-        assert results[0].failed_count == 0
+        report = py_validate(compare_dataset, RuleBuilder("y").ge(col("x")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_ge_equal_values_pass(self, compare_dataset):
         # x=[1,2,3,4,5] >= z=[28,1,0.5,4,0.9]: row 3: 4>=4 true; row 0: 1>=28 false → 1 failure
-        results = py_validate(compare_dataset, RuleBuilder("x").ge(col("z")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 1
+        report = py_validate(compare_dataset, RuleBuilder("x").ge(col("z")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1
 
     # ── lt ───────────────────────────────────────────────────────────────────
 
     def test_lt_passes(self, compare_dataset):
         # x < y always
-        results = py_validate(compare_dataset, RuleBuilder("x").lt(col("y")).build())
-        assert results[0].is_passed
-        assert results[0].failed_count == 0
+        report = py_validate(compare_dataset, RuleBuilder("x").lt(col("y")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_lt_fails(self, compare_dataset):
         # z=[28,1,0.5,4,0.9] < x=[1,2,3,4,5]: row 0: 28<1 false, row 3: 4<4 false → 2 failures
-        results = py_validate(compare_dataset, RuleBuilder("z").lt(col("x")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 2
+        report = py_validate(compare_dataset, RuleBuilder("z").lt(col("x")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 2
 
     # ── le ───────────────────────────────────────────────────────────────────
 
     def test_le_passes(self, compare_dataset):
         # x <= y always
-        results = py_validate(compare_dataset, RuleBuilder("x").le(col("y")).build())
-        assert results[0].is_passed
-        assert results[0].failed_count == 0
+        report = py_validate(compare_dataset, RuleBuilder("x").le(col("y")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_le_fails(self, compare_dataset):
         # x=[1,2,3,4,5] <= z=[28,1,0.5,4,0.9]: rows 1,2,4 fail → 3 failures
-        results = py_validate(compare_dataset, RuleBuilder("x").le(col("z")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 3
+        report = py_validate(compare_dataset, RuleBuilder("x").le(col("z")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 3
 
     # ── equal ─────────────────────────────────────────────────────────────────
 
     def test_equal_same_column(self, compare_dataset):
         # x == x: every value equals itself
-        results = py_validate(compare_dataset, RuleBuilder("x").equal(col("x")).build())
-        assert results[0].is_passed
-        assert results[0].failed_count == 0
+        report = py_validate(compare_dataset, RuleBuilder("x").equal(col("x")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_equal_fails(self, compare_dataset):
         # x=[1..5] != y=[6..10] for every row → 5 failures
-        results = py_validate(compare_dataset, RuleBuilder("x").equal(col("y")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 5
+        report = py_validate(compare_dataset, RuleBuilder("x").equal(col("y")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 5
 
     # ── between ───────────────────────────────────────────────────────────────
 
@@ -287,36 +315,36 @@ class TestColumnPairValidation:
 
     def test_between_col_col_fails(self, compare_dataset):
         # z between x and y: rows 0,1,2,4 fail → 4 failures
-        results = py_validate(compare_dataset, RuleBuilder("z").between(col("x"), col("y")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 4
+        report = py_validate(compare_dataset, RuleBuilder("z").between(col("x"), col("y")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 4
 
     # ── nulls ─────────────────────────────────────────────────────────────────
 
-    def test_null_counts_as_failure(self, compare_nulls_dataset):
-        # a < b: rows 0,3 pass; rows 1,2,4 have at least one null → 3 failures
-        results = py_validate(compare_nulls_dataset, RuleBuilder("a").lt(col("b")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 3
+    def test_null_skipped_in_col_comparison(self, compare_nulls_dataset):
+        # a < b: rows 0,3 non-null pass; rows 1,2,4 have nulls → skipped → passes
+        report = py_validate(compare_nulls_dataset, RuleBuilder("a").lt(col("b")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
-    def test_one_sided_null_is_failure(self, compare_nulls_dataset):
-        # a < high: high has no nulls; a is null at rows 1,4 → 2 failures
-        results = py_validate(compare_nulls_dataset, RuleBuilder("a").lt(col("high")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 2
+    def test_one_sided_null_skipped(self, compare_nulls_dataset):
+        # a < high: high has no nulls; a is null at rows 1,4 → skipped → passes
+        report = py_validate(compare_nulls_dataset, RuleBuilder("a").lt(col("high")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
-    def test_both_null_is_failure(self, compare_nulls_dataset):
-        # a == c: same values/nulls; rows 1,4 both null → 2 failures
-        results = py_validate(compare_nulls_dataset, RuleBuilder("a").equal(col("c")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 2
+    def test_both_null_skipped(self, compare_nulls_dataset):
+        # a == c: same values/nulls; rows 1,4 both null → skipped → passes
+        report = py_validate(compare_nulls_dataset, RuleBuilder("a").equal(col("c")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     # NOTE: mixed literal+col between not yet supported in core.
     # def test_between_with_nulls: ...
 
     # ── str ───────────────────────────────────────────────────────────────────
 
-    def test_str_equal_passes_with_null(self):
+    def test_str_equal_null_skipped(self):
         ds = Dataset(
             headers=["a", "b"],
             columns=[
@@ -324,10 +352,10 @@ class TestColumnPairValidation:
                 Column.string(["foo", "bar", None]),
             ],
         )
-        # rows 0,1 match; row 2 both null → None → 1 failure
-        results = py_validate(ds, RuleBuilder("a").equal(col("b")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 1
+        # rows 0,1 match; row 2 both null → skipped → passes
+        report = py_validate(ds, RuleBuilder("a").equal(col("b")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_str_lt_passes(self):
         ds = Dataset(
@@ -338,9 +366,9 @@ class TestColumnPairValidation:
             ],
         )
         # "apple" < "banana", "cat" < "dog" lexicographically
-        results = py_validate(ds, RuleBuilder("a").lt(col("b")).build())
-        assert results[0].is_passed
-        assert results[0].failed_count == 0
+        report = py_validate(ds, RuleBuilder("a").lt(col("b")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_str_lt_fails(self):
         ds = Dataset(
@@ -351,13 +379,13 @@ class TestColumnPairValidation:
             ],
         )
         # "zoo" < "apple" false → 1 failure
-        results = py_validate(ds, RuleBuilder("a").lt(col("b")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 1
+        report = py_validate(ds, RuleBuilder("a").lt(col("b")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1
 
     # ── bool ──────────────────────────────────────────────────────────────────
 
-    def test_bool_equal_passes_with_null(self):
+    def test_bool_equal_null_skipped(self):
         ds = Dataset(
             headers=["a", "b"],
             columns=[
@@ -365,10 +393,10 @@ class TestColumnPairValidation:
                 Column.boolean([True, False, None]),
             ],
         )
-        # rows 0,1 match; row 2 both null → None → 1 failure
-        results = py_validate(ds, RuleBuilder("a").equal(col("b")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 1
+        # rows 0,1 match; row 2 both null → skipped → passes
+        report = py_validate(ds, RuleBuilder("a").equal(col("b")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_bool_gt(self):
         ds = Dataset(
@@ -379,19 +407,19 @@ class TestColumnPairValidation:
             ],
         )
         # true>false passes, false>true fails → 1 failure
-        results = py_validate(ds, RuleBuilder("a").gt(col("b")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 1
+        report = py_validate(ds, RuleBuilder("a").gt(col("b")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1
 
     # ── edge cases ────────────────────────────────────────────────────────────
 
-    def test_type_mismatch_all_fail(self, compare_dataset):
-        # id (Int) vs x (Float) → type mismatch → all None → all fail
-        results = py_validate(compare_dataset, RuleBuilder("id").gt(col("x")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 5
+    def test_type_mismatch_all_skipped(self, compare_dataset):
+        # id (Int) vs x (Float) → type mismatch → all None → all skipped → passes
+        report = py_validate(compare_dataset, RuleBuilder("id").gt(col("x")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
-    def test_all_null_left_all_fail(self):
+    def test_all_null_left_all_skipped(self):
         ds = Dataset(
             headers=["a", "b"],
             columns=[
@@ -399,17 +427,17 @@ class TestColumnPairValidation:
                 Column.floating([1.0, 2.0, 3.0]),
             ],
         )
-        results = py_validate(ds, RuleBuilder("a").lt("b").build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 3
+        report = py_validate(ds, RuleBuilder("a").lt("b").build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
-    def test_between_type_mismatch_all_fail(self, compare_dataset):
-        # id (Int) between x (Float) and y (Float) → type mismatch → all None → all fail
-        results = py_validate(compare_dataset, RuleBuilder("id").between(col("x"), col("y")).build())
-        assert not results[0].is_passed
-        assert results[0].failed_count == 5
+    def test_between_type_mismatch_all_skipped(self, compare_dataset):
+        # id (Int) between x (Float) and y (Float) → type mismatch → all None → all skipped → passes
+        report = py_validate(compare_dataset, RuleBuilder("id").between(col("x"), col("y")).build())
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
 
     def test_missing_column_error(self, compare_dataset):
-        results = py_validate(compare_dataset, RuleBuilder("x").gt(col("nonexistent")).build())
-        assert not results[0].is_passed
-        assert results[0].error is not None
+        report = py_validate(compare_dataset, RuleBuilder("x").gt(col("nonexistent")).build())
+        assert not report.results[0].is_passed
+        assert report.results[0].error is not None
