@@ -66,11 +66,15 @@ rules = [
     *RuleBuilder("country").is_in(["US", "UK", "DE", "FR", "JP"]).build(),
 ]
 
-results = py_validate(dataset, rules)
+report = py_validate(dataset, rules)
 
-for r in results:
-    status = "PASS" if r.is_passed else "FAIL"
-    print(f"[{status}] {r.column} / {r.constraint} — {r.failed_count} failures")
+print(f"passed: {report.passed} ({report.passed_count}/{report.total_rules})")
+
+for r in report.results:
+    if not r.is_passed:
+        print(f"FAIL: {r.column} / {r.constraint} — {r.failed_count} failures")
+        for idx, val in (r.failed_values or []):
+            print(f"  row {idx}: {val}")
 ```
 
 ---
@@ -81,24 +85,27 @@ for r in results:
 |---|---|---|
 | `not_null()` | All | No null values in the column |
 | `unique()` | All | All values are distinct |
-| `gt(value)` | Int, Float | Every value > threshold |
-| `ge(value)` | Int, Float | Every value >= threshold |
-| `lt(value)` | Int, Float | Every value < threshold |
-| `le(value)` | Int, Float | Every value <= threshold |
-| `equal(value)` | Int, Float, Str | Every value == target |
-| `between(min, max)` | Int, Float | `min <= value <= max` |
+| `gt(value)` | Int, Float, Str, col | Every value > threshold |
+| `ge(value)` | Int, Float, Str, col | Every value >= threshold |
+| `lt(value)` | Int, Float, Str, col | Every value < threshold |
+| `le(value)` | Int, Float, Str, col | Every value <= threshold |
+| `equal(value)` | Int, Float, Str, col | Every value == target |
+| `between(min, max)` | Int, Float, Str, col | `min <= value <= max` |
 | `matches_regex(pattern)` | Str | Value matches regex pattern |
 | `contains(substr)` | Str | Value contains substring |
 | `starts_with(prefix)` | Str | Value starts with prefix |
 | `ends_with(suffix)` | Str | Value ends with suffix |
 | `length_between(min, max)` | Str | String length in `[min, max]` |
-| `is_in(values)` | All | Value is a member of the given set |
+| `is_in(values)` | Int, Float, Str | Value is a member of the given set |
 
-Pass a column name instead of a literal to compare two columns row-by-row:
+Pass `col("name")` instead of a literal to compare two columns row-by-row:
 
 ```python
-Rule("high", Constraint.gt("low"))  # validates high > low for every row
+Rule("high", Constraint.gt(col("low")))   # validates high > low for every row
+RuleBuilder("high").gt(col("low")).build()  # same via builder
 ```
+
+Null values are skipped in all comparisons — they never count as failures. Use `not_null()` separately to enforce presence.
 
 ---
 
