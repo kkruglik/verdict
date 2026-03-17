@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.0...verdict-cli-v0.1.1) - 2026-03-17
+
+### Other
+
+- release v0.1.0
+
 ## [0.1.0](https://github.com/kkruglik/verdict/releases/tag/verdict-cli-v0.1.0) - 2026-03-17
 
 ### Other
