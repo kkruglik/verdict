@@ -1,6 +1,6 @@
 [package]
 name = "verdict-cli"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 description = "Fast CSV data validation for CI/CD pipelines. Schema-driven rules, structured output, non-zero exit on failure."
 readme = "README.md"
@@ -15,7 +15,7 @@ clap = { version = "4.5.60", features = ["derive"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 serde_yaml = "0.9.34"
-verdict-core = { version = "0.1.3", path = "../verdict-core", features = [
+verdict-core = { version = "0.1.4", path = "../verdict-core", features = [
   "csv",
   "json",
 ] }
