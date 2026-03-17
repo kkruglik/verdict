@@ -1,0 +1,7 @@
+[[package]]
+name = "verdict-core"
+git_release_enable = false
+
+[[package]]
+name = "verdict-cli"
+git_release_enable = false

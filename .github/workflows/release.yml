@@ -1,16 +1,35 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'verdict-cli-v*'
+  workflow_run:
+    workflows: ["Release-plz"]
+    types: [completed]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  get-tag:
+    name: Get latest verdict-cli tag
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find new verdict-cli tag
+        id: tag
+        run: |
+          TAG=$(git tag --sort=-creatordate | grep '^verdict-cli-v' | head -1)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
   build:
     name: Build ${{ matrix.target }}
+    needs: get-tag
+    if: needs.get-tag.outputs.tag != ''
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -27,6 +46,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.get-tag.outputs.tag }}
       - uses: Swatinem/rust-cache@v2
 
       - name: Add target
@@ -55,9 +76,9 @@ jobs:
           name: verdict-cli-${{ matrix.target }}
           path: verdict-cli-${{ matrix.target }}*
 
-  release:
-    name: Create Release
-    needs: build
+  upload-assets:
+    name: Upload assets
+    needs: [get-tag, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -69,7 +90,8 @@ jobs:
           pattern: verdict-cli-*
           merge-multiple: true
 
-      - name: Create GitHub Release
+      - name: Upload binaries to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.get-tag.outputs.tag }}
           files: artifacts/verdict-cli-*
