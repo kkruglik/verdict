@@ -1,0 +1,3 @@
+[[package]]
+name = "verdict-core"
+git_release_enable = false
