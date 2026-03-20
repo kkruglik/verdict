@@ -2,7 +2,8 @@
 mod tests {
     use verdict_core::{
         dataset::{
-            BoolColumn, Column, Dataset, FloatColumn, InSetValues, IntColumn, StrColumn,
+            BoolColumn, Column, Dataset, DateColumn, DateTimeColumn, FloatColumn, InSetValues,
+            IntColumn, StrColumn,
             ops::{ComparableOps, StringOps},
         },
         rules::{Constraint, Operand, Rule, ValidateConfig, col, rule, validate},
@@ -15,6 +16,10 @@ mod tests {
                 "name".to_string(),
                 "score".to_string(),
                 "active".to_string(),
+                "date".to_string(),
+                "date_with_nulls".to_string(),
+                "datetime".to_string(),
+                "datetime_with_nulls".to_string(),
             ],
             vec![
                 Column::Int(IntColumn(vec![Some(1), Some(2), Some(3), Some(4), Some(5)])),
@@ -38,6 +43,36 @@ mod tests {
                     Some(true),
                     Some(false),
                     Some(true),
+                ])),
+                // epoch days: 2024-01-01 to 2024-01-05
+                Column::Date(DateColumn(vec![
+                    Some(19723),
+                    Some(19724),
+                    Some(19725),
+                    Some(19726),
+                    Some(19727),
+                ])),
+                Column::Date(DateColumn(vec![
+                    Some(19723),
+                    None,
+                    Some(19725),
+                    None,
+                    Some(19727),
+                ])),
+                // epoch microseconds: 2024-01-01T10:00:00 to 2024-01-05T14:00:00
+                Column::DateTime(DateTimeColumn(vec![
+                    Some(1704096000000000),
+                    Some(1704186000000000),
+                    Some(1704276000000000),
+                    Some(1704366000000000),
+                    Some(1704456000000000),
+                ])),
+                Column::DateTime(DateTimeColumn(vec![
+                    Some(1704096000000000),
+                    None,
+                    Some(1704276000000000),
+                    None,
+                    Some(1704456000000000),
                 ])),
             ],
         )
@@ -1379,10 +1414,10 @@ mod csv_tests {
 
     fn make_schema() -> Schema {
         Schema::new(vec![
-            Field::new("id", DataType::Int),
-            Field::new("name", DataType::Str),
-            Field::new("score", DataType::Float),
-            Field::new("active", DataType::Bool),
+            Field::new("id", DataType::Int, None),
+            Field::new("name", DataType::Str, None),
+            Field::new("score", DataType::Float, None),
+            Field::new("active", DataType::Bool, None),
         ])
     }
 
@@ -1406,7 +1441,7 @@ mod csv_tests {
 
     #[test]
     fn test_load_csv_invalid_path() {
-        let schema = Schema::new(vec![Field::new("id", DataType::Int)]);
+        let schema = Schema::new(vec![Field::new("id", DataType::Int, None)]);
         let result = Dataset::from_csv(Path::new("nonexistent.csv"), &schema);
         assert!(result.is_err());
     }
@@ -1423,7 +1458,7 @@ mod csv_tests {
 
     #[test]
     fn test_parse_bool_invalid() {
-        let schema = Schema::new(vec![Field::new("name", DataType::Bool)]);
+        let schema = Schema::new(vec![Field::new("name", DataType::Bool, None)]);
         let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(result.is_err());
     }
@@ -1431,10 +1466,10 @@ mod csv_tests {
     #[test]
     fn test_load_csv_parse_error() {
         let schema = Schema::new(vec![
-            Field::new("id", DataType::Int),
-            Field::new("name", DataType::Int),
-            Field::new("score", DataType::Float),
-            Field::new("active", DataType::Bool),
+            Field::new("id", DataType::Int, None),
+            Field::new("name", DataType::Int, None),
+            Field::new("score", DataType::Float, None),
+            Field::new("active", DataType::Bool, None),
         ]);
         let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(result.is_err());
@@ -1443,8 +1478,8 @@ mod csv_tests {
     #[test]
     fn test_load_csv_schema_too_few_columns() {
         let schema = Schema::new(vec![
-            Field::new("id", DataType::Int),
-            Field::new("name", DataType::Str),
+            Field::new("id", DataType::Int, None),
+            Field::new("name", DataType::Str, None),
         ]);
         let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(matches!(
@@ -1459,11 +1494,11 @@ mod csv_tests {
     #[test]
     fn test_load_csv_schema_too_many_columns() {
         let schema = Schema::new(vec![
-            Field::new("id", DataType::Int),
-            Field::new("name", DataType::Str),
-            Field::new("score", DataType::Float),
-            Field::new("active", DataType::Bool),
-            Field::new("extra", DataType::Int),
+            Field::new("id", DataType::Int, None),
+            Field::new("name", DataType::Str, None),
+            Field::new("score", DataType::Float, None),
+            Field::new("active", DataType::Bool, None),
+            Field::new("extra", DataType::Int, None),
         ]);
         let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(matches!(
@@ -1473,5 +1508,104 @@ mod csv_tests {
                 found: 4
             })
         ));
+    }
+}
+
+#[cfg(test)]
+mod datetime_converter_tests {
+    use chrono::NaiveDate;
+    use verdict_core::dataset::{i32_to_naive_date, i64_to_naive_datetime, naive_date_to_i32, naive_datetime_to_i64};
+
+    #[test]
+    fn test_naive_date_to_i32_epoch() {
+        let date = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+        assert_eq!(naive_date_to_i32(&date), 0);
+    }
+
+    #[test]
+    fn test_naive_date_to_i32_known_date() {
+        let date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+        assert_eq!(naive_date_to_i32(&date), 19723);
+    }
+
+    #[test]
+    fn test_naive_date_to_i32_before_epoch() {
+        let date = NaiveDate::from_ymd_opt(1969, 12, 31).unwrap();
+        assert_eq!(naive_date_to_i32(&date), -1);
+    }
+
+    #[test]
+    fn test_i32_to_naive_date_epoch() {
+        let date = i32_to_naive_date(0).unwrap();
+        assert_eq!(date, NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+    }
+
+    #[test]
+    fn test_i32_to_naive_date_known() {
+        let date = i32_to_naive_date(19723).unwrap();
+        assert_eq!(date, NaiveDate::from_ymd_opt(2024, 1, 1).unwrap());
+    }
+
+    #[test]
+    fn test_i32_to_naive_date_before_epoch() {
+        let date = i32_to_naive_date(-1).unwrap();
+        assert_eq!(date, NaiveDate::from_ymd_opt(1969, 12, 31).unwrap());
+    }
+
+    #[test]
+    fn test_date_roundtrip() {
+        let original = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let encoded = naive_date_to_i32(&original);
+        let decoded = i32_to_naive_date(encoded).unwrap();
+        assert_eq!(original, decoded);
+    }
+
+    #[test]
+    fn test_naive_datetime_to_i64_epoch() {
+        let dt = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap();
+        assert_eq!(naive_datetime_to_i64(&dt), 0);
+    }
+
+    #[test]
+    fn test_naive_datetime_to_i64_known() {
+        // 2024-01-01T10:00:00 naive (no timezone)
+        let dt = NaiveDate::from_ymd_opt(2024, 1, 1)
+            .unwrap()
+            .and_hms_opt(10, 0, 0)
+            .unwrap();
+        assert_eq!(naive_datetime_to_i64(&dt), 1704103200000000);
+    }
+
+    #[test]
+    fn test_naive_datetime_to_i64_before_epoch() {
+        let dt = NaiveDate::from_ymd_opt(1969, 12, 31).unwrap().and_hms_opt(23, 59, 59).unwrap();
+        assert_eq!(naive_datetime_to_i64(&dt), -1_000_000);
+    }
+
+    #[test]
+    fn test_i64_to_naive_datetime_epoch() {
+        let dt = i64_to_naive_datetime(0).unwrap();
+        assert_eq!(dt, NaiveDate::from_ymd_opt(1970, 1, 1).unwrap().and_hms_opt(0, 0, 0).unwrap());
+    }
+
+    #[test]
+    fn test_i64_to_naive_datetime_known() {
+        let dt = i64_to_naive_datetime(1704103200000000).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2024, 1, 1)
+            .unwrap()
+            .and_hms_opt(10, 0, 0)
+            .unwrap();
+        assert_eq!(dt, expected);
+    }
+
+    #[test]
+    fn test_datetime_roundtrip() {
+        let original = NaiveDate::from_ymd_opt(2024, 6, 15)
+            .unwrap()
+            .and_hms_opt(13, 30, 45)
+            .unwrap();
+        let encoded = naive_datetime_to_i64(&original);
+        let decoded = i64_to_naive_datetime(encoded).unwrap();
+        assert_eq!(original, decoded);
     }
 }
