@@ -4,7 +4,8 @@ use crate::dataset::ops::NumericOps;
 
 #[derive(Debug, Clone)]
 pub enum InSetValues {
-    IntSet(Vec<i64>),
+    Int64Set(Vec<i64>),
+    Int32Set(Vec<i32>),
     FloatSet(Vec<f64>),
     StrSet(Vec<String>),
 }
@@ -15,6 +16,8 @@ pub enum Column {
     Float(FloatColumn),
     Str(StrColumn),
     Bool(BoolColumn),
+    DateTime(DateTimeColumn),
+    Date(DateColumn),
 }
 
 #[derive(Clone, Debug)]
@@ -29,7 +32,51 @@ pub struct StrColumn(pub Vec<Option<String>>);
 #[derive(Clone, Debug)]
 pub struct BoolColumn(pub Vec<Option<bool>>);
 
+#[derive(Clone, Debug)]
+pub struct DateTimeColumn(pub Vec<Option<i64>>);
+
+#[derive(Clone, Debug)]
+pub struct DateColumn(pub Vec<Option<i32>>);
+
 impl IntColumn {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn is_null(&self) -> Vec<bool> {
+        self.0.iter().map(|v| v.is_none()).collect()
+    }
+
+    pub fn not_null_count(&self) -> usize {
+        self.0.iter().filter(|v| v.is_some()).count()
+    }
+}
+
+impl DateColumn {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn is_null(&self) -> Vec<bool> {
+        self.0.iter().map(|v| v.is_none()).collect()
+    }
+
+    pub fn not_null_count(&self) -> usize {
+        self.0.iter().filter(|v| v.is_some()).count()
+    }
+}
+
+impl DateTimeColumn {
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -112,6 +159,8 @@ impl Column {
             Column::Float(col) => col.len(),
             Column::Str(col) => col.len(),
             Column::Bool(col) => col.len(),
+            Column::DateTime(col) => col.len(),
+            Column::Date(col) => col.len(),
         }
     }
 
@@ -125,6 +174,8 @@ impl Column {
             Column::Float(col) => col.is_null(),
             Column::Str(col) => col.is_null(),
             Column::Bool(col) => col.is_null(),
+            Column::DateTime(col) => col.is_null(),
+            Column::Date(col) => col.is_null(),
         }
     }
 
@@ -134,6 +185,8 @@ impl Column {
             Column::Float(col) => col.len() - col.not_null_count(),
             Column::Str(col) => col.len() - col.not_null_count(),
             Column::Bool(col) => col.len() - col.not_null_count(),
+            Column::Date(col) => col.len() - col.not_null_count(),
+            Column::DateTime(col) => col.len() - col.not_null_count(),
         }
     }
 
@@ -143,6 +196,8 @@ impl Column {
             Column::Float(col) => col.not_null_count(),
             Column::Str(col) => col.not_null_count(),
             Column::Bool(col) => col.not_null_count(),
+            Column::DateTime(col) => col.not_null_count(),
+            Column::Date(col) => col.not_null_count(),
         }
     }
 
@@ -157,6 +212,8 @@ impl Column {
                 .map(|v| v.map(|f| f.to_bits()))
                 .collect::<HashSet<_>>()
                 .len(),
+            Column::DateTime(col) => col.0.iter().collect::<HashSet<_>>().len(),
+            Column::Date(col) => col.0.iter().collect::<HashSet<_>>().len(),
         }
     }
 
@@ -174,12 +231,14 @@ impl Column {
             }
             Column::Str(c) => duplicated(&c.0, keep),
             Column::Bool(c) => duplicated(&c.0, keep),
+            Column::DateTime(c) => duplicated(&c.0, keep),
+            Column::Date(c) => duplicated(&c.0, keep),
         }
     }
 
     pub fn is_in(&self, other: &InSetValues) -> Vec<Option<bool>> {
         match (self, other) {
-            (Column::Int(col), InSetValues::IntSet(set)) => col
+            (Column::Int(col), InSetValues::Int64Set(set)) => col
                 .0
                 .iter()
                 .map(|opt| opt.map(|v| set.contains(&v)))
@@ -193,6 +252,16 @@ impl Column {
                 .0
                 .iter()
                 .map(|opt| opt.as_ref().map(|v| set.contains(v)))
+                .collect(),
+            (Column::DateTime(col), InSetValues::Int64Set(set)) => col
+                .0
+                .iter()
+                .map(|opt| opt.map(|v| set.contains(&v)))
+                .collect(),
+            (Column::Date(col), InSetValues::Int32Set(set)) => col
+                .0
+                .iter()
+                .map(|opt| opt.map(|v| set.contains(&v)))
                 .collect(),
             _ => vec![None; self.len()],
         }
