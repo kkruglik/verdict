@@ -2,8 +2,13 @@ pub mod column;
 pub mod ops;
 pub mod schema;
 
-pub use column::{BoolColumn, Column, FloatColumn, InSetValues, IntColumn, Keep, StrColumn};
-pub use ops::NumericOps;
+pub use column::{
+    BoolColumn, Column, DateColumn, DateTimeColumn, FloatColumn, InSetValues, IntColumn, Keep,
+    StrColumn,
+};
+pub use ops::{
+    NumericOps, i32_to_naive_date, i64_to_naive_datetime, naive_date_to_i32, naive_datetime_to_i64,
+};
 pub use schema::{DataType, Field, Schema};
 
 pub struct Dataset {
