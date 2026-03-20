@@ -561,6 +561,18 @@ fn check_greater_than_col(
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Date(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
         })
         .take(n)
         .collect();
@@ -678,6 +690,18 @@ fn check_greater_than_or_equal_col(
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Date(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
         })
         .take(n)
         .collect();
@@ -779,6 +803,18 @@ fn check_less_than_col(
             ),
             Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
             Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Date(c) => (
                 idx,
                 c.0[idx]
                     .map(|v| v.to_string())
@@ -900,6 +936,18 @@ fn check_less_than_or_equal_col(
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Date(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
         })
         .take(n)
         .collect();
@@ -1001,6 +1049,18 @@ fn check_equal_col(
             ),
             Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
             Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Date(c) => (
                 idx,
                 c.0[idx]
                     .map(|v| v.to_string())
@@ -1113,6 +1173,18 @@ fn check_between_cols(
             ),
             Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
             Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Date(c) => (
                 idx,
                 c.0[idx]
                     .map(|v| v.to_string())
@@ -1285,6 +1357,18 @@ fn check_is_in_set(col: &Column, other: &InSetValues, rule: &Rule, n: usize) -> 
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Date(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
         })
         .take(n)
         .collect();
@@ -1324,6 +1408,18 @@ fn check_unique(col: &Column, rule: &Rule, n: usize) -> ValidationResult {
             ),
             Column::Str(c) => (idx, c.0[idx].as_deref().unwrap_or("null").to_string()),
             Column::Bool(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
+            ),
+            Column::Date(c) => (
                 idx,
                 c.0[idx]
                     .map(|v| v.to_string())
