@@ -1527,7 +1527,7 @@ fn check_after_date(col: &Column, value: i32, rule: &Rule, n: usize) -> Validati
             Column::Date(c) => (
                 idx,
                 c.0[idx]
-                    .and_then(|v| i32_to_naive_date(v))
+                    .and_then(i32_to_naive_date)
                     .map(|d| d.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
@@ -1564,7 +1564,7 @@ fn check_after_datetime(col: &Column, value: i64, rule: &Rule, n: usize) -> Vali
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
-                    .and_then(|v| i64_to_naive_datetime(v))
+                    .and_then(i64_to_naive_datetime)
                     .map(|dt| dt.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
@@ -1601,7 +1601,7 @@ fn check_before_date(col: &Column, value: i32, rule: &Rule, n: usize) -> Validat
             Column::Date(c) => (
                 idx,
                 c.0[idx]
-                    .and_then(|v| i32_to_naive_date(v))
+                    .and_then(i32_to_naive_date)
                     .map(|d| d.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
@@ -1638,7 +1638,7 @@ fn check_before_datetime(col: &Column, value: i64, rule: &Rule, n: usize) -> Val
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
-                    .and_then(|v| i64_to_naive_datetime(v))
+                    .and_then(i64_to_naive_datetime)
                     .map(|dt| dt.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
@@ -1679,7 +1679,7 @@ fn check_between_dates(
             Column::Date(c) => (
                 idx,
                 c.0[idx]
-                    .and_then(|v| i32_to_naive_date(v))
+                    .and_then(i32_to_naive_date)
                     .map(|d| d.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
@@ -1723,7 +1723,7 @@ fn check_between_datetimes(
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
-                    .and_then(|v| i64_to_naive_datetime(v))
+                    .and_then(i64_to_naive_datetime)
                     .map(|dt| dt.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
