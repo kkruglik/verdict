@@ -30,9 +30,11 @@ Exit code `0` — all rules pass. Exit code `1` — at least one rule fails.
 ## CI/CD integration
 
 ```yaml
-# GitHub Actions
-- name: Validate data
-  run: verdict-cli data.csv schema.json
+# GitHub Actions — no Rust or Python required
+- uses: kkruglik/verdict@main
+  with:
+    csv: data/output.csv
+    schema: data/schema.yaml
 ```
 
 ```bash
