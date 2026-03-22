@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/kkruglik/verdict/compare/verdict-core-v0.1.4...verdict-core-v0.2.0) - 2026-03-22
+
+### Fixed
+
+- fix clippy redundant closure warnings in date checks
+
+### Other
+
+- applied cargo fmt
+- add date datetime constraint and converter tests
+- add After Before BetweenDates constraints
+- add DateParseError variant to ValidationError
+- add date datetime comparable ops and converters
+- update bench for new column types
+- add tests and fixtures for date datetime support
+- add date and datetime CSV loading support
+- add After Before BetweenDates constraints
+- re-export date column types and converters
+- add ops and converters for date and datetime columns
+- add Date and DateTime DataType variants
+- add DateColumn and DateTimeColumn types
+- add chrono dependency to verdict-core
+
 ## [0.1.4](https://github.com/kkruglik/verdict/compare/verdict-core-v0.1.3...verdict-core-v0.1.4) - 2026-03-17
 
 ### Other
