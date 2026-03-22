@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- YAML schema support — `.yaml` / `.yml` files are detected by extension and parsed with `serde_yaml`; JSON behavior unchanged
+- `date` and `datetime` column dtypes with optional `format` field
+- `after`, `before`, `between_dates` constraints for date and datetime columns
+
 ## [0.1.4](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.3...verdict-cli-v0.1.4) - 2026-03-17
 
 ### Other
