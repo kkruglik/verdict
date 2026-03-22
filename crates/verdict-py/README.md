@@ -1,6 +1,6 @@
 # verdict-py
 
-Python bindings for [verdict](https://github.com/kkruglik/verdict) — a high-performance data validation library written in Rust.
+Python bindings for [verdict](https://github.com/kkruglik/verdict) — a Rust data validation library for pipelines and CI.
 
 ## Installation
 
@@ -82,6 +82,9 @@ Each `ValidationResult` has:
 | `ends_with(suffix)` | Str | Value ends with suffix |
 | `length_between(min, max)` | Str | String length in [min, max] |
 | `is_in(values)` | Int, Float, Str | Value is member of set |
+| `after(date)` | Date, DateTime | Every value is strictly after the given date |
+| `before(date)` | Date, DateTime | Every value is strictly before the given date |
+| `between_dates(min, max)` | Date, DateTime | Every value is within [min, max] |
 
 Pass `col("name")` instead of a literal to compare two columns row-by-row:
 
