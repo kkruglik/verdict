@@ -4,8 +4,8 @@ use pyo3::prelude::*;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataset::{
-        BoolColumn, Column, DataType, Dataset, Field, FloatColumn, InSetValues, IntColumn, Schema,
-        StrColumn,
+        BoolColumn, Column, DataType, Dataset, DateColumn, DateTimeColumn, Field, FloatColumn,
+        InSetValues, IntColumn, Schema, StrColumn,
     },
     rules::{
         Constraint, Operand, Rule, RuleBuilder, ValidateConfig, ValidationReport, ValidationResult,
@@ -85,6 +85,20 @@ impl PyDataType {
             inner: DataType::Bool,
         }
     }
+
+    #[staticmethod]
+    fn date() -> Self {
+        PyDataType {
+            inner: DataType::Date,
+        }
+    }
+
+    #[staticmethod]
+    fn datetime() -> Self {
+        PyDataType {
+            inner: DataType::DateTime,
+        }
+    }
 }
 
 #[pyclass(name = "Schema")]
@@ -101,6 +115,7 @@ impl PySchema {
             .map(|(name, dtype)| Field {
                 name: name.clone(),
                 dtype: dtype.borrow(py).inner.clone(),
+                format: None,
             })
             .collect();
         PySchema {
@@ -155,6 +170,20 @@ impl PyColumn {
         }
     }
 
+    #[staticmethod]
+    fn date(values: Vec<Option<i32>>) -> PyColumn {
+        PyColumn {
+            inner: Column::Date(DateColumn(values)),
+        }
+    }
+
+    #[staticmethod]
+    fn datetime(values: Vec<Option<i64>>) -> PyColumn {
+        PyColumn {
+            inner: Column::DateTime(DateTimeColumn(values)),
+        }
+    }
+
     // NOTE: column ops commented out — unclear if needed in a declarative validation library.
     // No competitor (Pandera, Great Expectations) exposes per-column ops.
     // Keeping for reference, revisit before public API release.
@@ -194,6 +223,8 @@ impl PyColumn {
                 format_values(&col.0, |v: &String| format!("\"{}\"", v)),
             ),
             Column::Bool(col) => ("bool", format_values(&col.0, |v: &bool| v.to_string())),
+            Column::Date(col) => ("date", format_values(&col.0, |v: &i32| v.to_string())),
+            Column::DateTime(col) => ("datetime", format_values(&col.0, |v: &i64| v.to_string())),
         };
         format!("[{}]: [{}]", dtype, values)
     }
@@ -326,7 +357,7 @@ impl PyConstraint {
             .map(|v| v.extract::<i64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::IntSet(v)
+            InSetValues::Int64Set(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<f64>(py))
@@ -381,6 +412,27 @@ impl PyConstraint {
     fn length_between(min: usize, max: usize) -> Self {
         PyConstraint {
             inner: Constraint::LengthBetween { min, max },
+        }
+    }
+
+    #[staticmethod]
+    fn after(date: String) -> Self {
+        PyConstraint {
+            inner: Constraint::After(date),
+        }
+    }
+
+    #[staticmethod]
+    fn before(date: String) -> Self {
+        PyConstraint {
+            inner: Constraint::Before(date),
+        }
+    }
+
+    #[staticmethod]
+    fn between_dates(min: String, max: String) -> Self {
+        PyConstraint {
+            inner: Constraint::BetweenDates { min, max },
         }
     }
 }
@@ -510,7 +562,7 @@ impl PyRuleBuilder {
             .map(|v| v.extract::<i64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::IntSet(v)
+            InSetValues::Int64Set(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<f64>(py))
