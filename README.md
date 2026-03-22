@@ -120,6 +120,8 @@ Null values are skipped in all comparisons — they never count as failures. Use
 
 ## CLI
 
+A single static binary — no Python, no pip, no dependency conflicts. Installing pandas and pandera in CI typically takes 40–80 seconds; verdict-cli downloads in 1–3 seconds and runs immediately. Works in any environment that can execute a shell command.
+
 ```bash
 cargo build --release -p verdict-cli
 ./target/release/verdict-cli data.csv schema.json
