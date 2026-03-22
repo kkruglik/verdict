@@ -3,6 +3,7 @@ use std::path::Path;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataset::{DataType, Dataset, Field, Schema},
+    rules::{Constraint, Operand, Rule, ValidateConfig, validate},
 };
 
 fn make_schema() -> Schema {
@@ -17,6 +18,23 @@ fn make_schema() -> Schema {
         Field::new("country", DataType::Str),
         Field::new("country_with_nulls", DataType::Str),
     ])
+}
+
+fn make_rules() -> Vec<Rule> {
+    vec![
+        Rule::new("user_id", Constraint::NotNull),
+        Rule::new("user_id", Constraint::Unique),
+        Rule::new(
+            "score",
+            Constraint::Between {
+                min: Operand::Num(0.0),
+                max: Operand::Num(100.0),
+            },
+        ),
+        Rule::new("age", Constraint::GreaterThan(Operand::Num(0.0))),
+        Rule::new("age", Constraint::LessThan(Operand::Num(120.0))),
+        Rule::new("country", Constraint::NotNull),
+    ]
 }
 
 fn bench_csv_loading(c: &mut Criterion) {
@@ -39,5 +57,43 @@ fn bench_csv_loading(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_csv_loading);
+fn bench_validation(c: &mut Criterion) {
+    let schema = make_schema();
+    let rules = make_rules();
+    let config = ValidateConfig::default();
+
+    let dataset_100k =
+        Dataset::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap();
+    let dataset_1m = Dataset::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap();
+
+    let mut group = c.benchmark_group("validation");
+
+    group.bench_function("100k rows", |b| {
+        b.iter(|| {
+            validate(
+                &dataset_100k,
+                &rules,
+                ValidateConfig {
+                    max_failed_samples: config.max_failed_samples,
+                },
+            )
+        })
+    });
+
+    group.bench_function("1m rows", |b| {
+        b.iter(|| {
+            validate(
+                &dataset_1m,
+                &rules,
+                ValidateConfig {
+                    max_failed_samples: config.max_failed_samples,
+                },
+            )
+        })
+    });
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_csv_loading, bench_validation);
 criterion_main!(benches);

@@ -1,8 +1,10 @@
 use std::path::Path;
 
 use crate::dataset::{
-    BoolColumn, Column, DataType, Dataset, FloatColumn, IntColumn, Schema, StrColumn,
+    BoolColumn, Column, DataType, Dataset, DateColumn, DateTimeColumn, FloatColumn, IntColumn,
+    Schema, StrColumn, naive_date_to_i32, naive_datetime_to_i64,
 };
+use chrono::{NaiveDate, NaiveDateTime};
 use csv::ReaderBuilder;
 use thiserror::Error;
 
@@ -35,6 +37,8 @@ enum ColBuilder {
     Float(Vec<Option<f64>>),
     Str(Vec<Option<String>>),
     Bool(Vec<Option<bool>>),
+    Date(Vec<Option<i32>>, Option<String>),
+    DateTime(Vec<Option<i64>>, Option<String>),
 }
 
 impl DatasetCsvExt for Dataset {
@@ -61,6 +65,8 @@ impl DatasetCsvExt for Dataset {
                 DataType::Float => "Float",
                 DataType::Str => "Str",
                 DataType::Bool => "Bool",
+                DataType::DateTime => "DateTime",
+                DataType::Date => "Date",
             })
             .collect();
 
@@ -72,6 +78,10 @@ impl DatasetCsvExt for Dataset {
                 DataType::Float => ColBuilder::Float(Vec::with_capacity(4096)),
                 DataType::Str => ColBuilder::Str(Vec::with_capacity(4096)),
                 DataType::Bool => ColBuilder::Bool(Vec::with_capacity(4096)),
+                DataType::DateTime => {
+                    ColBuilder::DateTime(Vec::with_capacity(4096), f.format.clone())
+                }
+                DataType::Date => ColBuilder::Date(Vec::with_capacity(4096), f.format.clone()),
             })
             .collect();
 
@@ -84,6 +94,8 @@ impl DatasetCsvExt for Dataset {
                         ColBuilder::Float(v) => v.push(None),
                         ColBuilder::Str(v) => v.push(None),
                         ColBuilder::Bool(v) => v.push(None),
+                        ColBuilder::DateTime(v, _) => v.push(None),
+                        ColBuilder::Date(v, _) => v.push(None),
                     }
                     continue;
                 }
@@ -122,6 +134,31 @@ impl DatasetCsvExt for Dataset {
                             }
                         })?));
                     }
+                    ColBuilder::DateTime(v, fmt) => {
+                        let fmt_str = fmt.as_deref().unwrap_or("%Y-%m-%dT%H:%M:%S");
+                        let naive_dt =
+                            NaiveDateTime::parse_from_str(val, fmt_str).map_err(|_| {
+                                CsvLoadingError::ParseError {
+                                    column: field_names[col_idx].clone(),
+                                    row: row_idx,
+                                    value: val.to_string(),
+                                    expected: field_expected[col_idx].to_string(),
+                                }
+                            })?;
+                        v.push(Some(naive_datetime_to_i64(&naive_dt)));
+                    }
+                    ColBuilder::Date(v, fmt) => {
+                        let fmt_str = fmt.as_deref().unwrap_or("%Y-%m-%d");
+                        let naive_dt = NaiveDate::parse_from_str(val, fmt_str).map_err(|_| {
+                            CsvLoadingError::ParseError {
+                                column: field_names[col_idx].clone(),
+                                row: row_idx,
+                                value: val.to_string(),
+                                expected: field_expected[col_idx].to_string(),
+                            }
+                        })?;
+                        v.push(Some(naive_date_to_i32(&naive_dt)));
+                    }
                 }
             }
         }
@@ -133,6 +170,8 @@ impl DatasetCsvExt for Dataset {
                 ColBuilder::Float(v) => Column::Float(FloatColumn(v)),
                 ColBuilder::Str(v) => Column::Str(StrColumn(v)),
                 ColBuilder::Bool(v) => Column::Bool(BoolColumn(v)),
+                ColBuilder::DateTime(v, _) => Column::DateTime(DateTimeColumn(v)),
+                ColBuilder::Date(v, _) => Column::Date(DateColumn(v)),
             })
             .collect();
 

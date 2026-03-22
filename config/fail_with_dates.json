@@ -1,0 +1,21 @@
+{
+  "columns": [
+    { "name": "user_id", "dtype": "int" },
+    { "name": "score", "dtype": "float" },
+    { "name": "score_with_nulls", "dtype": "float" },
+    { "name": "age", "dtype": "int" },
+    { "name": "age_with_nulls", "dtype": "int" },
+    { "name": "is_active", "dtype": "bool" },
+    { "name": "is_active_with_nulls", "dtype": "bool" },
+    { "name": "country", "dtype": "str" },
+    { "name": "country_with_nulls", "dtype": "str" },
+    { "name": "created_date", "dtype": "date", "format": "%Y-%m-%d", "constraints": [
+      { "constraint": "after", "value": "2024-01-01" }
+    ]},
+    { "name": "created_date_with_nulls", "dtype": "date", "format": "%Y-%m-%d" },
+    { "name": "created_at", "dtype": "datetime", "format": "%Y-%m-%dT%H:%M:%S", "constraints": [
+      { "constraint": "before", "value": "2021-01-01T00:00:00" }
+    ]},
+    { "name": "created_at_with_nulls", "dtype": "datetime", "format": "%Y-%m-%dT%H:%M:%S" }
+  ]
+}

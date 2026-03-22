@@ -1,13 +1,15 @@
 pub struct Field {
     pub name: String,
     pub dtype: DataType,
+    pub format: Option<String>,
 }
 
 impl Field {
-    pub fn new(name: impl Into<String>, dtype: DataType) -> Self {
+    pub fn new(name: impl Into<String>, dtype: DataType, format: Option<&str>) -> Self {
         Field {
             name: name.into(),
             dtype,
+            format: format.map(String::from),
         }
     }
 }
@@ -18,6 +20,8 @@ pub enum DataType {
     Str,
     Float,
     Bool,
+    Date,
+    DateTime,
 }
 
 pub struct Schema {

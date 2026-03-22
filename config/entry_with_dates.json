@@ -1,0 +1,37 @@
+{
+  "columns": [
+    { "name": "user_id", "dtype": "int", "constraints": [
+      { "constraint": "not_null", "value": true },
+      { "constraint": "unique", "value": true },
+      { "constraint": "ge", "value": 1 }
+    ]},
+    { "name": "score", "dtype": "float", "constraints": [
+      { "constraint": "not_null", "value": true },
+      { "constraint": "ge", "value": 0.0 },
+      { "constraint": "le", "value": 100.0 }
+    ]},
+    { "name": "score_with_nulls", "dtype": "float" },
+    { "name": "age", "dtype": "int", "constraints": [
+      { "constraint": "ge", "value": 0 },
+      { "constraint": "le", "value": 120 }
+    ]},
+    { "name": "age_with_nulls", "dtype": "int" },
+    { "name": "is_active", "dtype": "bool" },
+    { "name": "is_active_with_nulls", "dtype": "bool" },
+    { "name": "country", "dtype": "str", "constraints": [
+      { "constraint": "not_null", "value": true }
+    ]},
+    { "name": "country_with_nulls", "dtype": "str" },
+    { "name": "created_date", "dtype": "date", "format": "%Y-%m-%d", "constraints": [
+      { "constraint": "not_null", "value": true },
+      { "constraint": "after", "value": "2019-12-31" },
+      { "constraint": "before", "value": "2025-01-01" }
+    ]},
+    { "name": "created_date_with_nulls", "dtype": "date", "format": "%Y-%m-%d" },
+    { "name": "created_at", "dtype": "datetime", "format": "%Y-%m-%dT%H:%M:%S", "constraints": [
+      { "constraint": "not_null", "value": true },
+      { "constraint": "between_dates", "value": ["2019-12-31T00:00:00", "2025-01-01T00:00:00"] }
+    ]},
+    { "name": "created_at_with_nulls", "dtype": "datetime", "format": "%Y-%m-%dT%H:%M:%S" }
+  ]
+}

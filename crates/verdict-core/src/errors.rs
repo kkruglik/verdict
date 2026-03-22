@@ -13,4 +13,7 @@ pub enum ValidationError {
 
     #[error("Mismatched types: recieved '{recieved}', expected '{expected}'")]
     MismatchedTypes { recieved: String, expected: String },
+
+    #[error(transparent)]
+    DateParseError(#[from] chrono::ParseError),
 }

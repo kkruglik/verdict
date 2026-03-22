@@ -11,16 +11,17 @@ Verdict lets you define typed schemas and validation rules for tabular data, the
 
 ## Features
 
-- **14 constraint types** — null checks, uniqueness, numeric comparisons, string patterns, set membership, and more
+- **17 constraint types** — null checks, uniqueness, numeric comparisons, string patterns, set membership, date ranges, and more
 - **Column-to-column comparisons** — validate that one column's values are greater than another's
 - **Null-aware operations** — nulls are skipped in comparisons; use `not_null` to enforce presence
 - **Failed row samples** — each result includes the row index and value of up to N failed rows
 - **Structured report** — `ValidationReport` with pass/fail summary, counts, and per-rule results
 - **JSON export** — `--format json` in the CLI or `.to_json()` in Rust (behind `json` feature flag)
-- **4 typed column kinds** — `Int`, `Float`, `Str`, `Bool`, each with appropriate operations
+- **6 typed column kinds** — `Int`, `Float`, `Str`, `Bool`, `Date`, `DateTime`, each with appropriate operations
+- **Date and DateTime support** — stored as epoch integers internally, parsed from strings on CSV load
 - **CSV loading** — feature-gated CSV reader with typed schema enforcement
 - **Python bindings** — clean PyO3 API with a fluent `RuleBuilder`
-- **CLI binary** — validates CSV against a JSON schema, text or JSON output, exit codes for CI
+- **CLI binary** — validates CSV against a JSON or YAML schema, text or JSON output, exit codes for CI
 - **Zero I/O in core** — `verdict-core` has no filesystem dependencies by default
 
 ---
@@ -100,6 +101,9 @@ for r in report.results:
 | `ends_with(suffix)` | Str | Value ends with suffix |
 | `length_between(min, max)` | Str | String length in `[min, max]` |
 | `is_in(values)` | Int, Float, Str | Value is a member of the given set |
+| `after(date)` | Date, DateTime | Every value is strictly after the given date |
+| `before(date)` | Date, DateTime | Every value is strictly before the given date |
+| `between_dates(min, max)` | Date, DateTime | Every value is within `[min, max]` |
 
 Pass `col("name")` instead of a literal to compare two columns row-by-row:
 
@@ -117,9 +121,12 @@ Null values are skipped in all comparisons — they never count as failures. Use
 ```bash
 cargo build --release -p verdict-cli
 ./target/release/verdict-cli data.csv schema.json
+./target/release/verdict-cli data.csv schema.yaml
 ```
 
-Schema format (`schema.json`):
+Schema can be JSON or YAML — detected from the file extension (`.yaml` / `.yml` → YAML, anything else → JSON).
+
+JSON schema (`schema.json`):
 
 ```json
 {
@@ -131,9 +138,38 @@ Schema format (`schema.json`):
     { "name": "score", "dtype": "float", "constraints": [
       { "constraint": "between", "value": [0, 100] }
     ]},
+    { "name": "created_date", "dtype": "date", "format": "%Y-%m-%d", "constraints": [
+      { "constraint": "after", "value": "2020-01-01" }
+    ]},
     { "name": "country", "dtype": "str" }
   ]
 }
+```
+
+YAML schema (`schema.yaml`):
+
+```yaml
+columns:
+  - name: user_id
+    dtype: int
+    constraints:
+      - constraint: not_null
+        value: true
+      - constraint: unique
+        value: true
+  - name: score
+    dtype: float
+    constraints:
+      - constraint: between
+        value: [0, 100]
+  - name: created_date
+    dtype: date
+    format: "%Y-%m-%d"
+    constraints:
+      - constraint: after
+        value: "2020-01-01"
+  - name: country
+    dtype: str
 ```
 
 **Flags:**
@@ -149,13 +185,13 @@ Schema format (`schema.json`):
 
 ```bash
 # text output
-verdict-cli data.csv schema.json --format text
+verdict-cli data.csv schema.yaml --format text
 
 # cap failed samples
-verdict-cli data.csv schema.json --max-failed-samples 10
+verdict-cli data.csv schema.yaml --max-failed-samples 10
 
 # CI usage
-verdict-cli data.csv schema.json && echo "data quality OK"
+verdict-cli data.csv schema.yaml && echo "data quality OK"
 ```
 
 ---
@@ -163,6 +199,8 @@ verdict-cli data.csv schema.json && echo "data quality OK"
 ## CSV Loading
 
 `Dataset.from_csv(path, schema)` parses each column according to its declared type. Empty cells become `None`. Booleans accept `true/True/TRUE/1` and `false/False/FALSE/0`.
+
+Date and DateTime columns require a `format` field in the schema (e.g. `"%Y-%m-%d"`, `"%Y-%m-%dT%H:%M:%S"`). If omitted, standard formats are tried. Internally, dates are stored as `i32` epoch days and datetimes as `i64` epoch microseconds — comparisons run on integers, chrono is only called at parse time and when displaying failed values.
 
 ---
 
