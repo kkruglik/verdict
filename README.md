@@ -1,11 +1,13 @@
 # verdict
 
-A high-performance data validation library written in Rust, with Python bindings via PyO3.
+A zero-dependency data validation binary for pipelines and CI — no Python, no pandas, no runtime overhead.
 
+[![Rust Build & Test](https://github.com/kkruglik/verdict/actions/workflows/rust-build-test.yml/badge.svg)](https://github.com/kkruglik/verdict/actions/workflows/rust-build-test.yml)
 [![verdict-core on crates.io](https://img.shields.io/crates/v/verdict-core?label=verdict-core)](https://crates.io/crates/verdict-core)
 [![verdict-cli on crates.io](https://img.shields.io/crates/v/verdict-cli?label=verdict-cli)](https://crates.io/crates/verdict-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Verdict lets you define typed schemas and validation rules for tabular data, then run them against datasets loaded from CSV files or constructed in memory. All validation logic lives in pure Rust; Python integration is a thin binding layer on top.
+Drop a single static binary into any environment, point it at a CSV and a schema file, get a structured pass/fail result. Works anywhere you can run a shell command — CI runners, Docker images, Airflow workers, shell scripts — without installing Python or managing dependencies.
 
 ---
 
@@ -118,6 +120,8 @@ Null values are skipped in all comparisons — they never count as failures. Use
 
 ## CLI
 
+A single static binary — no Python, no pip, no dependency conflicts. Installing pandas and pandera in CI typically takes 40–80 seconds; verdict-cli downloads in 1–3 seconds and runs immediately. Works in any environment that can execute a shell command.
+
 ```bash
 cargo build --release -p verdict-cli
 ./target/release/verdict-cli data.csv schema.json
@@ -193,6 +197,29 @@ verdict-cli data.csv schema.yaml --max-failed-samples 10
 # CI usage
 verdict-cli data.csv schema.yaml && echo "data quality OK"
 ```
+
+### GitHub Actions
+
+Use the official action to validate data in CI without installing Rust or Python:
+
+```yaml
+- uses: kkruglik/verdict@main
+  with:
+    csv: data/output.csv
+    schema: data/schema.yaml
+```
+
+**Inputs:**
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `csv` | yes | — | Path to the CSV file |
+| `schema` | yes | — | Path to the schema file (JSON or YAML) |
+| `version` | no | latest | verdict-cli release tag (e.g. `verdict-cli-v0.1.5`) |
+| `format` | no | `text` | Output format: `text` or `json` |
+| `max-failed-samples` | no | `100` | Max failed row samples per rule |
+
+The action downloads a pre-built binary for the current runner OS — no build step required. Exit code follows the CLI: `0` if all rules pass, `1` if any fail.
 
 ---
 

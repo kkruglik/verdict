@@ -18,7 +18,7 @@ verdict-core = { version = "0.1.0", features = ["csv", "json"] }
 
 ## Features
 
-- **14 constraint types** — null checks, uniqueness, numeric comparisons, string patterns, set membership
+- **17 constraint types** — null checks, uniqueness, numeric comparisons, string patterns, set membership, date ranges
 - **Column-to-column comparisons** — validate one column against another row-by-row
 - **Null-aware** — nulls are skipped in comparisons; use `NotNull` to enforce presence
 - **Failed row samples** — each result includes `(row_index, value_string)` pairs for failed rows
@@ -108,6 +108,9 @@ pub struct ValidateConfig {
 | `EndsWith(suffix)` | Str | Value ends with suffix |
 | `LengthBetween { min, max }` | Str | String length in [min, max] |
 | `InSet(values)` | Int, Float, Str | Value is member of set |
+| `After(date)` | Date, DateTime | Every value is strictly after the given date |
+| `Before(date)` | Date, DateTime | Every value is strictly before the given date |
+| `BetweenDates { min, max }` | Date, DateTime | Every value is within [min, max] |
 
 `Operand` can be a literal (`Operand::Num(f64)`, `Operand::Str(String)`) or a column reference (`Operand::Column(name)`) for row-by-row column comparison.
 
