@@ -604,6 +604,92 @@ impl ComparableOps<f64> for Column {
     }
 }
 
+impl ComparableOps<i32> for Column {
+    fn ge(&self, compare: i32) -> Vec<Option<bool>> {
+        match self {
+            Column::Date(col) => col.ge(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+    fn gt(&self, compare: i32) -> Vec<Option<bool>> {
+        match self {
+            Column::Date(col) => col.gt(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn lt(&self, compare: i32) -> Vec<Option<bool>> {
+        match self {
+            Column::Date(col) => col.lt(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn le(&self, compare: i32) -> Vec<Option<bool>> {
+        match self {
+            Column::Date(col) => col.le(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn equal(&self, compare: i32) -> Vec<Option<bool>> {
+        match self {
+            Column::Date(col) => col.equal(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn between(&self, lower: i32, upper: i32) -> Vec<Option<bool>> {
+        match self {
+            Column::Date(col) => col.between(lower, upper),
+            _ => vec![None; self.len()],
+        }
+    }
+}
+
+impl ComparableOps<i64> for Column {
+    fn ge(&self, compare: i64) -> Vec<Option<bool>> {
+        match self {
+            Column::DateTime(col) => col.ge(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+    fn gt(&self, compare: i64) -> Vec<Option<bool>> {
+        match self {
+            Column::DateTime(col) => col.gt(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn lt(&self, compare: i64) -> Vec<Option<bool>> {
+        match self {
+            Column::DateTime(col) => col.lt(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn le(&self, compare: i64) -> Vec<Option<bool>> {
+        match self {
+            Column::DateTime(col) => col.le(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn equal(&self, compare: i64) -> Vec<Option<bool>> {
+        match self {
+            Column::DateTime(col) => col.equal(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn between(&self, lower: i64, upper: i64) -> Vec<Option<bool>> {
+        match self {
+            Column::DateTime(col) => col.between(lower, upper),
+            _ => vec![None; self.len()],
+        }
+    }
+}
+
 impl ComparableOps<&NaiveDate> for Column {
     fn gt(&self, compare: &NaiveDate) -> Vec<Option<bool>> {
         match &self {
