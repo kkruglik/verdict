@@ -7,7 +7,7 @@ use verdict_core::{
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, ValueEnum};
 use serde::Deserialize;
-use serde_json::{Value, from_reader};
+use serde_json::Value;
 use std::{fs::File, io::BufReader, path::PathBuf};
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -46,6 +46,7 @@ struct ColumnConfig {
     name: String,
     dtype: DtypeConfig,
     constraints: Option<Vec<ConstraintConfig>>,
+    format: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -55,6 +56,8 @@ enum DtypeConfig {
     Float,
     Str,
     Bool,
+    Date,
+    DateTime,
 }
 
 impl From<DtypeConfig> for DataType {
@@ -64,6 +67,8 @@ impl From<DtypeConfig> for DataType {
             DtypeConfig::Float => DataType::Float,
             DtypeConfig::Str => DataType::Str,
             DtypeConfig::Bool => DataType::Bool,
+            DtypeConfig::DateTime => DataType::DateTime,
+            DtypeConfig::Date => DataType::Date,
         }
     }
 }
@@ -106,12 +111,28 @@ fn parse_str_value(value: &Value, constraint: &str) -> Result<String> {
         .ok_or_else(|| anyhow!("expected string value for constraint '{}'", constraint))
 }
 
+fn parse_str_array(value: &Value, constraint: &str) -> Result<(String, String)> {
+    let arr = value
+        .as_array()
+        .ok_or_else(|| anyhow!("{}: expected array [min, max], got {}", constraint, value))?;
+    if arr.len() != 2 {
+        bail!("{}: expected 2 elements, got {}", constraint, arr.len());
+    }
+    let min = arr[0]
+        .as_str()
+        .ok_or_else(|| anyhow!("{}: min must be a string", constraint))?;
+    let max = arr[1]
+        .as_str()
+        .ok_or_else(|| anyhow!("{}: max must be a string", constraint))?;
+    Ok((min.to_string(), max.to_string()))
+}
+
 fn parse_is_in(value: &Value) -> Result<InSetValues> {
     let arr = value
         .as_array()
         .ok_or_else(|| anyhow!("is_in: expected array, got {}", value))?;
     if arr.iter().all(|v| v.as_i64().is_some()) {
-        Ok(InSetValues::IntSet(
+        Ok(InSetValues::Int64Set(
             arr.iter().map(|v| v.as_i64().unwrap()).collect(),
         ))
     } else if arr.iter().all(|v| v.as_f64().is_some()) {
@@ -170,6 +191,12 @@ fn parse_constraint(constraint: &str, value: &Value) -> Result<Constraint> {
         "length_between" => {
             let (min, max) = parse_length_between(value)?;
             Ok(Constraint::LengthBetween { min, max })
+        }
+        "after" => Ok(Constraint::After(parse_str_value(value, constraint)?)),
+        "before" => Ok(Constraint::Before(parse_str_value(value, constraint)?)),
+        "between_dates" => {
+            let (min, max) = parse_str_array(value, constraint)?;
+            Ok(Constraint::BetweenDates { min, max })
         }
         _ => bail!(
             "unsupported constraint '{}'. valid: not_null, unique, gt, ge, lt, le, eq, between, is_in, contains, starts_with, ends_with, matches_regex, length_between",
@@ -254,7 +281,7 @@ mod tests {
         // Act
         let result = parse_is_in(&value).unwrap();
         // Assert
-        assert!(matches!(result, InSetValues::IntSet(v) if v == vec![1, 2, 3]));
+        assert!(matches!(result, InSetValues::Int64Set(v) if v == vec![1, 2, 3]));
     }
 
     #[test]
@@ -395,7 +422,10 @@ mod tests {
     #[test]
     fn parse_constraint_is_in_integers() {
         let result = parse_constraint("is_in", &json!([1, 2, 3])).unwrap();
-        assert!(matches!(result, Constraint::InSet(InSetValues::IntSet(_))));
+        assert!(matches!(
+            result,
+            Constraint::InSet(InSetValues::Int64Set(_))
+        ));
     }
 
     #[test]
@@ -437,9 +467,17 @@ fn main() -> Result<()> {
         bail!("schema file not found: {}", cli.schema.display());
     }
 
-    let config_json = File::open(cli.schema).context("failed to open schema file")?;
-    let reader = BufReader::new(config_json);
-    let config: ValidationConfig = from_reader(reader).context("failed to parse schema file")?;
+    let is_yaml = cli.schema.extension()
+        .map(|e| e == "yaml" || e == "yml")
+        .unwrap_or(false);
+
+    let schema_file = File::open(&cli.schema).context("failed to open schema file")?;
+    let reader = BufReader::new(schema_file);
+    let config: ValidationConfig = if is_yaml {
+        serde_yaml::from_reader(reader).context("failed to parse schema file as YAML")?
+    } else {
+        serde_json::from_reader(reader).context("failed to parse schema file as JSON")?
+    };
 
     let mut dataset_rules: Vec<Rule> = Vec::new();
 
@@ -467,7 +505,7 @@ fn main() -> Result<()> {
         config
             .columns
             .iter()
-            .map(|c| Field::new(&c.name, c.dtype.clone().into()))
+            .map(|c| Field::new(&c.name, c.dtype.clone().into(), c.format.as_deref()))
             .collect(),
     );
 
@@ -475,6 +513,7 @@ fn main() -> Result<()> {
         "failed to load dataset: {}",
         cli.filename.display()
     ))?;
+
     let report = validate(
         &data,
         &dataset_rules,
