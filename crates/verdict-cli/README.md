@@ -1,6 +1,6 @@
-# verdict-cli — Fast CSV Data Validation for CI/CD Pipelines
+# verdict-cli — Rust-Based Data Validation for Pipelines and CI
 
-**Validate CSV files against a schema from the command line.** Define data quality rules in JSON or YAML, run verdict-cli in your pipeline, get structured results and a non-zero exit code when data fails.
+**Validate CSV files against a schema from the command line.** A single static binary — no Python, no pip, no dependency conflicts. Installing pandas and pandera in CI typically takes 40–80 seconds; verdict-cli downloads in 1–3 seconds and runs immediately.
 
 Built on [verdict-core](https://crates.io/crates/verdict-core) — a Rust validation engine with zero I/O overhead.
 
