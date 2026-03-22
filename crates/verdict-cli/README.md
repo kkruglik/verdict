@@ -1,6 +1,6 @@
 # verdict-cli — Fast CSV Data Validation for CI/CD Pipelines
 
-**Validate CSV files against a schema from the command line.** Define data quality rules in JSON, run verdict-cli in your pipeline, get structured results and a non-zero exit code when data fails.
+**Validate CSV files against a schema from the command line.** Define data quality rules in JSON or YAML, run verdict-cli in your pipeline, get structured results and a non-zero exit code when data fails.
 
 Built on [verdict-core](https://crates.io/crates/verdict-core) — a Rust validation engine with zero I/O overhead.
 
@@ -18,9 +18,12 @@ Or download a pre-built binary for Linux, macOS, or Windows from the [releases p
 
 ```bash
 verdict-cli data.csv schema.json
+verdict-cli data.csv schema.yaml
 verdict-cli data.csv schema.json --format text
 verdict-cli data.csv schema.json --max-failed-samples 10
 ```
+
+Schema format is detected from the file extension: `.yaml` / `.yml` → YAML, anything else → JSON.
 
 Exit code `0` — all rules pass. Exit code `1` — at least one rule fails.
 
@@ -46,6 +49,8 @@ verdict-cli data.csv schema.json || exit 1
 
 ## Schema format
 
+**JSON:**
+
 ```json
 {
   "columns": [
@@ -59,12 +64,49 @@ verdict-cli data.csv schema.json || exit 1
     { "name": "country", "dtype": "str", "constraints": [
       { "constraint": "is_in", "value": ["US", "UK", "DE", "FR", "JP"] }
     ]},
-    { "name": "created_at", "dtype": "str" }
+    { "name": "created_date", "dtype": "date", "format": "%Y-%m-%d", "constraints": [
+      { "constraint": "after", "value": "2020-01-01" }
+    ]},
+    { "name": "created_at", "dtype": "datetime", "format": "%Y-%m-%dT%H:%M:%S" }
   ]
 }
 ```
 
-Supported dtypes: `int`, `float`, `str`, `bool`.
+**YAML:**
+
+```yaml
+columns:
+  - name: user_id
+    dtype: int
+    constraints:
+      - constraint: not_null
+        value: true
+      - constraint: unique
+        value: true
+  - name: score
+    dtype: float
+    constraints:
+      - constraint: between
+        value: [0, 100]
+  - name: country
+    dtype: str
+    constraints:
+      - constraint: is_in
+        value: ["US", "UK", "DE", "FR", "JP"]
+  - name: created_date
+    dtype: date
+    format: "%Y-%m-%d"
+    constraints:
+      - constraint: after
+        value: "2020-01-01"
+  - name: created_at
+    dtype: datetime
+    format: "%Y-%m-%dT%H:%M:%S"
+```
+
+Supported dtypes: `int`, `float`, `str`, `bool`, `date`, `datetime`.
+
+Date and DateTime columns accept an optional `format` string. If omitted, standard formats are tried (`%Y-%m-%d` for dates, `%Y-%m-%dT%H:%M:%S` and `%Y-%m-%d %H:%M:%S` for datetimes).
 
 Columns without `constraints` are still required in the schema — they are loaded and type-checked but not validated against any rules.
 
@@ -82,6 +124,9 @@ Columns without `constraints` are still required in the schema — they are load
 | `contains` | str | `"@"` |
 | `starts_with` / `ends_with` | str | `"prod_"` |
 | `length_between` | str | `[2, 50]` |
+| `after` | date, datetime | `"2020-01-01"` |
+| `before` | date, datetime | `"2025-01-01"` |
+| `between_dates` | date, datetime | `["2020-01-01", "2025-01-01"]` |
 
 ## Output
 
