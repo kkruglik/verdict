@@ -28,6 +28,7 @@ target
 
 # Large fixture files
 fixtures/sample_10m.csv
+fixtures/sample_10m_with_dates.csv
 
 # Draft articles
 docs/articles/
