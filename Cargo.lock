@@ -807,7 +807,7 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "verdict-cli"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -819,7 +819,7 @@ dependencies = [
 
 [[package]]
 name = "verdict-core"
-version = "0.1.4"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "criterion",

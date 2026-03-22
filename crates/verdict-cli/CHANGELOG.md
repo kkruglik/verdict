@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.4...verdict-cli-v0.1.5) - 2026-03-22
+
+### Other
+
+- applied cargo fmt
+- update cli readme with yaml and date datetime docs
+- update cli changelog with yaml and date support
+- add yaml schema support and date datetime dtypes to cli
+
 ### Added
 
 - YAML schema support — `.yaml` / `.yml` files are detected by extension and parsed with `serde_yaml`; JSON behavior unchanged
