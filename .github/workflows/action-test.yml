@@ -1,0 +1,65 @@
+name: Action Test
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+
+jobs:
+  action-test:
+    name: ${{ matrix.csv }}
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+
+    strategy:
+      matrix:
+        include:
+          - csv: fixtures/sample.csv
+            schema: config/entry.yaml
+          - csv: fixtures/sample_10k.csv
+            schema: config/entry.yaml
+          - csv: fixtures/sample_100k.csv
+            schema: config/entry.yaml
+          - csv: fixtures/sample_1m.csv
+            schema: config/entry.yaml
+          - csv: fixtures/sample_10m.csv
+            schema: config/entry.yaml
+          - csv: fixtures/sample_with_dates.csv
+            schema: config/entry_with_dates.json
+          - csv: fixtures/sample_10k_with_dates.csv
+            schema: config/entry_with_dates.json
+          - csv: fixtures/sample_100k_with_dates.csv
+            schema: config/entry_with_dates.json
+          - csv: fixtures/sample_1m_with_dates.csv
+            schema: config/entry_with_dates.json
+          - csv: fixtures/sample_10m_with_dates.csv
+            schema: config/entry_with_dates.json
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: kkruglik/verdict@main
+        with:
+          csv: ${{ matrix.csv }}
+          schema: ${{ matrix.schema }}
+
+  fail-case:
+    name: Fail case
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run fail case
+        id: fail_action
+        uses: kkruglik/verdict@main
+        with:
+          csv: fixtures/sample.csv
+          schema: config/fail.yaml
+        continue-on-error: true
+
+      - name: Verify fail case failed
+        if: steps.fail_action.outcome != 'failure'
+        run: |
+          echo "Expected action to fail but it succeeded"
+          exit 1
