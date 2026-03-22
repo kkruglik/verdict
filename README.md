@@ -2,8 +2,10 @@
 
 A high-performance data validation library written in Rust, with Python bindings via PyO3.
 
+[![Rust Build & Test](https://github.com/kkruglik/verdict/actions/workflows/rust-build-test.yml/badge.svg)](https://github.com/kkruglik/verdict/actions/workflows/rust-build-test.yml)
 [![verdict-core on crates.io](https://img.shields.io/crates/v/verdict-core?label=verdict-core)](https://crates.io/crates/verdict-core)
 [![verdict-cli on crates.io](https://img.shields.io/crates/v/verdict-cli?label=verdict-cli)](https://crates.io/crates/verdict-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Verdict lets you define typed schemas and validation rules for tabular data, then run them against datasets loaded from CSV files or constructed in memory. All validation logic lives in pure Rust; Python integration is a thin binding layer on top.
 
