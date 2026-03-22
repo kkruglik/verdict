@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/kkruglik/verdict/compare/verdict-core-v0.2.0...verdict-core-v0.2.1) - 2026-03-22
+
+### Fixed
+
+- fix constraint count and add date constraints to docs
+
 ## [0.2.0](https://github.com/kkruglik/verdict/compare/verdict-core-v0.1.4...verdict-core-v0.2.0) - 2026-03-22
 
 ### Fixed
