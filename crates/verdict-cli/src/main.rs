@@ -467,7 +467,9 @@ fn main() -> Result<()> {
         bail!("schema file not found: {}", cli.schema.display());
     }
 
-    let is_yaml = cli.schema.extension()
+    let is_yaml = cli
+        .schema
+        .extension()
         .map(|e| e == "yaml" || e == "yml")
         .unwrap_or(false);
 

@@ -26,7 +26,6 @@ pub enum CsvLoadingError {
 
     #[error("Schema does not match CSV: expected {expected} columns, found {found}")]
     ShapeError { expected: usize, found: usize },
-
 }
 
 pub trait DatasetCsvExt {

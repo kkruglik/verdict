@@ -1636,7 +1636,12 @@ mod date_constraint_tests {
         Dataset::new(
             vec!["date".to_string(), "datetime".to_string()],
             vec![
-                Column::Date(DateColumn(vec![Some(19723), Some(19725), Some(19727), None])),
+                Column::Date(DateColumn(vec![
+                    Some(19723),
+                    Some(19725),
+                    Some(19727),
+                    None,
+                ])),
                 // datetimes: 2024-01-01T10:00:00, 2024-01-03T12:00:00, 2024-01-05T14:00:00
                 Column::DateTime(DateTimeColumn(vec![
                     Some(1704103200000000),
@@ -1657,7 +1662,10 @@ mod date_constraint_tests {
     #[test]
     fn test_after_date_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::After("2023-12-31".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::After("2023-12-31".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -1665,7 +1673,10 @@ mod date_constraint_tests {
     #[test]
     fn test_after_date_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::After("2024-01-03".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::After("2024-01-03".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, 2); // 2024-01-01 and 2024-01-03 fail (exclusive)
@@ -1675,7 +1686,10 @@ mod date_constraint_tests {
     fn test_after_date_boundary_exclusive() {
         let ds = make_date_dataset();
         // after 2024-01-01 means strictly greater — 2024-01-01 itself should fail
-        let rules = vec![Rule::new("date", Constraint::After("2024-01-01".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::After("2024-01-01".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, 1);
@@ -1684,7 +1698,10 @@ mod date_constraint_tests {
     #[test]
     fn test_after_datetime_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("datetime", Constraint::After("2024-01-01T09:00:00".to_string()))];
+        let rules = vec![Rule::new(
+            "datetime",
+            Constraint::After("2024-01-01T09:00:00".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -1692,7 +1709,10 @@ mod date_constraint_tests {
     #[test]
     fn test_after_datetime_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("datetime", Constraint::After("2024-01-03T12:00:00".to_string()))];
+        let rules = vec![Rule::new(
+            "datetime",
+            Constraint::After("2024-01-03T12:00:00".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, 2); // 2024-01-01 and 2024-01-03 fail
@@ -1703,7 +1723,10 @@ mod date_constraint_tests {
     #[test]
     fn test_before_date_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::Before("2024-01-06".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::Before("2024-01-06".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -1711,7 +1734,10 @@ mod date_constraint_tests {
     #[test]
     fn test_before_date_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::Before("2024-01-03".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::Before("2024-01-03".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, 2); // 2024-01-03 and 2024-01-05 fail (exclusive)
@@ -1721,7 +1747,10 @@ mod date_constraint_tests {
     fn test_before_date_boundary_exclusive() {
         let ds = make_date_dataset();
         // before 2024-01-05 means strictly less — 2024-01-05 itself should fail
-        let rules = vec![Rule::new("date", Constraint::Before("2024-01-05".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::Before("2024-01-05".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, 1);
@@ -1730,7 +1759,10 @@ mod date_constraint_tests {
     #[test]
     fn test_before_datetime_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("datetime", Constraint::Before("2024-01-06T00:00:00".to_string()))];
+        let rules = vec![Rule::new(
+            "datetime",
+            Constraint::Before("2024-01-06T00:00:00".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -1740,10 +1772,13 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::BetweenDates {
-            min: "2024-01-01".to_string(),
-            max: "2024-01-05".to_string(),
-        })];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::BetweenDates {
+                min: "2024-01-01".to_string(),
+                max: "2024-01-05".to_string(),
+            },
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -1751,10 +1786,13 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::BetweenDates {
-            min: "2024-01-02".to_string(),
-            max: "2024-01-04".to_string(),
-        })];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::BetweenDates {
+                min: "2024-01-02".to_string(),
+                max: "2024-01-04".to_string(),
+            },
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, 2); // 2024-01-01 and 2024-01-05 fail
@@ -1763,10 +1801,13 @@ mod date_constraint_tests {
     #[test]
     fn test_between_datetimes_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("datetime", Constraint::BetweenDates {
-            min: "2024-01-01T10:00:00".to_string(),
-            max: "2024-01-05T14:00:00".to_string(),
-        })];
+        let rules = vec![Rule::new(
+            "datetime",
+            Constraint::BetweenDates {
+                min: "2024-01-01T10:00:00".to_string(),
+                max: "2024-01-05T14:00:00".to_string(),
+            },
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -1774,10 +1815,13 @@ mod date_constraint_tests {
     #[test]
     fn test_between_datetimes_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("datetime", Constraint::BetweenDates {
-            min: "2024-01-02T00:00:00".to_string(),
-            max: "2024-01-04T00:00:00".to_string(),
-        })];
+        let rules = vec![Rule::new(
+            "datetime",
+            Constraint::BetweenDates {
+                min: "2024-01-02T00:00:00".to_string(),
+                max: "2024-01-04T00:00:00".to_string(),
+            },
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, 2); // first and last fail
@@ -1789,7 +1833,10 @@ mod date_constraint_tests {
     fn test_after_date_nulls_pass() {
         let ds = make_date_dataset();
         // all non-null values pass, null is ignored (use NotNull separately)
-        let rules = vec![Rule::new("date", Constraint::After("2023-01-01".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::After("2023-01-01".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -1797,7 +1844,10 @@ mod date_constraint_tests {
     #[test]
     fn test_invalid_date_string_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::After("not-a-date".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::After("not-a-date".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
@@ -1805,7 +1855,10 @@ mod date_constraint_tests {
     #[test]
     fn test_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::After("2024-01-01T10:00:00".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::After("2024-01-01T10:00:00".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
@@ -1813,7 +1866,10 @@ mod date_constraint_tests {
     #[test]
     fn test_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("datetime", Constraint::After("2024-01-01".to_string()))];
+        let rules = vec![Rule::new(
+            "datetime",
+            Constraint::After("2024-01-01".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
@@ -1821,7 +1877,10 @@ mod date_constraint_tests {
     #[test]
     fn test_before_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::Before("2024-01-01T10:00:00".to_string()))];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::Before("2024-01-01T10:00:00".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
@@ -1829,7 +1888,10 @@ mod date_constraint_tests {
     #[test]
     fn test_before_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("datetime", Constraint::Before("2024-01-01".to_string()))];
+        let rules = vec![Rule::new(
+            "datetime",
+            Constraint::Before("2024-01-01".to_string()),
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
@@ -1837,10 +1899,13 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("date", Constraint::BetweenDates {
-            min: "2024-01-01T00:00:00".to_string(),
-            max: "2024-01-05T00:00:00".to_string(),
-        })];
+        let rules = vec![Rule::new(
+            "date",
+            Constraint::BetweenDates {
+                min: "2024-01-01T00:00:00".to_string(),
+                max: "2024-01-05T00:00:00".to_string(),
+            },
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
@@ -1848,10 +1913,13 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new("datetime", Constraint::BetweenDates {
-            min: "2024-01-01".to_string(),
-            max: "2024-01-05".to_string(),
-        })];
+        let rules = vec![Rule::new(
+            "datetime",
+            Constraint::BetweenDates {
+                min: "2024-01-01".to_string(),
+                max: "2024-01-05".to_string(),
+            },
+        )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }

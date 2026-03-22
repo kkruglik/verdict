@@ -24,10 +24,13 @@ fn make_rules() -> Vec<Rule> {
     vec![
         Rule::new("user_id", Constraint::NotNull),
         Rule::new("user_id", Constraint::Unique),
-        Rule::new("score", Constraint::Between {
-            min: Operand::Num(0.0),
-            max: Operand::Num(100.0),
-        }),
+        Rule::new(
+            "score",
+            Constraint::Between {
+                min: Operand::Num(0.0),
+                max: Operand::Num(100.0),
+            },
+        ),
         Rule::new("age", Constraint::GreaterThan(Operand::Num(0.0))),
         Rule::new("age", Constraint::LessThan(Operand::Num(120.0))),
         Rule::new("country", Constraint::NotNull),
@@ -59,17 +62,34 @@ fn bench_validation(c: &mut Criterion) {
     let rules = make_rules();
     let config = ValidateConfig::default();
 
-    let dataset_100k = Dataset::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap();
+    let dataset_100k =
+        Dataset::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap();
     let dataset_1m = Dataset::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap();
 
     let mut group = c.benchmark_group("validation");
 
     group.bench_function("100k rows", |b| {
-        b.iter(|| validate(&dataset_100k, &rules, ValidateConfig { max_failed_samples: config.max_failed_samples }))
+        b.iter(|| {
+            validate(
+                &dataset_100k,
+                &rules,
+                ValidateConfig {
+                    max_failed_samples: config.max_failed_samples,
+                },
+            )
+        })
     });
 
     group.bench_function("1m rows", |b| {
-        b.iter(|| validate(&dataset_1m, &rules, ValidateConfig { max_failed_samples: config.max_failed_samples }))
+        b.iter(|| {
+            validate(
+                &dataset_1m,
+                &rules,
+                ValidateConfig {
+                    max_failed_samples: config.max_failed_samples,
+                },
+            )
+        })
     });
 
     group.finish();
