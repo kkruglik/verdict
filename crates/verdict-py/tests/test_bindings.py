@@ -1,5 +1,5 @@
 import pytest
-from verdict_py import Dataset, Column, RuleBuilder, Schema, DataType, py_validate, col
+from verdict_py import Dataset, Column, Constraint, Rule, RuleBuilder, Schema, DataType, py_validate, col
 
 
 FIXTURE_CSV = """\
@@ -441,3 +441,207 @@ class TestColumnPairValidation:
         report = py_validate(compare_dataset, RuleBuilder("x").gt(col("nonexistent")).build())
         assert not report.results[0].is_passed
         assert report.results[0].error is not None
+
+
+# ── Date and DateTime constraints ─────────────────────────────────────────────
+#
+# Epoch days (i32) since 1970-01-01:
+#   18262 = 2020-01-01
+#   19358 = 2023-01-01
+#   19723 = 2024-01-01
+#   20089 = 2025-01-01
+#
+# Epoch microseconds (i64) since 1970-01-01T00:00:00:
+#   1577836800000000 = 2020-01-01T00:00:00
+#   1672531200000000 = 2023-01-01T00:00:00
+#   1704067200000000 = 2024-01-01T00:00:00
+#   1735689600000000 = 2025-01-01T00:00:00
+
+class TestDateConstraints:
+    @pytest.fixture
+    def date_ds(self):
+        # rows: 2020-01-01, 2023-01-01, 2024-01-01, null
+        return Dataset(
+            headers=["d"],
+            columns=[Column.date([18262, 19358, 19723, None])],
+        )
+
+    def test_after_passes(self, date_ds):
+        report = py_validate(date_ds, [Rule("d", Constraint.after("2019-12-31"))])
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
+
+    def test_after_fails(self, date_ds):
+        # threshold 2023-06-01 — rows 0 (2020) and 1 (2023-01) fail, row 3 null skipped
+        report = py_validate(date_ds, [Rule("d", Constraint.after("2023-06-01"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 2
+
+    def test_after_null_skipped(self, date_ds):
+        # null row does not count as failure
+        report = py_validate(date_ds, [Rule("d", Constraint.after("2019-12-31"))])
+        assert report.results[0].failed_count == 0
+
+    def test_before_passes(self, date_ds):
+        report = py_validate(date_ds, [Rule("d", Constraint.before("2025-01-01"))])
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
+
+    def test_before_fails(self, date_ds):
+        # threshold 2022-01-01 — rows 1 (2023) and 2 (2024) fail
+        report = py_validate(date_ds, [Rule("d", Constraint.before("2022-01-01"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 2
+
+    def test_between_dates_passes(self, date_ds):
+        report = py_validate(date_ds, [Rule("d", Constraint.between_dates("2019-12-31", "2025-01-01"))])
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
+
+    def test_between_dates_fails(self, date_ds):
+        # only 2023-01-01 and 2024-01-01 are in range [2022-06-01, 2024-06-01]
+        report = py_validate(date_ds, [Rule("d", Constraint.between_dates("2022-06-01", "2024-06-01"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1  # 2020-01-01 fails
+
+    def test_after_boundary_exclusive(self):
+        # after("2024-01-01") — row with exactly 2024-01-01 should fail (exclusive)
+        ds = Dataset(headers=["d"], columns=[Column.date([19723])])
+        report = py_validate(ds, [Rule("d", Constraint.after("2024-01-01"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1
+
+    def test_before_boundary_exclusive(self):
+        # before("2024-01-01") — row with exactly 2024-01-01 should fail (exclusive)
+        ds = Dataset(headers=["d"], columns=[Column.date([19723])])
+        report = py_validate(ds, [Rule("d", Constraint.before("2024-01-01"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1
+
+    def test_failed_values_reported(self, date_ds):
+        report = py_validate(date_ds, [Rule("d", Constraint.after("2023-06-01"))])
+        r = report.results[0]
+        assert r.failed_values is not None
+        assert len(r.failed_values) == 2
+        # values should be human-readable date strings, not raw integers
+        idxs = [idx for idx, _ in r.failed_values]
+        vals = [v for _, v in r.failed_values]
+        assert 0 in idxs
+        assert 1 in idxs
+        assert all("-" in v for v in vals)
+
+
+class TestDateTimeConstraints:
+    @pytest.fixture
+    def dt_ds(self):
+        # rows: 2020-01-01, 2023-01-01, 2024-01-01, null
+        return Dataset(
+            headers=["ts"],
+            columns=[Column.datetime([1577836800000000, 1672531200000000, 1704067200000000, None])],
+        )
+
+    def test_after_passes(self, dt_ds):
+        report = py_validate(dt_ds, [Rule("ts", Constraint.after("2019-12-31T00:00:00"))])
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
+
+    def test_after_fails(self, dt_ds):
+        # threshold 2023-06-01 — rows 0 (2020) and 1 (2023-01) fail
+        report = py_validate(dt_ds, [Rule("ts", Constraint.after("2023-06-01T00:00:00"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 2
+
+    def test_after_null_skipped(self, dt_ds):
+        report = py_validate(dt_ds, [Rule("ts", Constraint.after("2019-12-31T00:00:00"))])
+        assert report.results[0].failed_count == 0
+
+    def test_before_passes(self, dt_ds):
+        report = py_validate(dt_ds, [Rule("ts", Constraint.before("2025-01-01T00:00:00"))])
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
+
+    def test_before_fails(self, dt_ds):
+        # threshold 2022-01-01 — rows 1 and 2 fail
+        report = py_validate(dt_ds, [Rule("ts", Constraint.before("2022-01-01T00:00:00"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 2
+
+    def test_between_dates_passes(self, dt_ds):
+        report = py_validate(dt_ds, [Rule("ts", Constraint.between_dates("2019-12-31T00:00:00", "2025-01-01T00:00:00"))])
+        assert report.results[0].is_passed
+        assert report.results[0].failed_count == 0
+
+    def test_between_dates_fails(self, dt_ds):
+        report = py_validate(dt_ds, [Rule("ts", Constraint.between_dates("2022-06-01T00:00:00", "2024-06-01T00:00:00"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1  # 2020-01-01 fails
+
+    def test_after_boundary_exclusive(self):
+        ds = Dataset(headers=["ts"], columns=[Column.datetime([1704067200000000])])
+        report = py_validate(ds, [Rule("ts", Constraint.after("2024-01-01T00:00:00"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1
+
+    def test_before_boundary_exclusive(self):
+        ds = Dataset(headers=["ts"], columns=[Column.datetime([1704067200000000])])
+        report = py_validate(ds, [Rule("ts", Constraint.before("2024-01-01T00:00:00"))])
+        assert not report.results[0].is_passed
+        assert report.results[0].failed_count == 1
+
+    def test_failed_values_reported(self, dt_ds):
+        report = py_validate(dt_ds, [Rule("ts", Constraint.after("2023-06-01T00:00:00"))])
+        r = report.results[0]
+        assert r.failed_values is not None
+        assert len(r.failed_values) == 2
+        vals = [v for _, v in r.failed_values]
+        assert all("-" in v for v in vals)
+
+
+class TestDateFromCsv:
+    DATE_CSV = """\
+created_date,created_at
+2020-06-11,2023-09-04T14:18:42
+2023-11-14,2024-05-29T21:21:34
+,
+"""
+
+    @pytest.fixture
+    def csv_path(self, tmp_path):
+        p = tmp_path / "dates.csv"
+        p.write_text(self.DATE_CSV)
+        return str(p)
+
+    def test_load_date_datetime_columns(self, csv_path):
+        schema = Schema([
+            ("created_date", DataType.date()),
+            ("created_at", DataType.datetime()),
+        ])
+        ds = Dataset.from_csv(csv_path, schema)
+        assert ds.shape() == (3, 2)
+
+    def test_validate_after_from_csv(self, csv_path):
+        schema = Schema([
+            ("created_date", DataType.date()),
+            ("created_at", DataType.datetime()),
+        ])
+        ds = Dataset.from_csv(csv_path, schema)
+        rules = [Rule("created_date", Constraint.after("2019-12-31"))]
+        report = py_validate(ds, rules)
+        assert report.results[0].is_passed
+
+    def test_validate_before_from_csv(self, csv_path):
+        schema = Schema([
+            ("created_date", DataType.date()),
+            ("created_at", DataType.datetime()),
+        ])
+        ds = Dataset.from_csv(csv_path, schema)
+        rules = [Rule("created_at", Constraint.before("2025-01-01T00:00:00"))]
+        report = py_validate(ds, rules)
+        assert report.results[0].is_passed
+
+    def test_invalid_date_format_raises(self, tmp_path):
+        bad = tmp_path / "bad_dates.csv"
+        bad.write_text("created_date\nnot-a-date\n")
+        schema = Schema([("created_date", DataType.date())])
+        with pytest.raises(ValueError):
+            Dataset.from_csv(str(bad), schema)
