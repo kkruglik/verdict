@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::str::FromStr;
 
 pub struct ValidateConfig {
     pub max_failed_samples: usize,
@@ -12,8 +13,12 @@ impl Default for ValidateConfig {
     }
 }
 
-use crate::dataset::Keep;
+use chrono::{NaiveDate, NaiveDateTime};
+
 use crate::dataset::ops::{ComparableOps, StringOps};
+use crate::dataset::{
+    Keep, i32_to_naive_date, i64_to_naive_datetime, naive_date_to_i32, naive_datetime_to_i64,
+};
 use crate::{
     dataset::{Column, Dataset, InSetValues},
     errors::ValidationError,
@@ -83,6 +88,11 @@ pub enum Constraint {
     StartsWith(String),
     EndsWith(String),
     LengthBetween { min: usize, max: usize },
+
+    // Datetime checks
+    After(String),
+    Before(String),
+    BetweenDates { min: String, max: String },
 }
 
 impl std::fmt::Display for Constraint {
@@ -102,6 +112,9 @@ impl std::fmt::Display for Constraint {
             Constraint::StartsWith(p) => write!(f, "starts_with({})", p),
             Constraint::EndsWith(p) => write!(f, "ends_with({})", p),
             Constraint::LengthBetween { min, max } => write!(f, "length_between({}, {})", min, max),
+            Constraint::After(op) => write!(f, "after({})", op),
+            Constraint::Before(op) => write!(f, "before({})", op),
+            Constraint::BetweenDates { min, max } => write!(f, "between_dates({}, {})", min, max),
         }
     }
 }
@@ -428,6 +441,73 @@ fn validate_with_rule(
             }
             Constraint::Unique => Ok(check_unique(column, rule, n)),
             Constraint::InSet(other) => Ok(check_is_in_set(column, other, rule, n)),
+            Constraint::After(date_str) => match &column {
+                Column::Date(_) => {
+                    let naive_date = NaiveDate::from_str(date_str)?;
+                    Ok(check_after_date(
+                        column,
+                        naive_date_to_i32(&naive_date),
+                        rule,
+                        n,
+                    ))
+                }
+                Column::DateTime(_) => {
+                    let naive_dt = NaiveDateTime::from_str(date_str)?;
+                    Ok(check_after_datetime(
+                        column,
+                        naive_datetime_to_i64(&naive_dt),
+                        rule,
+                        n,
+                    ))
+                }
+                _ => unreachable!("Only applied to date or datetime columns"),
+            },
+            Constraint::Before(date_str) => match &column {
+                Column::Date(_) => {
+                    let naive_date = NaiveDate::from_str(date_str)?;
+                    Ok(check_before_date(
+                        column,
+                        naive_date_to_i32(&naive_date),
+                        rule,
+                        n,
+                    ))
+                }
+                Column::DateTime(_) => {
+                    let naive_dt = NaiveDateTime::from_str(date_str)?;
+                    Ok(check_before_datetime(
+                        column,
+                        naive_datetime_to_i64(&naive_dt),
+                        rule,
+                        n,
+                    ))
+                }
+                _ => unreachable!("Only applied to date or datetime columns"),
+            },
+            Constraint::BetweenDates { min, max } => match &column {
+                Column::Date(_) => {
+                    let naive_date_min = NaiveDate::from_str(min)?;
+                    let naive_date_max = NaiveDate::from_str(max)?;
+                    Ok(check_between_dates(
+                        column,
+                        naive_date_to_i32(&naive_date_min),
+                        naive_date_to_i32(&naive_date_max),
+                        rule,
+                        n,
+                    ))
+                }
+                Column::DateTime(_) => {
+                    let naive_dt_min = NaiveDateTime::from_str(min)?;
+                    let naive_dt_max = NaiveDateTime::from_str(max)?;
+                    Ok(check_between_datetimes(
+                        column,
+                        naive_datetime_to_i64(&naive_dt_min),
+                        naive_datetime_to_i64(&naive_dt_max),
+                        rule,
+                        n,
+                    ))
+                }
+                _ => unreachable!("Only applied to date or datetime columns"),
+            },
         }
     } else {
         Err(ValidationError::ColumnNotFound {
@@ -1434,4 +1514,237 @@ fn check_unique(col: &Column, rule: &Rule, n: usize) -> ValidationResult {
         "column values are not unique",
         Some(failed_values),
     )
+}
+
+fn check_after_date(col: &Column, value: i32, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.gt(value);
+
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Date(c) => (
+                idx,
+                c.0[idx]
+                    .and_then(|v| i32_to_naive_date(v))
+                    .map(|d| d.to_string())
+                    .unwrap_or_else(|| "null".to_string()),
+            ),
+            _ => unreachable!("gt(i32) on non-date column"),
+        })
+        .take(n)
+        .collect();
+
+    if failed_values.is_empty() {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!(
+                "values not after date {}",
+                i32_to_naive_date(value)
+                    .map(|d| d.to_string())
+                    .unwrap_or(value.to_string())
+            ),
+            Some(failed_values),
+        )
+    }
+}
+
+fn check_after_datetime(col: &Column, value: i64, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.gt(value);
+
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .and_then(|v| i64_to_naive_datetime(v))
+                    .map(|dt| dt.to_string())
+                    .unwrap_or_else(|| "null".to_string()),
+            ),
+            _ => unreachable!("gt(i64) on non-datetime column"),
+        })
+        .take(n)
+        .collect();
+
+    if failed_values.is_empty() {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!(
+                "values not after datetime {}",
+                i64_to_naive_datetime(value)
+                    .map(|dt| dt.to_string())
+                    .unwrap_or(value.to_string())
+            ),
+            Some(failed_values),
+        )
+    }
+}
+
+fn check_before_date(col: &Column, value: i32, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.lt(value);
+
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Date(c) => (
+                idx,
+                c.0[idx]
+                    .and_then(|v| i32_to_naive_date(v))
+                    .map(|d| d.to_string())
+                    .unwrap_or_else(|| "null".to_string()),
+            ),
+            _ => unreachable!("lt(i32) on non-date column"),
+        })
+        .take(n)
+        .collect();
+
+    if failed_values.is_empty() {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!(
+                "values not before date {}",
+                i32_to_naive_date(value)
+                    .map(|d| d.to_string())
+                    .unwrap_or(value.to_string())
+            ),
+            Some(failed_values),
+        )
+    }
+}
+
+fn check_before_datetime(col: &Column, value: i64, rule: &Rule, n: usize) -> ValidationResult {
+    let mask = col.lt(value);
+
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .and_then(|v| i64_to_naive_datetime(v))
+                    .map(|dt| dt.to_string())
+                    .unwrap_or_else(|| "null".to_string()),
+            ),
+            _ => unreachable!("lt(i64) on non-datetime column"),
+        })
+        .take(n)
+        .collect();
+
+    if failed_values.is_empty() {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!(
+                "values not before datetime {}",
+                i64_to_naive_datetime(value)
+                    .map(|dt| dt.to_string())
+                    .unwrap_or(value.to_string())
+            ),
+            Some(failed_values),
+        )
+    }
+}
+fn check_between_dates(
+    col: &Column,
+    min: i32,
+    max: i32,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.between(min, max);
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::Date(c) => (
+                idx,
+                c.0[idx]
+                    .and_then(|v| i32_to_naive_date(v))
+                    .map(|d| d.to_string())
+                    .unwrap_or_else(|| "null".to_string()),
+            ),
+            _ => unreachable!("between(i32) on non-date column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
+        ValidationResult::passed(rule)
+    } else {
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!(
+                "values not between dates {} and {}",
+                i32_to_naive_date(min)
+                    .map(|d| d.to_string())
+                    .unwrap_or(min.to_string()),
+                i32_to_naive_date(max)
+                    .map(|d| d.to_string())
+                    .unwrap_or(max.to_string())
+            ),
+            Some(failed_values),
+        )
+    }
+}
+
+fn check_between_datetimes(
+    col: &Column,
+    min: i64,
+    max: i64,
+    rule: &Rule,
+    n: usize,
+) -> ValidationResult {
+    let mask = col.between(min, max);
+    let failed_values: Vec<(usize, String)> = mask
+        .iter()
+        .enumerate()
+        .filter(|(_, val)| matches!(val, Some(false)))
+        .map(|(idx, _)| match col {
+            Column::DateTime(c) => (
+                idx,
+                c.0[idx]
+                    .and_then(|v| i64_to_naive_datetime(v))
+                    .map(|dt| dt.to_string())
+                    .unwrap_or_else(|| "null".to_string()),
+            ),
+            _ => unreachable!("between(i64) on non-datetime column"),
+        })
+        .take(n)
+        .collect();
+    if failed_values.is_empty() {
+        ValidationResult::passed(rule)
+    } else {
+        let min_str = i64_to_naive_datetime(min)
+            .map(|dt| dt.to_string())
+            .unwrap_or(min.to_string());
+        let max_str = i64_to_naive_datetime(max)
+            .map(|dt| dt.to_string())
+            .unwrap_or(max.to_string());
+        ValidationResult::failed(
+            rule,
+            failed_values.len(),
+            &format!("values not between datetimes {} and {}", min_str, max_str),
+            Some(failed_values),
+        )
+    }
 }
