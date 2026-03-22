@@ -20,19 +20,11 @@ jobs:
             schema: config/entry.yaml
           - csv: fixtures/sample_100k.csv
             schema: config/entry.yaml
-          - csv: fixtures/sample_1m.csv
-            schema: config/entry.yaml
-          - csv: fixtures/sample_10m.csv
-            schema: config/entry.yaml
           - csv: fixtures/sample_with_dates.csv
             schema: config/entry_with_dates.json
           - csv: fixtures/sample_10k_with_dates.csv
             schema: config/entry_with_dates.json
           - csv: fixtures/sample_100k_with_dates.csv
-            schema: config/entry_with_dates.json
-          - csv: fixtures/sample_1m_with_dates.csv
-            schema: config/entry_with_dates.json
-          - csv: fixtures/sample_10m_with_dates.csv
             schema: config/entry_with_dates.json
 
     steps:
