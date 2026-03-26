@@ -1,7 +1,7 @@
 use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataset::{DataType, Dataset, Field, InSetValues, Schema},
-    rules::{Constraint, Operand, Rule, RuleBuilder, ValidateConfig, validate},
+    rules::{ColumnConstraint, ColumnRule, Operand, RuleBuilder, ValidateConfig, validate},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -168,35 +168,43 @@ fn parse_length_between(value: &Value) -> Result<(usize, usize)> {
     Ok((min, max))
 }
 
-fn parse_constraint(constraint: &str, value: &Value) -> Result<Constraint> {
+fn parse_constraint(constraint: &str, value: &Value) -> Result<ColumnConstraint> {
     match constraint {
-        "not_null" => Ok(Constraint::NotNull),
-        "unique" => Ok(Constraint::Unique),
-        "gt" => Ok(Constraint::GreaterThan(parse_operand(value)?)),
-        "ge" => Ok(Constraint::GreaterThanOrEqual(parse_operand(value)?)),
-        "lt" => Ok(Constraint::LessThan(parse_operand(value)?)),
-        "le" => Ok(Constraint::LessThanOrEqual(parse_operand(value)?)),
-        "eq" => Ok(Constraint::Equal(parse_operand(value)?)),
+        "not_null" => Ok(ColumnConstraint::NotNull),
+        "unique" => Ok(ColumnConstraint::Unique),
+        "gt" => Ok(ColumnConstraint::GreaterThan(parse_operand(value)?)),
+        "ge" => Ok(ColumnConstraint::GreaterThanOrEqual(parse_operand(value)?)),
+        "lt" => Ok(ColumnConstraint::LessThan(parse_operand(value)?)),
+        "le" => Ok(ColumnConstraint::LessThanOrEqual(parse_operand(value)?)),
+        "eq" => Ok(ColumnConstraint::Equal(parse_operand(value)?)),
         "between" => {
             let (min, max) = parse_operand_array(value)?;
-            Ok(Constraint::Between { min, max })
+            Ok(ColumnConstraint::Between { min, max })
         }
-        "is_in" => Ok(Constraint::InSet(parse_is_in(value)?)),
-        "contains" => Ok(Constraint::Contains(parse_str_value(value, constraint)?)),
-        "starts_with" => Ok(Constraint::StartsWith(parse_str_value(value, constraint)?)),
-        "ends_with" => Ok(Constraint::EndsWith(parse_str_value(value, constraint)?)),
-        "matches_regex" => Ok(Constraint::MatchesRegex(parse_str_value(
+        "is_in" => Ok(ColumnConstraint::InSet(parse_is_in(value)?)),
+        "contains" => Ok(ColumnConstraint::Contains(parse_str_value(
+            value, constraint,
+        )?)),
+        "starts_with" => Ok(ColumnConstraint::StartsWith(parse_str_value(
+            value, constraint,
+        )?)),
+        "ends_with" => Ok(ColumnConstraint::EndsWith(parse_str_value(
+            value, constraint,
+        )?)),
+        "matches_regex" => Ok(ColumnConstraint::MatchesRegex(parse_str_value(
             value, constraint,
         )?)),
         "length_between" => {
             let (min, max) = parse_length_between(value)?;
-            Ok(Constraint::LengthBetween { min, max })
+            Ok(ColumnConstraint::LengthBetween { min, max })
         }
-        "after" => Ok(Constraint::After(parse_str_value(value, constraint)?)),
-        "before" => Ok(Constraint::Before(parse_str_value(value, constraint)?)),
+        "after" => Ok(ColumnConstraint::After(parse_str_value(value, constraint)?)),
+        "before" => Ok(ColumnConstraint::Before(parse_str_value(
+            value, constraint,
+        )?)),
         "between_dates" => {
             let (min, max) = parse_str_array(value, constraint)?;
-            Ok(Constraint::BetweenDates { min, max })
+            Ok(ColumnConstraint::BetweenDates { min, max })
         }
         _ => bail!(
             "unsupported constraint '{}'. valid: not_null, unique, gt, ge, lt, le, eq, between, is_in, contains, starts_with, ends_with, matches_regex, length_between",
@@ -384,26 +392,26 @@ mod tests {
     #[test]
     fn parse_constraint_not_null() {
         let result = parse_constraint("not_null", &json!(true)).unwrap();
-        assert!(matches!(result, Constraint::NotNull));
+        assert!(matches!(result, ColumnConstraint::NotNull));
     }
 
     #[test]
     fn parse_constraint_unique() {
         let result = parse_constraint("unique", &json!(true)).unwrap();
-        assert!(matches!(result, Constraint::Unique));
+        assert!(matches!(result, ColumnConstraint::Unique));
     }
 
     #[test]
     fn parse_constraint_gt_with_number() {
         let result = parse_constraint("gt", &json!(5)).unwrap();
-        assert!(matches!(result, Constraint::GreaterThan(Operand::Num(v)) if v == 5.0));
+        assert!(matches!(result, ColumnConstraint::GreaterThan(Operand::Num(v)) if v == 5.0));
     }
 
     #[test]
     fn parse_constraint_ge_with_column_ref() {
         let result = parse_constraint("ge", &json!({"col": "other"})).unwrap();
         assert!(
-            matches!(result, Constraint::GreaterThanOrEqual(Operand::Column(s)) if s == "other")
+            matches!(result, ColumnConstraint::GreaterThanOrEqual(Operand::Column(s)) if s == "other")
         );
     }
 
@@ -412,7 +420,7 @@ mod tests {
         let result = parse_constraint("between", &json!([0, 100])).unwrap();
         assert!(matches!(
             result,
-            Constraint::Between {
+            ColumnConstraint::Between {
                 min: Operand::Num(_),
                 max: Operand::Num(_),
             }
@@ -424,14 +432,14 @@ mod tests {
         let result = parse_constraint("is_in", &json!([1, 2, 3])).unwrap();
         assert!(matches!(
             result,
-            Constraint::InSet(InSetValues::Int64Set(_))
+            ColumnConstraint::InSet(InSetValues::Int64Set(_))
         ));
     }
 
     #[test]
     fn parse_constraint_contains_string() {
         let result = parse_constraint("contains", &json!("foo")).unwrap();
-        assert!(matches!(result, Constraint::Contains(s) if s == "foo"));
+        assert!(matches!(result, ColumnConstraint::Contains(s) if s == "foo"));
     }
 
     #[test]
@@ -439,7 +447,7 @@ mod tests {
         let result = parse_constraint("length_between", &json!([1, 50])).unwrap();
         assert!(matches!(
             result,
-            Constraint::LengthBetween { min: 1, max: 50 }
+            ColumnConstraint::LengthBetween { min: 1, max: 50 }
         ));
     }
 
@@ -481,11 +489,11 @@ fn main() -> Result<()> {
         serde_json::from_reader(reader).context("failed to parse schema file as JSON")?
     };
 
-    let mut dataset_rules: Vec<Rule> = Vec::new();
+    let mut dataset_rules: Vec<ColumnRule> = Vec::new();
 
     for col_config in &config.columns {
         if let Some(constraints) = &col_config.constraints {
-            let mut col_constraints: Vec<Constraint> = Vec::new();
+            let mut col_constraints: Vec<ColumnConstraint> = Vec::new();
             for c in constraints {
                 col_constraints.push(parse_constraint(&c.constraint, &c.value).context(
                     format!(
