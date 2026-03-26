@@ -8,8 +8,8 @@ use verdict_core::{
         InSetValues, IntColumn, Schema, StrColumn,
     },
     rules::{
-        Constraint, Operand, Rule, RuleBuilder, ValidateConfig, ValidationReport, ValidationResult,
-        validate,
+        ColumnConstraint, ColumnRule, Operand, RuleBuilder, ValidateConfig, ValidationReport,
+        ValidationResult, validate,
     },
 };
 
@@ -286,7 +286,7 @@ impl PyDataset {
 
 #[pyclass(name = "Constraint")]
 struct PyConstraint {
-    inner: Constraint,
+    inner: ColumnConstraint,
 }
 
 #[pymethods]
@@ -294,56 +294,56 @@ impl PyConstraint {
     #[staticmethod]
     fn not_null() -> Self {
         PyConstraint {
-            inner: Constraint::NotNull,
+            inner: ColumnConstraint::NotNull,
         }
     }
 
     #[staticmethod]
     fn unique() -> Self {
         PyConstraint {
-            inner: Constraint::Unique,
+            inner: ColumnConstraint::Unique,
         }
     }
 
     #[staticmethod]
     fn gt(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::GreaterThan(Operand::Num(compare)),
+            inner: ColumnConstraint::GreaterThan(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn ge(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::GreaterThanOrEqual(Operand::Num(compare)),
+            inner: ColumnConstraint::GreaterThanOrEqual(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn lt(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::LessThan(Operand::Num(compare)),
+            inner: ColumnConstraint::LessThan(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn le(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::LessThanOrEqual(Operand::Num(compare)),
+            inner: ColumnConstraint::LessThanOrEqual(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn eq(compare: f64) -> Self {
         PyConstraint {
-            inner: Constraint::Equal(Operand::Num(compare)),
+            inner: ColumnConstraint::Equal(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn between(min: f64, max: f64) -> Self {
         PyConstraint {
-            inner: Constraint::Between {
+            inner: ColumnConstraint::Between {
                 min: min.into(),
                 max: max.into(),
             },
@@ -376,70 +376,70 @@ impl PyConstraint {
             ));
         };
         Ok(PyConstraint {
-            inner: Constraint::InSet(set),
+            inner: ColumnConstraint::InSet(set),
         })
     }
 
     #[staticmethod]
     fn matches_regex(pattern: String) -> Self {
         PyConstraint {
-            inner: Constraint::MatchesRegex(pattern),
+            inner: ColumnConstraint::MatchesRegex(pattern),
         }
     }
 
     #[staticmethod]
     fn contains(pattern: String) -> Self {
         PyConstraint {
-            inner: Constraint::Contains(pattern),
+            inner: ColumnConstraint::Contains(pattern),
         }
     }
 
     #[staticmethod]
     fn starts_with(pattern: String) -> Self {
         PyConstraint {
-            inner: Constraint::StartsWith(pattern),
+            inner: ColumnConstraint::StartsWith(pattern),
         }
     }
 
     #[staticmethod]
     fn ends_with(pattern: String) -> Self {
         PyConstraint {
-            inner: Constraint::EndsWith(pattern),
+            inner: ColumnConstraint::EndsWith(pattern),
         }
     }
 
     #[staticmethod]
     fn length_between(min: usize, max: usize) -> Self {
         PyConstraint {
-            inner: Constraint::LengthBetween { min, max },
+            inner: ColumnConstraint::LengthBetween { min, max },
         }
     }
 
     #[staticmethod]
     fn after(date: String) -> Self {
         PyConstraint {
-            inner: Constraint::After(date),
+            inner: ColumnConstraint::After(date),
         }
     }
 
     #[staticmethod]
     fn before(date: String) -> Self {
         PyConstraint {
-            inner: Constraint::Before(date),
+            inner: ColumnConstraint::Before(date),
         }
     }
 
     #[staticmethod]
     fn between_dates(min: String, max: String) -> Self {
         PyConstraint {
-            inner: Constraint::BetweenDates { min, max },
+            inner: ColumnConstraint::BetweenDates { min, max },
         }
     }
 }
 
 #[pyclass(name = "Rule")]
 struct PyRule {
-    inner: Rule,
+    inner: ColumnRule,
 }
 
 #[pymethods]
@@ -447,7 +447,7 @@ impl PyRule {
     #[new]
     fn new(py: Python<'_>, column: String, constraint: Py<PyConstraint>) -> Self {
         PyRule {
-            inner: Rule {
+            inner: ColumnRule {
                 column,
                 constraint: constraint.borrow(py).inner.clone(),
             },
@@ -620,7 +620,7 @@ impl PyRuleBuilder {
             .constraint
             .iter()
             .map(|c| PyRule {
-                inner: Rule {
+                inner: ColumnRule {
                     column: slf.inner.column.clone(),
                     constraint: c.clone(),
                 },
@@ -714,7 +714,7 @@ fn py_validate(
     data: Py<PyDataset>,
     rules: Vec<Py<PyRule>>,
 ) -> PyResult<PyValidationReport> {
-    let core_rules: Vec<Rule> = rules
+    let core_rules: Vec<ColumnRule> = rules
         .into_iter()
         .map(|v| v.borrow(py).inner.clone())
         .collect();
