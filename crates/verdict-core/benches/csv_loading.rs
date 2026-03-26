@@ -3,7 +3,7 @@ use std::path::Path;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataset::{DataType, Dataset, Field, Schema},
-    rules::{Constraint, Operand, Rule, ValidateConfig, validate},
+    rules::{ColumnConstraint, ColumnRule, Operand, ValidateConfig, validate},
 };
 
 fn make_schema() -> Schema {
@@ -20,20 +20,20 @@ fn make_schema() -> Schema {
     ])
 }
 
-fn make_rules() -> Vec<Rule> {
+fn make_rules() -> Vec<ColumnRule> {
     vec![
-        Rule::new("user_id", Constraint::NotNull),
-        Rule::new("user_id", Constraint::Unique),
-        Rule::new(
+        ColumnRule::new("user_id", ColumnConstraint::NotNull),
+        ColumnRule::new("user_id", ColumnConstraint::Unique),
+        ColumnRule::new(
             "score",
-            Constraint::Between {
+            ColumnConstraint::Between {
                 min: Operand::Num(0.0),
                 max: Operand::Num(100.0),
             },
         ),
-        Rule::new("age", Constraint::GreaterThan(Operand::Num(0.0))),
-        Rule::new("age", Constraint::LessThan(Operand::Num(120.0))),
-        Rule::new("country", Constraint::NotNull),
+        ColumnRule::new("age", ColumnConstraint::GreaterThan(Operand::Num(0.0))),
+        ColumnRule::new("age", ColumnConstraint::LessThan(Operand::Num(120.0))),
+        ColumnRule::new("country", ColumnConstraint::NotNull),
     ]
 }
 
