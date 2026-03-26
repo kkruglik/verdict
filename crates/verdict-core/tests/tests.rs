@@ -6,7 +6,7 @@ mod tests {
             IntColumn, StrColumn,
             ops::{ComparableOps, StringOps},
         },
-        rules::{Constraint, Operand, Rule, ValidateConfig, col, rule, validate},
+        rules::{ColumnConstraint, ColumnRule, Operand, ValidateConfig, col, rule, validate},
     };
 
     fn make_all_types_dataset() -> Dataset {
@@ -502,12 +502,12 @@ mod tests {
 
         let passed_result = validate(
             &dataset,
-            &[Rule::new("id", Constraint::NotNull)],
+            &[ColumnRule::new("id", ColumnConstraint::NotNull)],
             ValidateConfig::default(),
         );
         let failed_result = validate(
             &null_dataset,
-            &[Rule::new("id", Constraint::NotNull)],
+            &[ColumnRule::new("id", ColumnConstraint::NotNull)],
             ValidateConfig::default(),
         );
 
@@ -520,14 +520,14 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::Unique)],
+            &[ColumnRule::new("id", ColumnConstraint::Unique)],
             ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("active", Constraint::Unique)],
+            &[ColumnRule::new("active", ColumnConstraint::Unique)],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -971,7 +971,10 @@ mod tests {
         // all ids are 1-5, so all > 0
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(Operand::Num(0.0)))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(Operand::Num(0.0)),
+            )],
             ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
@@ -980,7 +983,10 @@ mod tests {
         // not all ids > 3
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(Operand::Num(3.0)))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(Operand::Num(3.0)),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -992,14 +998,20 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThanOrEqual(1.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThanOrEqual(1.0.into()),
+            )],
             ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThanOrEqual(3.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThanOrEqual(3.0.into()),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1011,14 +1023,20 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::LessThan(6.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::LessThan(6.0.into()),
+            )],
             ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::LessThan(3.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::LessThan(3.0.into()),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1030,14 +1048,20 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::LessThanOrEqual(5.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::LessThanOrEqual(5.0.into()),
+            )],
             ValidateConfig::default(),
         );
         assert!(results.results[0].passed);
 
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::LessThanOrEqual(3.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::LessThanOrEqual(3.0.into()),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1049,7 +1073,10 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("score", Constraint::Equal(95.5.into()))],
+            &[ColumnRule::new(
+                "score",
+                ColumnConstraint::Equal(95.5.into()),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1062,9 +1089,9 @@ mod tests {
         // all scores are 78.9-100.0
         let results = validate(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "score",
-                Constraint::Between {
+                ColumnConstraint::Between {
                     min: 70.0.into(),
                     max: 110.0.into(),
                 },
@@ -1075,9 +1102,9 @@ mod tests {
 
         let results = validate(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "score",
-                Constraint::Between {
+                ColumnConstraint::Between {
                     min: 90.0.into(),
                     max: 100.0.into(),
                 },
@@ -1094,9 +1121,9 @@ mod tests {
         // all names are lowercase alpha
         let results = validate(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::MatchesRegex(r"^[a-z]+$".to_string()),
+                ColumnConstraint::MatchesRegex(r"^[a-z]+$".to_string()),
             )],
             ValidateConfig::default(),
         );
@@ -1104,9 +1131,9 @@ mod tests {
 
         let results = validate(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::MatchesRegex(r"^a".to_string()),
+                ColumnConstraint::MatchesRegex(r"^a".to_string()),
             )],
             ValidateConfig::default(),
         );
@@ -1119,7 +1146,10 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("name", Constraint::Contains("li".to_string()))],
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::Contains("li".to_string()),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1128,7 +1158,10 @@ mod tests {
         // alice and charlie contain "li" — pass case with 2 matches
         let results = validate(
             &dataset,
-            &[Rule::new("name", Constraint::Contains("b".to_string()))],
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::Contains("b".to_string()),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1140,7 +1173,10 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("name", Constraint::StartsWith("a".to_string()))],
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::StartsWith("a".to_string()),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1152,7 +1188,10 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("name", Constraint::EndsWith("e".to_string()))],
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::EndsWith("e".to_string()),
+            )],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1165,9 +1204,9 @@ mod tests {
         // names: alice(5), bob(3), charlie(7), diana(5), eve(3)
         let results = validate(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::LengthBetween { min: 3, max: 7 },
+                ColumnConstraint::LengthBetween { min: 3, max: 7 },
             )],
             ValidateConfig::default(),
         );
@@ -1175,9 +1214,9 @@ mod tests {
 
         let results = validate(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::LengthBetween { min: 4, max: 6 },
+                ColumnConstraint::LengthBetween { min: 4, max: 6 },
             )],
             ValidateConfig::default(),
         );
@@ -1190,9 +1229,9 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::InSet(InSetValues::StrSet(vec![
+                ColumnConstraint::InSet(InSetValues::StrSet(vec![
                     "alice".to_string(),
                     "bob".to_string(),
                     "charlie".to_string(),
@@ -1206,9 +1245,9 @@ mod tests {
 
         let results = validate(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::InSet(InSetValues::StrSet(vec![
+                ColumnConstraint::InSet(InSetValues::StrSet(vec![
                     "alice".to_string(),
                     "bob".to_string(),
                 ])),
@@ -1224,7 +1263,7 @@ mod tests {
         let dataset = make_all_types_dataset();
         let results = validate(
             &dataset,
-            &[Rule::new("nonexistent", Constraint::NotNull)],
+            &[ColumnRule::new("nonexistent", ColumnConstraint::NotNull)],
             ValidateConfig::default(),
         );
         assert!(!results.results[0].passed);
@@ -1237,7 +1276,10 @@ mod tests {
         // id column has nulls in rows 0, 2, 4
         let results = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(0.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(0.0.into()),
+            )],
             ValidateConfig::default(),
         );
         // nulls are skipped; non-null values (2, 4) are both > 0 → passes
@@ -1249,12 +1291,12 @@ mod tests {
     fn test_validate_multiple_rules() {
         let dataset = make_all_types_dataset();
         let rules = vec![
-            Rule::new("id", Constraint::NotNull),
-            Rule::new("id", Constraint::GreaterThan(0.0.into())),
-            Rule::new("name", Constraint::NotNull),
-            Rule::new(
+            ColumnRule::new("id", ColumnConstraint::NotNull),
+            ColumnRule::new("id", ColumnConstraint::GreaterThan(0.0.into())),
+            ColumnRule::new("name", ColumnConstraint::NotNull),
+            ColumnRule::new(
                 "score",
-                Constraint::Between {
+                ColumnConstraint::Between {
                     min: 0.0.into(),
                     max: 100.0.into(),
                 },
@@ -1274,8 +1316,8 @@ mod tests {
     fn test_report_fields_all_pass() {
         let dataset = make_all_types_dataset();
         let rules = vec![
-            Rule::new("id", Constraint::NotNull),
-            Rule::new("name", Constraint::NotNull),
+            ColumnRule::new("id", ColumnConstraint::NotNull),
+            ColumnRule::new("name", ColumnConstraint::NotNull),
         ];
         let report = validate(&dataset, &rules, ValidateConfig::default());
         assert!(report.passed);
@@ -1289,8 +1331,8 @@ mod tests {
         let dataset = make_all_types_dataset();
         // id passes not_null, score fails equal(0.0)
         let rules = vec![
-            Rule::new("id", Constraint::NotNull),
-            Rule::new("score", Constraint::Equal(0.0.into())),
+            ColumnRule::new("id", ColumnConstraint::NotNull),
+            ColumnRule::new("score", ColumnConstraint::Equal(0.0.into())),
         ];
         let report = validate(&dataset, &rules, ValidateConfig::default());
         assert!(!report.passed);
@@ -1307,7 +1349,10 @@ mod tests {
         // id = [1,2,3,4,5]; gt(3) fails rows 0,1,2 (values 1,2,3)
         let report = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(3.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(3.0.into()),
+            )],
             ValidateConfig::default(),
         );
         let result = &report.results[0];
@@ -1326,7 +1371,7 @@ mod tests {
         // id = [None, 2, None, 4, None]; not_null fails rows 0,2,4
         let report = validate(
             &dataset,
-            &[Rule::new("id", Constraint::NotNull)],
+            &[ColumnRule::new("id", ColumnConstraint::NotNull)],
             ValidateConfig::default(),
         );
         let fv = report.results[0].failed_values.as_ref().unwrap();
@@ -1342,7 +1387,10 @@ mod tests {
         // name = ["alice","bob","charlie","diana","eve"]; starts_with("a") fails 4 rows
         let report = validate(
             &dataset,
-            &[Rule::new("name", Constraint::StartsWith("a".to_string()))],
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::StartsWith("a".to_string()),
+            )],
             ValidateConfig::default(),
         );
         let fv = report.results[0].failed_values.as_ref().unwrap();
@@ -1356,7 +1404,7 @@ mod tests {
         let dataset = make_all_types_dataset();
         let report = validate(
             &dataset,
-            &[Rule::new("id", Constraint::NotNull)],
+            &[ColumnRule::new("id", ColumnConstraint::NotNull)],
             ValidateConfig::default(),
         );
         assert!(report.results[0].passed);
@@ -1372,7 +1420,7 @@ mod tests {
         // equal(0.0) fails all 5 rows; cap at 2
         let report = validate(
             &dataset,
-            &[Rule::new("id", Constraint::Equal(0.0.into()))],
+            &[ColumnRule::new("id", ColumnConstraint::Equal(0.0.into()))],
             ValidateConfig {
                 max_failed_samples: 2,
             },
@@ -1392,7 +1440,10 @@ mod tests {
         // id = [1,2,3,4,5]; gt(3) fails 3 rows; cap=10 — all 3 are returned
         let report = validate(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(3.0.into()))],
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(3.0.into()),
+            )],
             ValidateConfig {
                 max_failed_samples: 10,
             },
@@ -1628,7 +1679,7 @@ mod datetime_converter_tests {
 mod date_constraint_tests {
     use verdict_core::{
         dataset::{Column, Dataset, DateColumn, DateTimeColumn},
-        rules::{Constraint, Rule, ValidateConfig, validate},
+        rules::{ColumnConstraint, ColumnRule, ValidateConfig, validate},
     };
 
     fn make_date_dataset() -> Dataset {
@@ -1662,9 +1713,9 @@ mod date_constraint_tests {
     #[test]
     fn test_after_date_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2023-12-31".to_string()),
+            ColumnConstraint::After("2023-12-31".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
@@ -1673,9 +1724,9 @@ mod date_constraint_tests {
     #[test]
     fn test_after_date_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2024-01-03".to_string()),
+            ColumnConstraint::After("2024-01-03".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
@@ -1686,9 +1737,9 @@ mod date_constraint_tests {
     fn test_after_date_boundary_exclusive() {
         let ds = make_date_dataset();
         // after 2024-01-01 means strictly greater — 2024-01-01 itself should fail
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2024-01-01".to_string()),
+            ColumnConstraint::After("2024-01-01".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
@@ -1698,9 +1749,9 @@ mod date_constraint_tests {
     #[test]
     fn test_after_datetime_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::After("2024-01-01T09:00:00".to_string()),
+            ColumnConstraint::After("2024-01-01T09:00:00".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
@@ -1709,9 +1760,9 @@ mod date_constraint_tests {
     #[test]
     fn test_after_datetime_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::After("2024-01-03T12:00:00".to_string()),
+            ColumnConstraint::After("2024-01-03T12:00:00".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
@@ -1723,9 +1774,9 @@ mod date_constraint_tests {
     #[test]
     fn test_before_date_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::Before("2024-01-06".to_string()),
+            ColumnConstraint::Before("2024-01-06".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
@@ -1734,9 +1785,9 @@ mod date_constraint_tests {
     #[test]
     fn test_before_date_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::Before("2024-01-03".to_string()),
+            ColumnConstraint::Before("2024-01-03".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
@@ -1747,9 +1798,9 @@ mod date_constraint_tests {
     fn test_before_date_boundary_exclusive() {
         let ds = make_date_dataset();
         // before 2024-01-05 means strictly less — 2024-01-05 itself should fail
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::Before("2024-01-05".to_string()),
+            ColumnConstraint::Before("2024-01-05".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(!report.passed);
@@ -1759,9 +1810,9 @@ mod date_constraint_tests {
     #[test]
     fn test_before_datetime_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::Before("2024-01-06T00:00:00".to_string()),
+            ColumnConstraint::Before("2024-01-06T00:00:00".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
@@ -1772,9 +1823,9 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-01".to_string(),
                 max: "2024-01-05".to_string(),
             },
@@ -1786,9 +1837,9 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-02".to_string(),
                 max: "2024-01-04".to_string(),
             },
@@ -1801,9 +1852,9 @@ mod date_constraint_tests {
     #[test]
     fn test_between_datetimes_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-01T10:00:00".to_string(),
                 max: "2024-01-05T14:00:00".to_string(),
             },
@@ -1815,9 +1866,9 @@ mod date_constraint_tests {
     #[test]
     fn test_between_datetimes_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-02T00:00:00".to_string(),
                 max: "2024-01-04T00:00:00".to_string(),
             },
@@ -1833,9 +1884,9 @@ mod date_constraint_tests {
     fn test_after_date_nulls_pass() {
         let ds = make_date_dataset();
         // all non-null values pass, null is ignored (use NotNull separately)
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2023-01-01".to_string()),
+            ColumnConstraint::After("2023-01-01".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.passed);
@@ -1844,9 +1895,9 @@ mod date_constraint_tests {
     #[test]
     fn test_invalid_date_string_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("not-a-date".to_string()),
+            ColumnConstraint::After("not-a-date".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
@@ -1855,9 +1906,9 @@ mod date_constraint_tests {
     #[test]
     fn test_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2024-01-01T10:00:00".to_string()),
+            ColumnConstraint::After("2024-01-01T10:00:00".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
@@ -1866,9 +1917,9 @@ mod date_constraint_tests {
     #[test]
     fn test_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::After("2024-01-01".to_string()),
+            ColumnConstraint::After("2024-01-01".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
@@ -1877,9 +1928,9 @@ mod date_constraint_tests {
     #[test]
     fn test_before_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::Before("2024-01-01T10:00:00".to_string()),
+            ColumnConstraint::Before("2024-01-01T10:00:00".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
@@ -1888,9 +1939,9 @@ mod date_constraint_tests {
     #[test]
     fn test_before_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::Before("2024-01-01".to_string()),
+            ColumnConstraint::Before("2024-01-01".to_string()),
         )];
         let report = validate(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
@@ -1899,9 +1950,9 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-01T00:00:00".to_string(),
                 max: "2024-01-05T00:00:00".to_string(),
             },
@@ -1913,9 +1964,9 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-01".to_string(),
                 max: "2024-01-05".to_string(),
             },
