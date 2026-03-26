@@ -68,7 +68,7 @@ pub fn col(name: &str) -> Operand {
 }
 
 #[derive(Debug, Clone)]
-pub enum Constraint {
+pub enum ColumnConstraint {
     // Null checks
     NotNull,
     Unique,
@@ -95,39 +95,43 @@ pub enum Constraint {
     BetweenDates { min: String, max: String },
 }
 
-impl std::fmt::Display for Constraint {
+impl std::fmt::Display for ColumnConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Constraint::NotNull => write!(f, "not_null"),
-            Constraint::Unique => write!(f, "unique"),
-            Constraint::GreaterThan(op) => write!(f, "gt({})", op),
-            Constraint::GreaterThanOrEqual(op) => write!(f, "ge({})", op),
-            Constraint::LessThan(op) => write!(f, "lt({})", op),
-            Constraint::LessThanOrEqual(op) => write!(f, "le({})", op),
-            Constraint::Equal(op) => write!(f, "eq({})", op),
-            Constraint::Between { min, max } => write!(f, "between({}, {})", min, max),
-            Constraint::InSet(_) => write!(f, "in_set"),
-            Constraint::MatchesRegex(p) => write!(f, "matches_regex({})", p),
-            Constraint::Contains(p) => write!(f, "contains({})", p),
-            Constraint::StartsWith(p) => write!(f, "starts_with({})", p),
-            Constraint::EndsWith(p) => write!(f, "ends_with({})", p),
-            Constraint::LengthBetween { min, max } => write!(f, "length_between({}, {})", min, max),
-            Constraint::After(op) => write!(f, "after({})", op),
-            Constraint::Before(op) => write!(f, "before({})", op),
-            Constraint::BetweenDates { min, max } => write!(f, "between_dates({}, {})", min, max),
+            ColumnConstraint::NotNull => write!(f, "not_null"),
+            ColumnConstraint::Unique => write!(f, "unique"),
+            ColumnConstraint::GreaterThan(op) => write!(f, "gt({})", op),
+            ColumnConstraint::GreaterThanOrEqual(op) => write!(f, "ge({})", op),
+            ColumnConstraint::LessThan(op) => write!(f, "lt({})", op),
+            ColumnConstraint::LessThanOrEqual(op) => write!(f, "le({})", op),
+            ColumnConstraint::Equal(op) => write!(f, "eq({})", op),
+            ColumnConstraint::Between { min, max } => write!(f, "between({}, {})", min, max),
+            ColumnConstraint::InSet(_) => write!(f, "in_set"),
+            ColumnConstraint::MatchesRegex(p) => write!(f, "matches_regex({})", p),
+            ColumnConstraint::Contains(p) => write!(f, "contains({})", p),
+            ColumnConstraint::StartsWith(p) => write!(f, "starts_with({})", p),
+            ColumnConstraint::EndsWith(p) => write!(f, "ends_with({})", p),
+            ColumnConstraint::LengthBetween { min, max } => {
+                write!(f, "length_between({}, {})", min, max)
+            }
+            ColumnConstraint::After(op) => write!(f, "after({})", op),
+            ColumnConstraint::Before(op) => write!(f, "before({})", op),
+            ColumnConstraint::BetweenDates { min, max } => {
+                write!(f, "between_dates({}, {})", min, max)
+            }
         }
     }
 }
 
 #[derive(Clone)]
-pub struct Rule {
+pub struct ColumnRule {
     pub column: String,
-    pub constraint: Constraint,
+    pub constraint: ColumnConstraint,
 }
 
-impl Rule {
-    pub fn new(column: &str, constraint: Constraint) -> Rule {
-        Rule {
+impl ColumnRule {
+    pub fn new(column: &str, constraint: ColumnConstraint) -> ColumnRule {
+        ColumnRule {
             column: column.to_string(),
             constraint,
         }
@@ -137,50 +141,52 @@ impl Rule {
 #[derive(Default)]
 pub struct RuleBuilder {
     pub column: String,
-    pub constraint: Vec<Constraint>,
+    pub constraint: Vec<ColumnConstraint>,
 }
 
 impl RuleBuilder {
     pub fn not_null(mut self) -> Self {
-        self.constraint.push(Constraint::NotNull);
+        self.constraint.push(ColumnConstraint::NotNull);
         self
     }
 
     pub fn unique(mut self) -> Self {
-        self.constraint.push(Constraint::Unique);
+        self.constraint.push(ColumnConstraint::Unique);
         self
     }
 
     pub fn gt(mut self, compare: impl Into<Operand>) -> Self {
         self.constraint
-            .push(Constraint::GreaterThan(compare.into()));
+            .push(ColumnConstraint::GreaterThan(compare.into()));
         self
     }
 
     pub fn ge(mut self, compare: impl Into<Operand>) -> Self {
         self.constraint
-            .push(Constraint::GreaterThanOrEqual(compare.into()));
+            .push(ColumnConstraint::GreaterThanOrEqual(compare.into()));
         self
     }
 
     pub fn lt(mut self, compare: impl Into<Operand>) -> Self {
-        self.constraint.push(Constraint::LessThan(compare.into()));
+        self.constraint
+            .push(ColumnConstraint::LessThan(compare.into()));
         self
     }
 
     pub fn le(mut self, compare: impl Into<Operand>) -> Self {
         self.constraint
-            .push(Constraint::LessThanOrEqual(compare.into()));
+            .push(ColumnConstraint::LessThanOrEqual(compare.into()));
         self
     }
 
     pub fn equal(mut self, compare: impl Into<Operand>) -> Self {
-        self.constraint.push(Constraint::Equal(compare.into()));
+        self.constraint
+            .push(ColumnConstraint::Equal(compare.into()));
         self
     }
 
     pub fn between(mut self, min: impl Into<Operand>, max: impl Into<Operand>) -> Self {
-        self.constraint.push(Constraint::Between {
+        self.constraint.push(ColumnConstraint::Between {
             min: min.into(),
             max: max.into(),
         });
@@ -188,43 +194,44 @@ impl RuleBuilder {
     }
 
     pub fn in_set(mut self, values: InSetValues) -> Self {
-        self.constraint.push(Constraint::InSet(values));
+        self.constraint.push(ColumnConstraint::InSet(values));
         self
     }
 
     pub fn matches_regex(mut self, pattern: &str) -> Self {
         self.constraint
-            .push(Constraint::MatchesRegex(pattern.to_string()));
+            .push(ColumnConstraint::MatchesRegex(pattern.to_string()));
         self
     }
 
     pub fn contains(mut self, pattern: &str) -> Self {
         self.constraint
-            .push(Constraint::Contains(pattern.to_string()));
+            .push(ColumnConstraint::Contains(pattern.to_string()));
         self
     }
 
     pub fn starts_with(mut self, pattern: &str) -> Self {
         self.constraint
-            .push(Constraint::StartsWith(pattern.to_string()));
+            .push(ColumnConstraint::StartsWith(pattern.to_string()));
         self
     }
 
     pub fn ends_with(mut self, pattern: &str) -> Self {
         self.constraint
-            .push(Constraint::EndsWith(pattern.to_string()));
+            .push(ColumnConstraint::EndsWith(pattern.to_string()));
         self
     }
 
     pub fn length_between(mut self, min: usize, max: usize) -> Self {
-        self.constraint.push(Constraint::LengthBetween { min, max });
+        self.constraint
+            .push(ColumnConstraint::LengthBetween { min, max });
         self
     }
 
-    pub fn build(self) -> Vec<Rule> {
+    pub fn build(self) -> Vec<ColumnRule> {
         self.constraint
             .into_iter()
-            .map(|c| Rule {
+            .map(|c| ColumnRule {
                 column: self.column.clone(),
                 constraint: c,
             })
@@ -302,7 +309,7 @@ impl Display for ValidationReport {
 }
 
 impl ValidationResult {
-    pub fn passed(rule: &Rule) -> Self {
+    pub fn passed(rule: &ColumnRule) -> Self {
         ValidationResult {
             column: rule.column.clone(),
             constraint: format!("{}", rule.constraint),
@@ -314,7 +321,7 @@ impl ValidationResult {
     }
 
     pub fn failed(
-        rule: &Rule,
+        rule: &ColumnRule,
         failed_count: usize,
         error: &str,
         failed_values: Option<Vec<(usize, String)>>,
@@ -347,7 +354,7 @@ impl std::fmt::Display for ValidationResult {
     }
 }
 
-pub fn validate(data: &Dataset, rules: &[Rule], config: ValidateConfig) -> ValidationReport {
+pub fn validate(data: &Dataset, rules: &[ColumnRule], config: ValidateConfig) -> ValidationReport {
     let results: Vec<ValidationResult> = rules
         .iter()
         .map(|rule| {
@@ -371,14 +378,14 @@ pub fn validate(data: &Dataset, rules: &[Rule], config: ValidateConfig) -> Valid
 
 fn validate_with_rule(
     data: &Dataset,
-    rule: &Rule,
+    rule: &ColumnRule,
     config: &ValidateConfig,
 ) -> Result<ValidationResult, ValidationError> {
     if let Some(column) = data.get_column_by_name(&rule.column) {
         let n = config.max_failed_samples;
         match &rule.constraint {
-            Constraint::NotNull => Ok(check_not_null(column, rule, n)),
-            Constraint::GreaterThan(operand) => match operand {
+            ColumnConstraint::NotNull => Ok(check_not_null(column, rule, n)),
+            ColumnConstraint::GreaterThan(operand) => match operand {
                 Operand::Num(v) => Ok(check_greater_than_num(column, *v, rule, n)),
                 Operand::Column(name) => {
                     if let Some(other) = data.get_column_by_name(name) {
@@ -391,31 +398,31 @@ fn validate_with_rule(
                 }
                 Operand::Str(v) => Ok(check_greater_than_str(column, v, rule, n)),
             },
-            Constraint::GreaterThanOrEqual(operand) => match operand {
+            ColumnConstraint::GreaterThanOrEqual(operand) => match operand {
                 Operand::Num(v) => Ok(check_greater_than_or_equal_num(column, *v, rule, n)),
                 Operand::Str(v) => Ok(check_greater_than_or_equal_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
                     .map(|other| check_greater_than_or_equal_col(column, other, name, rule, n)),
             },
-            Constraint::LessThan(operand) => match operand {
+            ColumnConstraint::LessThan(operand) => match operand {
                 Operand::Num(v) => Ok(check_less_than_num(column, *v, rule, n)),
                 Operand::Str(v) => Ok(check_less_than_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
                     .map(|other| check_less_than_col(column, other, name, rule, n)),
             },
-            Constraint::LessThanOrEqual(operand) => match operand {
+            ColumnConstraint::LessThanOrEqual(operand) => match operand {
                 Operand::Num(v) => Ok(check_less_than_or_equal_num(column, *v, rule, n)),
                 Operand::Str(v) => Ok(check_less_than_or_equal_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
                     .map(|other| check_less_than_or_equal_col(column, other, name, rule, n)),
             },
-            Constraint::Equal(operand) => match operand {
+            ColumnConstraint::Equal(operand) => match operand {
                 Operand::Num(v) => Ok(check_equal_num(column, *v, rule, n)),
                 Operand::Str(v) => Ok(check_equal_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
                     .map(|other| check_equal_col(column, other, name, rule, n)),
             },
-            Constraint::Between { min, max } => match (min, max) {
+            ColumnConstraint::Between { min, max } => match (min, max) {
                 (Operand::Num(lo), Operand::Num(hi)) => {
                     Ok(check_between_num(column, *lo, *hi, rule, n))
                 }
@@ -432,16 +439,16 @@ fn validate_with_rule(
                     expected: "(num, num) | (str, str) | (col, col)".to_string(),
                 }),
             },
-            Constraint::MatchesRegex(p) => Ok(check_matches_regex(column, p, rule, n)),
-            Constraint::Contains(p) => Ok(check_contains(column, p, rule, n)),
-            Constraint::StartsWith(p) => Ok(check_starts_with(column, p, rule, n)),
-            Constraint::EndsWith(p) => Ok(check_ends_with(column, p, rule, n)),
-            Constraint::LengthBetween { min, max } => {
+            ColumnConstraint::MatchesRegex(p) => Ok(check_matches_regex(column, p, rule, n)),
+            ColumnConstraint::Contains(p) => Ok(check_contains(column, p, rule, n)),
+            ColumnConstraint::StartsWith(p) => Ok(check_starts_with(column, p, rule, n)),
+            ColumnConstraint::EndsWith(p) => Ok(check_ends_with(column, p, rule, n)),
+            ColumnConstraint::LengthBetween { min, max } => {
                 Ok(check_length_between(column, *min, *max, rule, n))
             }
-            Constraint::Unique => Ok(check_unique(column, rule, n)),
-            Constraint::InSet(other) => Ok(check_is_in_set(column, other, rule, n)),
-            Constraint::After(date_str) => match &column {
+            ColumnConstraint::Unique => Ok(check_unique(column, rule, n)),
+            ColumnConstraint::InSet(other) => Ok(check_is_in_set(column, other, rule, n)),
+            ColumnConstraint::After(date_str) => match &column {
                 Column::Date(_) => {
                     let naive_date = NaiveDate::from_str(date_str)?;
                     Ok(check_after_date(
@@ -462,7 +469,7 @@ fn validate_with_rule(
                 }
                 _ => unreachable!("Only applied to date or datetime columns"),
             },
-            Constraint::Before(date_str) => match &column {
+            ColumnConstraint::Before(date_str) => match &column {
                 Column::Date(_) => {
                     let naive_date = NaiveDate::from_str(date_str)?;
                     Ok(check_before_date(
@@ -483,7 +490,7 @@ fn validate_with_rule(
                 }
                 _ => unreachable!("Only applied to date or datetime columns"),
             },
-            Constraint::BetweenDates { min, max } => match &column {
+            ColumnConstraint::BetweenDates { min, max } => match &column {
                 Column::Date(_) => {
                     let naive_date_min = NaiveDate::from_str(min)?;
                     let naive_date_max = NaiveDate::from_str(max)?;
@@ -523,7 +530,7 @@ fn resolve_col<'a>(data: &'a Dataset, name: &str) -> Result<&'a Column, Validati
         })
 }
 
-fn check_not_null(col: &Column, rule: &Rule, n: usize) -> ValidationResult {
+fn check_not_null(col: &Column, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.is_null();
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -545,7 +552,12 @@ fn check_not_null(col: &Column, rule: &Rule, n: usize) -> ValidationResult {
     }
 }
 
-fn check_greater_than_num(col: &Column, value: f64, rule: &Rule, n: usize) -> ValidationResult {
+fn check_greater_than_num(
+    col: &Column,
+    value: f64,
+    rule: &ColumnRule,
+    n: usize,
+) -> ValidationResult {
     let mask = col.gt(value);
 
     let failed_values: Vec<(usize, String)> = mask
@@ -582,7 +594,12 @@ fn check_greater_than_num(col: &Column, value: f64, rule: &Rule, n: usize) -> Va
     }
 }
 
-fn check_greater_than_str(col: &Column, value: &str, rule: &Rule, n: usize) -> ValidationResult {
+fn check_greater_than_str(
+    col: &Column,
+    value: &str,
+    rule: &ColumnRule,
+    n: usize,
+) -> ValidationResult {
     let mask = col.gt(value);
 
     let failed_values: Vec<(usize, String)> = mask
@@ -612,7 +629,7 @@ fn check_greater_than_col(
     col: &Column,
     other: &Column,
     other_name: &str,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.gt(other);
@@ -672,7 +689,7 @@ fn check_greater_than_col(
 fn check_greater_than_or_equal_num(
     col: &Column,
     value: f64,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.ge(value);
@@ -712,7 +729,7 @@ fn check_greater_than_or_equal_num(
 fn check_greater_than_or_equal_str(
     col: &Column,
     value: &str,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.ge(value);
@@ -742,7 +759,7 @@ fn check_greater_than_or_equal_col(
     col: &Column,
     other: &Column,
     other_name: &str,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.ge(other);
@@ -797,7 +814,7 @@ fn check_greater_than_or_equal_col(
     }
 }
 
-fn check_less_than_num(col: &Column, value: f64, rule: &Rule, n: usize) -> ValidationResult {
+fn check_less_than_num(col: &Column, value: f64, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.lt(value);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -832,7 +849,7 @@ fn check_less_than_num(col: &Column, value: f64, rule: &Rule, n: usize) -> Valid
     }
 }
 
-fn check_less_than_str(col: &Column, value: &str, rule: &Rule, n: usize) -> ValidationResult {
+fn check_less_than_str(col: &Column, value: &str, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.lt(value);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -860,7 +877,7 @@ fn check_less_than_col(
     col: &Column,
     other: &Column,
     other_name: &str,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.lt(other);
@@ -918,7 +935,7 @@ fn check_less_than_col(
 fn check_less_than_or_equal_num(
     col: &Column,
     value: f64,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.le(value);
@@ -958,7 +975,7 @@ fn check_less_than_or_equal_num(
 fn check_less_than_or_equal_str(
     col: &Column,
     value: &str,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.le(value);
@@ -988,7 +1005,7 @@ fn check_less_than_or_equal_col(
     col: &Column,
     other: &Column,
     other_name: &str,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.le(other);
@@ -1043,7 +1060,7 @@ fn check_less_than_or_equal_col(
     }
 }
 
-fn check_equal_num(col: &Column, value: f64, rule: &Rule, n: usize) -> ValidationResult {
+fn check_equal_num(col: &Column, value: f64, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.equal(value);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -1078,7 +1095,7 @@ fn check_equal_num(col: &Column, value: f64, rule: &Rule, n: usize) -> Validatio
     }
 }
 
-fn check_equal_str(col: &Column, value: &str, rule: &Rule, n: usize) -> ValidationResult {
+fn check_equal_str(col: &Column, value: &str, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.equal(value);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -1106,7 +1123,7 @@ fn check_equal_col(
     col: &Column,
     other: &Column,
     other_name: &str,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.equal(other);
@@ -1161,7 +1178,13 @@ fn check_equal_col(
     }
 }
 
-fn check_between_num(col: &Column, min: f64, max: f64, rule: &Rule, n: usize) -> ValidationResult {
+fn check_between_num(
+    col: &Column,
+    min: f64,
+    max: f64,
+    rule: &ColumnRule,
+    n: usize,
+) -> ValidationResult {
     let mask = col.between(min, max);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -1200,7 +1223,7 @@ fn check_between_str(
     col: &Column,
     min: &str,
     max: &str,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.between(min, max);
@@ -1230,7 +1253,7 @@ fn check_between_cols(
     col: &Column,
     lo: &Column,
     hi: &Column,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.between(lo, hi);
@@ -1285,7 +1308,12 @@ fn check_between_cols(
     }
 }
 
-fn check_matches_regex(col: &Column, pattern: &str, rule: &Rule, n: usize) -> ValidationResult {
+fn check_matches_regex(
+    col: &Column,
+    pattern: &str,
+    rule: &ColumnRule,
+    n: usize,
+) -> ValidationResult {
     let mask = col.matches_regex(pattern);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -1309,7 +1337,7 @@ fn check_matches_regex(col: &Column, pattern: &str, rule: &Rule, n: usize) -> Va
     }
 }
 
-fn check_contains(col: &Column, pattern: &str, rule: &Rule, n: usize) -> ValidationResult {
+fn check_contains(col: &Column, pattern: &str, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.contains(pattern);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -1333,7 +1361,7 @@ fn check_contains(col: &Column, pattern: &str, rule: &Rule, n: usize) -> Validat
     }
 }
 
-fn check_starts_with(col: &Column, pattern: &str, rule: &Rule, n: usize) -> ValidationResult {
+fn check_starts_with(col: &Column, pattern: &str, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.starts_with(pattern);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -1357,7 +1385,7 @@ fn check_starts_with(col: &Column, pattern: &str, rule: &Rule, n: usize) -> Vali
     }
 }
 
-fn check_ends_with(col: &Column, pattern: &str, rule: &Rule, n: usize) -> ValidationResult {
+fn check_ends_with(col: &Column, pattern: &str, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.ends_with(pattern);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -1385,7 +1413,7 @@ fn check_length_between(
     col: &Column,
     min: usize,
     max: usize,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.length();
@@ -1411,7 +1439,12 @@ fn check_length_between(
     }
 }
 
-fn check_is_in_set(col: &Column, other: &InSetValues, rule: &Rule, n: usize) -> ValidationResult {
+fn check_is_in_set(
+    col: &Column,
+    other: &InSetValues,
+    rule: &ColumnRule,
+    n: usize,
+) -> ValidationResult {
     let mask = col.is_in(other);
     let failed_values: Vec<(usize, String)> = mask
         .iter()
@@ -1464,7 +1497,7 @@ fn check_is_in_set(col: &Column, other: &InSetValues, rule: &Rule, n: usize) -> 
     }
 }
 
-fn check_unique(col: &Column, rule: &Rule, n: usize) -> ValidationResult {
+fn check_unique(col: &Column, rule: &ColumnRule, n: usize) -> ValidationResult {
     if col.duplicates_count() == 0 {
         return ValidationResult::passed(rule);
     }
@@ -1516,7 +1549,7 @@ fn check_unique(col: &Column, rule: &Rule, n: usize) -> ValidationResult {
     )
 }
 
-fn check_after_date(col: &Column, value: i32, rule: &Rule, n: usize) -> ValidationResult {
+fn check_after_date(col: &Column, value: i32, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.gt(value);
 
     let failed_values: Vec<(usize, String)> = mask
@@ -1553,7 +1586,7 @@ fn check_after_date(col: &Column, value: i32, rule: &Rule, n: usize) -> Validati
     }
 }
 
-fn check_after_datetime(col: &Column, value: i64, rule: &Rule, n: usize) -> ValidationResult {
+fn check_after_datetime(col: &Column, value: i64, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.gt(value);
 
     let failed_values: Vec<(usize, String)> = mask
@@ -1590,7 +1623,7 @@ fn check_after_datetime(col: &Column, value: i64, rule: &Rule, n: usize) -> Vali
     }
 }
 
-fn check_before_date(col: &Column, value: i32, rule: &Rule, n: usize) -> ValidationResult {
+fn check_before_date(col: &Column, value: i32, rule: &ColumnRule, n: usize) -> ValidationResult {
     let mask = col.lt(value);
 
     let failed_values: Vec<(usize, String)> = mask
@@ -1627,7 +1660,12 @@ fn check_before_date(col: &Column, value: i32, rule: &Rule, n: usize) -> Validat
     }
 }
 
-fn check_before_datetime(col: &Column, value: i64, rule: &Rule, n: usize) -> ValidationResult {
+fn check_before_datetime(
+    col: &Column,
+    value: i64,
+    rule: &ColumnRule,
+    n: usize,
+) -> ValidationResult {
     let mask = col.lt(value);
 
     let failed_values: Vec<(usize, String)> = mask
@@ -1667,7 +1705,7 @@ fn check_between_dates(
     col: &Column,
     min: i32,
     max: i32,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.between(min, max);
@@ -1711,7 +1749,7 @@ fn check_between_datetimes(
     col: &Column,
     min: i64,
     max: i64,
-    rule: &Rule,
+    rule: &ColumnRule,
     n: usize,
 ) -> ValidationResult {
     let mask = col.between(min, max);
