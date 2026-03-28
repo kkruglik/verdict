@@ -18,6 +18,25 @@ Three constraints, all operating on `Dataset`:
 
 ---
 
+## Naming Cleanup
+
+Complete these renames before writing new code. If it compiles and tests pass, the rename is complete.
+
+| Current | Rename to | Why |
+|---|---|---|
+| `Dataset` | `DataFrame` | Industry standard; `Dataset` is too generic |
+| `StrColumn` | `StringColumn` | Breaks pattern with all other typed columns |
+| `DataType::Str` | `DataType::String` | Matches Rust type name and full-word convention |
+| `DatasetRule` | `TableRule` | `Dataset` leaks impl type into rules layer; `Column`/`Table` is the right axis |
+| `DatasetRuleBuilder` | `TableRuleBuilder` | Follows from above |
+| `InSetValues` | `ValueSet` | Constraint name (`InSet`) leaked into a data type name |
+| `InSetValues::Int64Set` | `ValueSet::Int` | Exposes storage internals (`i64`) to user |
+| `InSetValues::Int32Set` | `ValueSet::Date` | Exposes storage internals (`i32`) to user |
+| `Keep` | `KeepStrategy` | Too terse, no meaning without context |
+| `ValidateConfig` | `ValidationConfig` | Only verb-prefixed name; breaks `Validation*` pattern |
+
+---
+
 ## Deliverables
 
 ### 0. Rename `Constraint` → `ColumnConstraint` and `Rule` → `ColumnRule`
