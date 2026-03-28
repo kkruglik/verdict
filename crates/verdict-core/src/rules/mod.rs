@@ -6,6 +6,7 @@ pub mod validation;
 
 pub use column::{ColumnConstraint, ColumnRule, ColumnRuleBuilder, col};
 pub use table::{TableRule, TableRuleBuilder};
+pub use validation::{ValidationConfig, ValidationReport, ValidationResult, validate};
 
 #[derive(Debug, Clone)]
 pub enum Operand {
