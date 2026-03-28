@@ -68,8 +68,8 @@ pub struct ColumnRule {
 }
 
 impl ColumnRule {
-    pub fn new(column: String, constraint: ColumnConstraint) -> ColumnRule {
-        ColumnRule { column, constraint }
+    pub fn new(column: impl Into<String>, constraint: ColumnConstraint) -> ColumnRule {
+        ColumnRule { column: column.into(), constraint }
     }
 }
 
