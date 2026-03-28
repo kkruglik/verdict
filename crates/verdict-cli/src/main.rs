@@ -2,8 +2,7 @@ use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataframe::{DataFrame, DataType, Field, Schema, ValuesSet},
     rules::{
-        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand,
-        validation::{ValidatingConfig, validate},
+        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, ValidationConfig, validate,
     },
 };
 
@@ -40,7 +39,7 @@ struct Cli {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-struct ValidationConfig {
+struct SchemaConfig {
     pub columns: Vec<ColumnConfig>,
 }
 
@@ -238,7 +237,7 @@ fn main() -> Result<()> {
 
     let schema_file = File::open(&cli.schema).context("failed to open schema file")?;
     let reader = BufReader::new(schema_file);
-    let config: ValidationConfig = if is_yaml {
+    let config: SchemaConfig = if is_yaml {
         serde_yaml::from_reader(reader).context("failed to parse schema file as YAML")?
     } else {
         serde_json::from_reader(reader).context("failed to parse schema file as JSON")?
@@ -282,7 +281,7 @@ fn main() -> Result<()> {
     let report = validate(
         &data,
         &dataset_rules,
-        ValidatingConfig {
+        ValidationConfig {
             max_failed_samples: cli.max_failed_samples,
         },
     );
