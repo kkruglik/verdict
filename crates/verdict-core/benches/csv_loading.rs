@@ -2,8 +2,8 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use std::path::Path;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
-    dataset::{DataType, Dataset, Field, Schema},
-    rules::{ColumnConstraint, ColumnRule, Operand, ValidateConfig, validate},
+    dataframe::{DataFrame, DataType, Field, Schema},
+    rules::{ColumnConstraint, ColumnRule, Operand},
 };
 
 fn make_schema() -> Schema {
@@ -15,8 +15,8 @@ fn make_schema() -> Schema {
         Field::new("age_with_nulls", DataType::Int),
         Field::new("is_active", DataType::Bool),
         Field::new("is_active_with_nulls", DataType::Bool),
-        Field::new("country", DataType::Str),
-        Field::new("country_with_nulls", DataType::Str),
+        Field::new("country", DataType::String),
+        Field::new("country_with_nulls", DataType::String),
     ])
 }
 
@@ -43,15 +43,17 @@ fn bench_csv_loading(c: &mut Criterion) {
     let mut group = c.benchmark_group("csv_loading");
 
     group.bench_function("10k rows", |b| {
-        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_10k.csv"), &schema).unwrap())
+        b.iter(|| DataFrame::from_csv(Path::new("../../fixtures/sample_10k.csv"), &schema).unwrap())
     });
 
     group.bench_function("100k rows", |b| {
-        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap())
+        b.iter(|| {
+            DataFrame::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap()
+        })
     });
 
     group.bench_function("1m rows", |b| {
-        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap())
+        b.iter(|| DataFrame::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap())
     });
 
     group.finish();
@@ -63,8 +65,9 @@ fn bench_validation(c: &mut Criterion) {
     let config = ValidateConfig::default();
 
     let dataset_100k =
-        Dataset::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap();
-    let dataset_1m = Dataset::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap();
+        DataFrame::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap();
+    let dataset_1m =
+        DataFrame::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap();
 
     let mut group = c.benchmark_group("validation");
 
