@@ -8,7 +8,7 @@ use verdict_core::{
         ValuesSet, IntColumn, Schema, StringColumn,
     },
     rules::{
-        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, ValidateConfig, ValidationReport,
+        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, ValidationConfig, ValidationReport,
         ValidationResult, validate,
     },
 };
@@ -722,7 +722,7 @@ fn py_validate(
     let results = validate(
         &data.borrow(py).inner,
         &core_rules,
-        ValidateConfig::default(),
+        ValidationConfig::default(),
     );
     let report = PyValidationReport { inner: results };
     Ok(report)
