@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use crate::dataset::{
-    BoolColumn, Column, DataType, Dataset, DateColumn, DateTimeColumn, FloatColumn, IntColumn,
-    Schema, StrColumn, naive_date_to_i32, naive_datetime_to_i64,
+use crate::dataframe::{
+    BoolColumn, Column, DataFrame, DataType, DateColumn, DateTimeColumn, FloatColumn, IntColumn,
+    Schema, StringColumn, naive_date_to_i32, naive_datetime_to_i64,
 };
 use chrono::{NaiveDate, NaiveDateTime};
 use csv::ReaderBuilder;
@@ -29,7 +29,7 @@ pub enum CsvLoadingError {
 }
 
 pub trait DatasetCsvExt {
-    fn from_csv(path: &Path, schema: &Schema) -> Result<Dataset, CsvLoadingError>;
+    fn from_csv(path: &Path, schema: &Schema) -> Result<DataFrame, CsvLoadingError>;
 }
 
 enum ColBuilder {
@@ -41,8 +41,8 @@ enum ColBuilder {
     DateTime(Vec<Option<i64>>, Option<String>),
 }
 
-impl DatasetCsvExt for Dataset {
-    fn from_csv(path: &Path, schema: &Schema) -> Result<Dataset, CsvLoadingError> {
+impl DatasetCsvExt for DataFrame {
+    fn from_csv(path: &Path, schema: &Schema) -> Result<DataFrame, CsvLoadingError> {
         let mut reader = ReaderBuilder::new()
             .buffer_capacity(512 * 1024)
             .from_path(path)?;
@@ -63,7 +63,7 @@ impl DatasetCsvExt for Dataset {
             .map(|f| match f.dtype {
                 DataType::Int => "Int",
                 DataType::Float => "Float",
-                DataType::Str => "Str",
+                DataType::String => "Str",
                 DataType::Bool => "Bool",
                 DataType::DateTime => "DateTime",
                 DataType::Date => "Date",
@@ -76,7 +76,7 @@ impl DatasetCsvExt for Dataset {
             .map(|f| match f.dtype {
                 DataType::Int => ColBuilder::Int(Vec::with_capacity(4096)),
                 DataType::Float => ColBuilder::Float(Vec::with_capacity(4096)),
-                DataType::Str => ColBuilder::Str(Vec::with_capacity(4096)),
+                DataType::String => ColBuilder::Str(Vec::with_capacity(4096)),
                 DataType::Bool => ColBuilder::Bool(Vec::with_capacity(4096)),
                 DataType::DateTime => {
                     ColBuilder::DateTime(Vec::with_capacity(4096), f.format.clone())
@@ -168,14 +168,14 @@ impl DatasetCsvExt for Dataset {
             .map(|b| match b {
                 ColBuilder::Int(v) => Column::Int(IntColumn(v)),
                 ColBuilder::Float(v) => Column::Float(FloatColumn(v)),
-                ColBuilder::Str(v) => Column::Str(StrColumn(v)),
+                ColBuilder::Str(v) => Column::Str(StringColumn(v)),
                 ColBuilder::Bool(v) => Column::Bool(BoolColumn(v)),
                 ColBuilder::DateTime(v, _) => Column::DateTime(DateTimeColumn(v)),
                 ColBuilder::Date(v, _) => Column::Date(DateColumn(v)),
             })
             .collect();
 
-        Ok(Dataset { headers, columns })
+        Ok(DataFrame { headers, columns })
     }
 }
 
