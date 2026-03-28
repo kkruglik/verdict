@@ -3,20 +3,20 @@ use std::path::Path;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataframe::{DataFrame, DataType, Field, Schema},
-    rules::{ColumnConstraint, ColumnRule, Operand},
+    rules::{ColumnConstraint, ColumnRule, Operand, ValidationConfig, validate},
 };
 
 fn make_schema() -> Schema {
     Schema::new(vec![
-        Field::new("user_id", DataType::Int),
-        Field::new("score", DataType::Float),
-        Field::new("score_with_nulls", DataType::Float),
-        Field::new("age", DataType::Int),
-        Field::new("age_with_nulls", DataType::Int),
-        Field::new("is_active", DataType::Bool),
-        Field::new("is_active_with_nulls", DataType::Bool),
-        Field::new("country", DataType::String),
-        Field::new("country_with_nulls", DataType::String),
+        Field::new("user_id", DataType::Int, None),
+        Field::new("score", DataType::Float, None),
+        Field::new("score_with_nulls", DataType::Float, None),
+        Field::new("age", DataType::Int, None),
+        Field::new("age_with_nulls", DataType::Int, None),
+        Field::new("is_active", DataType::Bool, None),
+        Field::new("is_active_with_nulls", DataType::Bool, None),
+        Field::new("country", DataType::String, None),
+        Field::new("country_with_nulls", DataType::String, None),
     ])
 }
 
@@ -62,7 +62,7 @@ fn bench_csv_loading(c: &mut Criterion) {
 fn bench_validation(c: &mut Criterion) {
     let schema = make_schema();
     let rules = make_rules();
-    let config = ValidateConfig::default();
+    let config = ValidationConfig::default();
 
     let dataset_100k =
         DataFrame::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap();
@@ -76,7 +76,7 @@ fn bench_validation(c: &mut Criterion) {
             validate(
                 &dataset_100k,
                 &rules,
-                ValidateConfig {
+                ValidationConfig {
                     max_failed_samples: config.max_failed_samples,
                 },
             )
@@ -88,7 +88,7 @@ fn bench_validation(c: &mut Criterion) {
             validate(
                 &dataset_1m,
                 &rules,
-                ValidateConfig {
+                ValidationConfig {
                     max_failed_samples: config.max_failed_samples,
                 },
             )
