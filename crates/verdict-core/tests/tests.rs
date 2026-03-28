@@ -1,16 +1,18 @@
 #[cfg(test)]
 mod tests {
     use verdict_core::{
-        dataset::{
-            BoolColumn, Column, Dataset, DateColumn, DateTimeColumn, FloatColumn, InSetValues,
-            IntColumn, StrColumn,
+        dataframe::{
+            BoolColumn, Column, DataFrame, DateColumn, DateTimeColumn, FloatColumn, IntColumn,
+            StringColumn, ValuesSet,
             ops::{ComparableOps, StringOps},
         },
-        rules::{ColumnConstraint, ColumnRule, Operand, ValidateConfig, col, rule, validate},
+        rules::column::{col, rule},
+        rules::validation::validate,
+        rules::{ColumnConstraint, ColumnRule, Operand},
     };
 
-    fn make_all_types_dataset() -> Dataset {
-        Dataset::new(
+    fn make_all_types_dataset() -> DataFrame {
+        DataFrame::new(
             vec![
                 "id".to_string(),
                 "name".to_string(),
@@ -23,7 +25,7 @@ mod tests {
             ],
             vec![
                 Column::Int(IntColumn(vec![Some(1), Some(2), Some(3), Some(4), Some(5)])),
-                Column::Str(StrColumn(vec![
+                Column::Str(StringColumn(vec![
                     Some("alice".to_string()),
                     Some("bob".to_string()),
                     Some("charlie".to_string()),
@@ -78,8 +80,8 @@ mod tests {
         )
     }
 
-    fn make_compare_dataset() -> Dataset {
-        Dataset::new(
+    fn make_compare_dataset() -> DataFrame {
+        DataFrame::new(
             vec![
                 "id".to_string(),
                 "x".to_string(),
@@ -114,8 +116,8 @@ mod tests {
     }
 
     // a: nulls at rows 1,4 — b: null at row 2 — c: same values as a — high: all 100.0
-    fn make_compare_nulls_dataset() -> Dataset {
-        Dataset::new(
+    fn make_compare_nulls_dataset() -> DataFrame {
+        DataFrame::new(
             vec![
                 "a".to_string(),
                 "b".to_string(),
@@ -155,8 +157,8 @@ mod tests {
         )
     }
 
-    fn make_with_nulls_dataset() -> Dataset {
-        Dataset::new(
+    fn make_with_nulls_dataset() -> DataFrame {
+        DataFrame::new(
             vec![
                 "id".to_string(),
                 "name".to_string(),
@@ -165,7 +167,7 @@ mod tests {
             ],
             vec![
                 Column::Int(IntColumn(vec![None, Some(2), None, Some(4), None])),
-                Column::Str(StrColumn(vec![
+                Column::Str(StringColumn(vec![
                     None,
                     Some("bob".to_string()),
                     Some("charlie".to_string()),
@@ -336,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_string_ops_all_null() {
-        let col = Column::Str(StrColumn(vec![None, None]));
+        let col = Column::Str(StringColumn(vec![None, None]));
         assert_eq!(col.contains("a"), vec![None, None]);
         assert_eq!(col.starts_with("a"), vec![None, None]);
         assert_eq!(col.ends_with("a"), vec![None, None]);
@@ -803,15 +805,15 @@ mod tests {
 
     #[test]
     fn test_col_pair_str_equal_passes() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StrColumn(vec![
+                Column::Str(StringColumn(vec![
                     Some("foo".into()),
                     Some("bar".into()),
                     None,
                 ])),
-                Column::Str(StrColumn(vec![
+                Column::Str(StringColumn(vec![
                     Some("foo".into()),
                     Some("bar".into()),
                     None,
@@ -830,11 +832,14 @@ mod tests {
 
     #[test]
     fn test_col_pair_str_lt_passes() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StrColumn(vec![Some("apple".into()), Some("cat".into())])),
-                Column::Str(StrColumn(vec![Some("banana".into()), Some("dog".into())])),
+                Column::Str(StringColumn(vec![Some("apple".into()), Some("cat".into())])),
+                Column::Str(StringColumn(vec![
+                    Some("banana".into()),
+                    Some("dog".into()),
+                ])),
             ],
         );
         // "apple" < "banana", "cat" < "dog" lexicographically
@@ -849,11 +854,11 @@ mod tests {
 
     #[test]
     fn test_col_pair_str_lt_fails() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StrColumn(vec![Some("zoo".into()), Some("cat".into())])),
-                Column::Str(StrColumn(vec![Some("apple".into()), Some("dog".into())])),
+                Column::Str(StringColumn(vec![Some("zoo".into()), Some("cat".into())])),
+                Column::Str(StringColumn(vec![Some("apple".into()), Some("dog".into())])),
             ],
         );
         // "zoo" < "apple" false → 1 failure
@@ -870,7 +875,7 @@ mod tests {
 
     #[test]
     fn test_col_pair_bool_equal_passes() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
                 Column::Bool(BoolColumn(vec![Some(true), Some(false), None])),
@@ -889,7 +894,7 @@ mod tests {
 
     #[test]
     fn test_col_pair_bool_gt_false_lt_true() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
                 Column::Bool(BoolColumn(vec![Some(true), Some(false)])),
@@ -923,7 +928,7 @@ mod tests {
 
     #[test]
     fn test_col_pair_all_null_left_all_fail() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
                 Column::Float(FloatColumn(vec![None, None, None])),
@@ -1231,7 +1236,7 @@ mod tests {
             &dataset,
             &[ColumnRule::new(
                 "name",
-                ColumnConstraint::InSet(InSetValues::StrSet(vec![
+                ColumnConstraint::InSet(ValuesSet::StrSet(vec![
                     "alice".to_string(),
                     "bob".to_string(),
                     "charlie".to_string(),
@@ -1247,7 +1252,7 @@ mod tests {
             &dataset,
             &[ColumnRule::new(
                 "name",
-                ColumnConstraint::InSet(InSetValues::StrSet(vec![
+                ColumnConstraint::InSet(ValuesSet::StrSet(vec![
                     "alice".to_string(),
                     "bob".to_string(),
                 ])),
@@ -1460,13 +1465,13 @@ mod csv_tests {
     use std::path::Path;
     use verdict_core::{
         csv_loader::DatasetCsvExt,
-        dataset::{DataType, Dataset, Field, Schema},
+        dataframe::{DataFrame, DataType, Field, Schema},
     };
 
     fn make_schema() -> Schema {
         Schema::new(vec![
             Field::new("id", DataType::Int, None),
-            Field::new("name", DataType::Str, None),
+            Field::new("name", DataType::String, None),
             Field::new("score", DataType::Float, None),
             Field::new("active", DataType::Bool, None),
         ])
@@ -1476,7 +1481,7 @@ mod csv_tests {
     fn test_load_csv() {
         let schema = make_schema();
         let dataset =
-            Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
+            DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
         assert_eq!(dataset.headers, vec!["id", "name", "score", "active"]);
         assert_eq!(dataset.shape(), (5, 4));
     }
@@ -1485,7 +1490,7 @@ mod csv_tests {
     fn test_load_csv_with_nulls() {
         let schema = make_schema();
         let dataset =
-            Dataset::from_csv(Path::new("tests/fixtures/with_nulls.csv"), &schema).unwrap();
+            DataFrame::from_csv(Path::new("tests/fixtures/with_nulls.csv"), &schema).unwrap();
         assert_eq!(dataset.headers, vec!["id", "name", "score", "active"]);
         assert_eq!(dataset.shape(), (5, 4));
     }
@@ -1493,7 +1498,7 @@ mod csv_tests {
     #[test]
     fn test_load_csv_invalid_path() {
         let schema = Schema::new(vec![Field::new("id", DataType::Int, None)]);
-        let result = Dataset::from_csv(Path::new("nonexistent.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("nonexistent.csv"), &schema);
         assert!(result.is_err());
     }
 
@@ -1501,7 +1506,7 @@ mod csv_tests {
     fn test_parse_bool_values() {
         let schema = make_schema();
         let dataset =
-            Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
+            DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
         let col = dataset.get_column_by_name("active").unwrap();
         assert_eq!(col.len(), 5);
         assert_eq!(col.null_count(), 0);
@@ -1510,7 +1515,7 @@ mod csv_tests {
     #[test]
     fn test_parse_bool_invalid() {
         let schema = Schema::new(vec![Field::new("name", DataType::Bool, None)]);
-        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(result.is_err());
     }
 
@@ -1522,7 +1527,7 @@ mod csv_tests {
             Field::new("score", DataType::Float, None),
             Field::new("active", DataType::Bool, None),
         ]);
-        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(result.is_err());
     }
 
@@ -1530,9 +1535,9 @@ mod csv_tests {
     fn test_load_csv_schema_too_few_columns() {
         let schema = Schema::new(vec![
             Field::new("id", DataType::Int, None),
-            Field::new("name", DataType::Str, None),
+            Field::new("name", DataType::String, None),
         ]);
-        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(matches!(
             result,
             Err(verdict_core::csv_loader::CsvLoadingError::ShapeError {
@@ -1546,12 +1551,12 @@ mod csv_tests {
     fn test_load_csv_schema_too_many_columns() {
         let schema = Schema::new(vec![
             Field::new("id", DataType::Int, None),
-            Field::new("name", DataType::Str, None),
+            Field::new("name", DataType::String, None),
             Field::new("score", DataType::Float, None),
             Field::new("active", DataType::Bool, None),
             Field::new("extra", DataType::Int, None),
         ]);
-        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(matches!(
             result,
             Err(verdict_core::csv_loader::CsvLoadingError::ShapeError {
@@ -1565,7 +1570,7 @@ mod csv_tests {
 #[cfg(test)]
 mod datetime_converter_tests {
     use chrono::NaiveDate;
-    use verdict_core::dataset::{
+    use verdict_core::dataframe::{
         i32_to_naive_date, i64_to_naive_datetime, naive_date_to_i32, naive_datetime_to_i64,
     };
 
@@ -1678,13 +1683,13 @@ mod datetime_converter_tests {
 #[cfg(test)]
 mod date_constraint_tests {
     use verdict_core::{
-        dataset::{Column, Dataset, DateColumn, DateTimeColumn},
+        dataframe::{Column, DataFrame, DateColumn, DateTimeColumn},
         rules::{ColumnConstraint, ColumnRule, ValidateConfig, validate},
     };
 
-    fn make_date_dataset() -> Dataset {
+    fn make_date_dataset() -> DataFrame {
         // dates: 2024-01-01=19723, 2024-01-03=19725, 2024-01-05=19727
-        Dataset::new(
+        DataFrame::new(
             vec!["date".to_string(), "datetime".to_string()],
             vec![
                 Column::Date(DateColumn(vec![
