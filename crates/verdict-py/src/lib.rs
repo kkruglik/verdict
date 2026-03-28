@@ -3,12 +3,12 @@ use std::path::Path;
 use pyo3::prelude::*;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
-    dataset::{
-        BoolColumn, Column, DataType, Dataset, DateColumn, DateTimeColumn, Field, FloatColumn,
-        InSetValues, IntColumn, Schema, StrColumn,
+    dataframe::{
+        BoolColumn, Column, DataFrame, DataType, DateColumn, DateTimeColumn, Field, FloatColumn,
+        ValuesSet, IntColumn, Schema, StringColumn,
     },
     rules::{
-        ColumnConstraint, ColumnRule, Operand, RuleBuilder, ValidateConfig, ValidationReport,
+        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, ValidateConfig, ValidationReport,
         ValidationResult, validate,
     },
 };
@@ -75,7 +75,7 @@ impl PyDataType {
     #[staticmethod]
     fn string() -> Self {
         PyDataType {
-            inner: DataType::Str,
+            inner: DataType::String,
         }
     }
 
@@ -164,7 +164,7 @@ impl PyColumn {
 
     #[staticmethod]
     fn string(values: Vec<Option<String>>) -> PyColumn {
-        let column = StrColumn(values);
+        let column = StringColumn(values);
         PyColumn {
             inner: Column::Str(column),
         }
@@ -232,7 +232,7 @@ impl PyColumn {
 
 #[pyclass(name = "Dataset")]
 struct PyDataset {
-    inner: Dataset,
+    inner: DataFrame,
 }
 
 #[pymethods]
@@ -244,7 +244,7 @@ impl PyDataset {
             .map(|col| col.borrow(py).inner.clone())
             .collect();
         PyDataset {
-            inner: Dataset {
+            inner: DataFrame {
                 headers,
                 columns: core_columns,
             },
@@ -253,7 +253,7 @@ impl PyDataset {
 
     #[staticmethod]
     fn from_csv(path: &str, schema: &PySchema) -> PyResult<Self> {
-        let inner = Dataset::from_csv(Path::new(path), &schema.inner)
+        let inner = DataFrame::from_csv(Path::new(path), &schema.inner)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(PyDataset { inner })
     }
@@ -357,19 +357,19 @@ impl PyConstraint {
             .map(|v| v.extract::<i64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::Int64Set(v)
+            ValuesSet::Int64Set(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<f64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::FloatSet(v)
+            ValuesSet::FloatSet(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<String>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::StrSet(v)
+            ValuesSet::StrSet(v)
         } else {
             return Err(pyo3::exceptions::PyTypeError::new_err(
                 "is_in values must be all integers, floats, or strings",
@@ -457,7 +457,7 @@ impl PyRule {
 
 #[pyclass(name = "RuleBuilder")]
 struct PyRuleBuilder {
-    inner: RuleBuilder,
+    inner: ColumnRuleBuilder,
 }
 
 #[pymethods]
@@ -465,7 +465,7 @@ impl PyRuleBuilder {
     #[new]
     fn new(column: String) -> Self {
         PyRuleBuilder {
-            inner: RuleBuilder {
+            inner: ColumnRuleBuilder {
                 column,
                 constraint: vec![],
             },
@@ -562,19 +562,19 @@ impl PyRuleBuilder {
             .map(|v| v.extract::<i64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::Int64Set(v)
+            ValuesSet::Int64Set(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<f64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::FloatSet(v)
+            ValuesSet::FloatSet(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<String>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::StrSet(v)
+            ValuesSet::StrSet(v)
         } else {
             return Err(pyo3::exceptions::PyTypeError::new_err(
                 "in_set values must be all integers, floats, or strings",
