@@ -505,12 +505,12 @@ mod tests {
         let passed_result = validate(
             &dataset,
             &[ColumnRule::new("id", ColumnConstraint::NotNull)],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         let failed_result = validate(
             &null_dataset,
             &[ColumnRule::new("id", ColumnConstraint::NotNull)],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
 
         assert!(passed_result.results[0].passed);
@@ -523,14 +523,14 @@ mod tests {
         let results = validate(
             &dataset,
             &[ColumnRule::new("id", ColumnConstraint::Unique)],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
         let results = validate(
             &dataset,
             &[ColumnRule::new("active", ColumnConstraint::Unique)],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
     }
@@ -543,12 +543,12 @@ mod tests {
         assert_eq!(id_rules.len(), 2);
         assert_eq!(x_rules.len(), 4);
 
-        let report = validate(&dataset, &id_rules, ValidateConfig::default());
+        let report = validate(&dataset, &id_rules, ValidationConfig::default());
         for result in &report.results {
             assert!(result.passed)
         }
 
-        let report = validate(&dataset, &x_rules, ValidateConfig::default());
+        let report = validate(&dataset, &x_rules, ValidationConfig::default());
         for result in &report.results {
             assert!(result.passed)
         }
@@ -562,7 +562,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("y").gt(col("x")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -576,7 +576,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").gt(col("z")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
@@ -591,7 +591,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("y").ge(col("x")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -605,7 +605,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").ge(col("z")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 1);
@@ -620,7 +620,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").lt(col("y")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -634,7 +634,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("z").lt(col("x")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
@@ -649,7 +649,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").le(col("y")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -663,7 +663,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").le(col("z")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -678,7 +678,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").equal(col("x")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -691,7 +691,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").equal(col("y")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 5);
@@ -708,7 +708,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").between(0.0, col("y")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -723,7 +723,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("y").between(col("x"), 100.0).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -737,7 +737,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("z").between(col("x"), col("y")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4);
@@ -752,7 +752,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").lt(col("b")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -765,7 +765,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").lt(col("high")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -778,7 +778,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").equal(col("c")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -793,7 +793,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").between(0.0, col("high")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
@@ -824,7 +824,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").equal(col("b")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -846,7 +846,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").lt(col("b")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -865,7 +865,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").lt(col("b")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 1);
@@ -886,7 +886,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").equal(col("b")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -905,7 +905,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").gt(col("b")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 1);
@@ -920,7 +920,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("id").gt(col("x")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -939,7 +939,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("a").lt(col("b")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -952,7 +952,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("id").between(col("x"), col("y")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -964,7 +964,7 @@ mod tests {
         let results = validate(
             &ds,
             &rule("x").gt(col("nonexistent")).build(),
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert!(results.results[0].error.is_some());
@@ -980,7 +980,7 @@ mod tests {
                 "id",
                 ColumnConstraint::GreaterThan(Operand::Num(0.0)),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 0);
@@ -992,7 +992,7 @@ mod tests {
                 "id",
                 ColumnConstraint::GreaterThan(Operand::Num(3.0)),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -1007,7 +1007,7 @@ mod tests {
                 "id",
                 ColumnConstraint::GreaterThanOrEqual(1.0.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1017,7 +1017,7 @@ mod tests {
                 "id",
                 ColumnConstraint::GreaterThanOrEqual(3.0.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
@@ -1032,7 +1032,7 @@ mod tests {
                 "id",
                 ColumnConstraint::LessThan(6.0.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1042,7 +1042,7 @@ mod tests {
                 "id",
                 ColumnConstraint::LessThan(3.0.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -1057,7 +1057,7 @@ mod tests {
                 "id",
                 ColumnConstraint::LessThanOrEqual(5.0.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1067,7 +1067,7 @@ mod tests {
                 "id",
                 ColumnConstraint::LessThanOrEqual(3.0.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2);
@@ -1082,7 +1082,7 @@ mod tests {
                 "score",
                 ColumnConstraint::Equal(95.5.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4);
@@ -1101,7 +1101,7 @@ mod tests {
                     max: 110.0.into(),
                 },
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1114,7 +1114,7 @@ mod tests {
                     max: 100.0.into(),
                 },
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2); // bob=87.3, diana=78.9
@@ -1130,7 +1130,7 @@ mod tests {
                 "name",
                 ColumnConstraint::MatchesRegex(r"^[a-z]+$".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1140,7 +1140,7 @@ mod tests {
                 "name",
                 ColumnConstraint::MatchesRegex(r"^a".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4);
@@ -1155,7 +1155,7 @@ mod tests {
                 "name",
                 ColumnConstraint::Contains("li".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -1167,7 +1167,7 @@ mod tests {
                 "name",
                 ColumnConstraint::Contains("b".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4); // only bob contains "b"
@@ -1182,7 +1182,7 @@ mod tests {
                 "name",
                 ColumnConstraint::StartsWith("a".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 4);
@@ -1197,7 +1197,7 @@ mod tests {
                 "name",
                 ColumnConstraint::EndsWith("e".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 2); // bob, diana don't end with "e"
@@ -1213,7 +1213,7 @@ mod tests {
                 "name",
                 ColumnConstraint::LengthBetween { min: 3, max: 7 },
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1223,7 +1223,7 @@ mod tests {
                 "name",
                 ColumnConstraint::LengthBetween { min: 4, max: 6 },
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3); // bob(3), charlie(7), eve(3)
@@ -1244,7 +1244,7 @@ mod tests {
                     "eve".to_string(),
                 ])),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
@@ -1257,7 +1257,7 @@ mod tests {
                     "bob".to_string(),
                 ])),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert_eq!(results.results[0].failed_count, 3);
@@ -1269,7 +1269,7 @@ mod tests {
         let results = validate(
             &dataset,
             &[ColumnRule::new("nonexistent", ColumnConstraint::NotNull)],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert!(results.results[0].error.is_some());
@@ -1285,7 +1285,7 @@ mod tests {
                 "id",
                 ColumnConstraint::GreaterThan(0.0.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         // nulls are skipped; non-null values (2, 4) are both > 0 → passes
         assert!(results.results[0].passed);
@@ -1307,7 +1307,7 @@ mod tests {
                 },
             ),
         ];
-        let results = validate(&dataset, &rules, ValidateConfig::default());
+        let results = validate(&dataset, &rules, ValidationConfig::default());
         assert_eq!(results.results.len(), 4);
         assert!(results.results[0].passed);
         assert!(results.results[1].passed);
@@ -1324,7 +1324,7 @@ mod tests {
             ColumnRule::new("id", ColumnConstraint::NotNull),
             ColumnRule::new("name", ColumnConstraint::NotNull),
         ];
-        let report = validate(&dataset, &rules, ValidateConfig::default());
+        let report = validate(&dataset, &rules, ValidationConfig::default());
         assert!(report.passed);
         assert_eq!(report.total_rules, 2);
         assert_eq!(report.passed_count, 2);
@@ -1339,7 +1339,7 @@ mod tests {
             ColumnRule::new("id", ColumnConstraint::NotNull),
             ColumnRule::new("score", ColumnConstraint::Equal(0.0.into())),
         ];
-        let report = validate(&dataset, &rules, ValidateConfig::default());
+        let report = validate(&dataset, &rules, ValidationConfig::default());
         assert!(!report.passed);
         assert_eq!(report.total_rules, 2);
         assert_eq!(report.passed_count, 1);
@@ -1358,7 +1358,7 @@ mod tests {
                 "id",
                 ColumnConstraint::GreaterThan(3.0.into()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         let result = &report.results[0];
         assert!(!result.passed);
@@ -1377,7 +1377,7 @@ mod tests {
         let report = validate(
             &dataset,
             &[ColumnRule::new("id", ColumnConstraint::NotNull)],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         let fv = report.results[0].failed_values.as_ref().unwrap();
         assert_eq!(fv.len(), 3);
@@ -1396,7 +1396,7 @@ mod tests {
                 "name",
                 ColumnConstraint::StartsWith("a".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         let fv = report.results[0].failed_values.as_ref().unwrap();
         assert_eq!(fv.len(), 4);
@@ -1410,13 +1410,13 @@ mod tests {
         let report = validate(
             &dataset,
             &[ColumnRule::new("id", ColumnConstraint::NotNull)],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(report.results[0].passed);
         assert!(report.results[0].failed_values.is_none());
     }
 
-    // ── ValidateConfig max_failed_samples ─────────────────────────────────────
+    // ── ValidationConfig max_failed_samples ─────────────────────────────────────
 
     #[test]
     fn test_max_failed_samples_cap() {
@@ -1426,7 +1426,7 @@ mod tests {
         let report = validate(
             &dataset,
             &[ColumnRule::new("id", ColumnConstraint::Equal(0.0.into()))],
-            ValidateConfig {
+            ValidationConfig {
                 max_failed_samples: 2,
             },
         );
@@ -1449,7 +1449,7 @@ mod tests {
                 "id",
                 ColumnConstraint::GreaterThan(3.0.into()),
             )],
-            ValidateConfig {
+            ValidationConfig {
                 max_failed_samples: 10,
             },
         );
@@ -1684,7 +1684,7 @@ mod datetime_converter_tests {
 mod date_constraint_tests {
     use verdict_core::{
         dataframe::{Column, DataFrame, DateColumn, DateTimeColumn},
-        rules::{ColumnConstraint, ColumnRule, ValidateConfig, validate},
+        rules::{ColumnConstraint, ColumnRule, ValidationConfig, validate},
     };
 
     fn make_date_dataset() -> DataFrame {
@@ -1709,8 +1709,8 @@ mod date_constraint_tests {
         )
     }
 
-    fn cfg() -> ValidateConfig {
-        ValidateConfig::default()
+    fn cfg() -> ValidationConfig {
+        ValidationConfig::default()
     }
 
     // --- After ---
