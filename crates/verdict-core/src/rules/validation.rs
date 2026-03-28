@@ -12,11 +12,11 @@ use crate::{
     rules::{ColumnConstraint, ColumnRule, Operand},
 };
 
-pub struct ValidatingConfig {
+pub struct ValidationConfig {
     pub max_failed_samples: usize,
 }
 
-impl Default for ValidatingConfig {
+impl Default for ValidationConfig {
     fn default() -> Self {
         Self {
             max_failed_samples: 100,
@@ -135,7 +135,7 @@ impl std::fmt::Display for ValidationResult {
 pub fn validate(
     data: &DataFrame,
     rules: &[ColumnRule],
-    config: ValidatingConfig,
+    config: ValidationConfig,
 ) -> ValidationReport {
     let results: Vec<ValidationResult> = rules
         .iter()
@@ -161,7 +161,7 @@ pub fn validate(
 fn validate_with_rule(
     data: &DataFrame,
     rule: &ColumnRule,
-    config: &ValidatingConfig,
+    config: &ValidationConfig,
 ) -> Result<ValidationResult, ValidationError> {
     if let Some(column) = data.get_column_by_name(&rule.column) {
         let n = config.max_failed_samples;
