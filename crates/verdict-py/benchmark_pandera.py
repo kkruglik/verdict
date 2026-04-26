@@ -3,7 +3,7 @@ import sys
 import time
 import pandas as pd
 import pandera.pandas as pa
-from verdict_py import Dataset, Schema, DataType, RuleBuilder, py_validate
+from verdict_py import Dataset, Schema, DataType, ColumnRuleBuilder, py_validate_columns
 
 # ── schemas ───────────────────────────────────────────────────────────────────
 
@@ -20,14 +20,14 @@ VERDICT_SCHEMA = Schema([
 ])
 
 VERDICT_RULES = [
-    *RuleBuilder("user_id").not_null().unique().build(),
-    *RuleBuilder("score").not_null().between(0.0, 100.0).build(),
-    *RuleBuilder("age").not_null().between(18.0, 90.0).build(),
-    *RuleBuilder("is_active").not_null().build(),
-    *RuleBuilder("country").not_null().is_in(["US", "UK", "DE", "FR", "JP"]).build(),
-    *RuleBuilder("age_with_nulls").between(18.0, 90.0).build(),
-    *RuleBuilder("score_with_nulls").between(0.0, 100.0).build(),
-    *RuleBuilder("country_with_nulls").is_in(["US", "UK", "DE", "FR", "JP"]).build(),
+    *ColumnRuleBuilder("user_id").not_null().unique().build(),
+    *ColumnRuleBuilder("score").not_null().between(0.0, 100.0).build(),
+    *ColumnRuleBuilder("age").not_null().between(18.0, 90.0).build(),
+    *ColumnRuleBuilder("is_active").not_null().build(),
+    *ColumnRuleBuilder("country").not_null().is_in(["US", "UK", "DE", "FR", "JP"]).build(),
+    *ColumnRuleBuilder("age_with_nulls").between(18.0, 90.0).build(),
+    *ColumnRuleBuilder("score_with_nulls").between(0.0, 100.0).build(),
+    *ColumnRuleBuilder("country_with_nulls").is_in(["US", "UK", "DE", "FR", "JP"]).build(),
 ]
 
 PANDERA_SCHEMA = pa.DataFrameSchema(
@@ -47,8 +47,8 @@ PANDERA_SCHEMA = pa.DataFrameSchema(
 REGEX_PATTERN = r"^[A-Z]{2}$"
 
 VERDICT_REGEX_RULES = [
-    *RuleBuilder("country").matches_regex(REGEX_PATTERN).build(),
-    *RuleBuilder("country_with_nulls").matches_regex(REGEX_PATTERN).build(),
+    *ColumnRuleBuilder("country").matches_regex(REGEX_PATTERN).build(),
+    *ColumnRuleBuilder("country_with_nulls").matches_regex(REGEX_PATTERN).build(),
 ]
 
 PANDERA_REGEX_SCHEMA = pa.DataFrameSchema(
@@ -117,18 +117,18 @@ for label, csv_path, runs in SIZES:
     print()
 
     print(f"  [validate — {len(VERDICT_RULES)} equivalent rules]")
-    bench("verdict  py_validate", lambda: py_validate(verdict_ds, VERDICT_RULES), runs)
+    bench("verdict  py_validate", lambda: py_validate_columns(verdict_ds, VERDICT_RULES), runs)
     bench("pandera  schema.validate", lambda: pandera_validate(df), runs)
     print()
 
     print(f"  [load + validate]")
-    bench("verdict  end-to-end", lambda p=csv_path: py_validate(
+    bench("verdict  end-to-end", lambda p=csv_path: py_validate_columns(
         Dataset.from_csv(p, VERDICT_SCHEMA), VERDICT_RULES
     ), runs)
     bench("pandera  end-to-end", lambda p=csv_path: pandera_validate(pd.read_csv(p)), runs)
     print()
 
     print(f"  [regex — {len(VERDICT_REGEX_RULES)} rules, pattern: '{REGEX_PATTERN}']")
-    bench("verdict  matches_regex", lambda: py_validate(verdict_ds, VERDICT_REGEX_RULES), runs)
+    bench("verdict  matches_regex", lambda: py_validate_columns(verdict_ds, VERDICT_REGEX_RULES), runs)
     bench("pandera  str_matches",   lambda: pandera_regex_validate(df), runs)
     print()
