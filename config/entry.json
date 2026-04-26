@@ -1,4 +1,20 @@
 {
+  "table": {
+    "constraints": [
+      { "constraint": "shape_equals", "value": [100000, 9] },
+      { "constraint": "rows_count_between", "value": [50000, 200000] },
+      { "constraint": "rows_count_greater_or_equal", "value": 1 },
+      { "constraint": "row_count_greater_than", "value": 0 },
+      { "constraint": "rows_count_less_or_equal", "value": 1000000 },
+      { "constraint": "row_count_less_than", "value": 2000000 },
+      { "constraint": "columns_count_between", "value": [5, 20] },
+      { "constraint": "columns_count_greater_or_equal", "value": 9 },
+      { "constraint": "columns_count_greater_than", "value": 8 },
+      { "constraint": "columns_count_less_or_equal", "value": 9 },
+      { "constraint": "columns_count_less_than", "value": 10 },
+      { "constraint": "columns_exist", "value": ["user_id", "score", "age", "is_active", "country"] }
+    ]
+  },
   "columns": [
     { "name": "user_id", "dtype": "int", "constraints": [
       { "constraint": "not_null", "value": true },
