@@ -1,3 +1,12 @@
+table:
+  constraints:
+    - constraint: rows_count_between
+      value: [1, 10]
+    - constraint: columns_count_greater_than
+      value: 100
+    - constraint: columns_exist
+      value: [nonexistent_col, also_missing]
+
 columns:
   - name: user_id
     dtype: int
