@@ -293,62 +293,86 @@ struct PyTableConstraint {
 impl PyTableConstraint {
     #[staticmethod]
     fn rows_count_between(min: usize, max: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::RowsCountBetween { min, max } }
+        PyTableConstraint {
+            inner: TableConstraint::RowsCountBetween { min, max },
+        }
     }
 
     #[staticmethod]
     fn rows_count_ge(count: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::RowsCountGreaterOrEqual(count) }
+        PyTableConstraint {
+            inner: TableConstraint::RowsCountGreaterOrEqual(count),
+        }
     }
 
     #[staticmethod]
     fn rows_count_gt(count: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::RowCountGreaterThan(count) }
+        PyTableConstraint {
+            inner: TableConstraint::RowCountGreaterThan(count),
+        }
     }
 
     #[staticmethod]
     fn rows_count_le(count: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::RowsCountLessOrEqual(count) }
+        PyTableConstraint {
+            inner: TableConstraint::RowsCountLessOrEqual(count),
+        }
     }
 
     #[staticmethod]
     fn rows_count_lt(count: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::RowCountLessThan(count) }
+        PyTableConstraint {
+            inner: TableConstraint::RowCountLessThan(count),
+        }
     }
 
     #[staticmethod]
     fn columns_count_between(min: usize, max: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::ColumnsCountBetween { min, max } }
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountBetween { min, max },
+        }
     }
 
     #[staticmethod]
     fn columns_count_ge(count: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::ColumnsCountGreaterOrEqual(count) }
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountGreaterOrEqual(count),
+        }
     }
 
     #[staticmethod]
     fn columns_count_gt(count: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::ColumnsCountGreaterThan(count) }
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountGreaterThan(count),
+        }
     }
 
     #[staticmethod]
     fn columns_count_le(count: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::ColumnsCountLessOrEqual(count) }
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountLessOrEqual(count),
+        }
     }
 
     #[staticmethod]
     fn columns_count_lt(count: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::ColumnsCountLessThan(count) }
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountLessThan(count),
+        }
     }
 
     #[staticmethod]
     fn columns_exist(columns: Vec<String>) -> Self {
-        PyTableConstraint { inner: TableConstraint::ColumnsExist(columns) }
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsExist(columns),
+        }
     }
 
     #[staticmethod]
     fn shape_equals(rows: usize, columns: usize) -> Self {
-        PyTableConstraint { inner: TableConstraint::ShapeEquals { rows, columns } }
+        PyTableConstraint {
+            inner: TableConstraint::ShapeEquals { rows, columns },
+        }
     }
 }
 
