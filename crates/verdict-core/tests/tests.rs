@@ -2253,7 +2253,9 @@ mod table_constraint_tests {
     fn test_columns_count_ge_passes_exact_boundary() {
         let ds = make_table_dataset();
         // 3 >= 3 — boundary: equal is a pass
-        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(3))];
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(
+            3,
+        ))];
         let report = validate_table(&ds, &rules, cfg());
         assert!(report.results[0].passed);
         assert!(report.results[0].failed_count.is_none());
@@ -2262,7 +2264,9 @@ mod table_constraint_tests {
     #[test]
     fn test_columns_count_ge_passes_above() {
         let ds = make_table_dataset();
-        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(1))];
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(
+            1,
+        ))];
         let report = validate_table(&ds, &rules, cfg());
         assert!(report.results[0].passed);
     }
@@ -2271,7 +2275,9 @@ mod table_constraint_tests {
     fn test_columns_count_ge_fails() {
         let ds = make_table_dataset();
         // 3 < 4 — fails
-        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(4))];
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(
+            4,
+        ))];
         let report = validate_table(&ds, &rules, cfg());
         assert!(!report.results[0].passed);
         assert!(report.results[0].failed_count.is_none());
@@ -2557,7 +2563,10 @@ mod table_constraint_tests {
         let rules = vec![
             TableRule::new(TableConstraint::RowsCountGreaterOrEqual(1)),
             TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(1)),
-            TableRule::new(TableConstraint::ShapeEquals { rows: 5, columns: 3 }),
+            TableRule::new(TableConstraint::ShapeEquals {
+                rows: 5,
+                columns: 3,
+            }),
         ];
         let report = validate_table(&ds, &rules, cfg());
         assert_eq!(report.results.len(), 3);
