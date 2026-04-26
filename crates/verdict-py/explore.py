@@ -1,5 +1,5 @@
 from typing import Self
-from verdict_py import Dataset, Column, Constraint, Rule, Schema, DataType, RuleBuilder, py_validate
+from verdict_py import Dataset, Column, ColumnConstraint, ColumnRule, Schema, DataType, RuleBuilder, py_validate_columns
 from enum import StrEnum
 
 
@@ -65,7 +65,7 @@ def explore_validation():
         .build(),
         *RuleBuilder("share").gt(0.0).between(1.0, 50.0).build(),
     ]
-    report = py_validate(dataset, rules)
+    report = py_validate_columns(dataset, rules)
     for r in report.results:
         print(r)
 
@@ -95,11 +95,11 @@ def explore_datetime():
     print(f"dataset:         {ds}")
 
     rules = [
-        Rule("signup_date", Constraint.after("2019-12-31")),
-        Rule("signup_date", Constraint.before("2025-01-01")),
-        Rule("last_seen_at", Constraint.between_dates("2019-12-31T00:00:00", "2025-01-01T00:00:00")),
+        ColumnRule("signup_date", ColumnConstraint.after("2019-12-31")),
+        ColumnRule("signup_date", ColumnConstraint.before("2025-01-01")),
+        ColumnRule("last_seen_at", ColumnConstraint.between_dates("2019-12-31T00:00:00", "2025-01-01T00:00:00")),
     ]
-    report = py_validate(ds, rules)
+    report = py_validate_columns(ds, rules)
     print(f"passed: {report.passed}")
     for r in report.results:
         print(f"  {r}")
@@ -142,11 +142,11 @@ def explore_datetime_from_csv():
         ds = Dataset.from_csv(fixture, schema_full)
         print(f"loaded: {ds}")
         rules = [
-            Rule("created_date", Constraint.after("2019-12-31")),
-            Rule("created_date", Constraint.before("2025-01-01")),
-            Rule("created_at", Constraint.between_dates("2019-12-31T00:00:00", "2025-01-01T00:00:00")),
+            ColumnRule("created_date", ColumnConstraint.after("2019-12-31")),
+            ColumnRule("created_date", ColumnConstraint.before("2025-01-01")),
+            ColumnRule("created_at", ColumnConstraint.between_dates("2019-12-31T00:00:00", "2025-01-01T00:00:00")),
         ]
-        report = py_validate(ds, rules)
+        report = py_validate_columns(ds, rules)
         print(f"passed: {report.passed}")
         for r in report.results:
             print(f"  {r}")
