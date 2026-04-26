@@ -3,8 +3,8 @@ from verdict_py import (
     Dataset,
     Schema,
     DataType,
-    RuleBuilder,
-    py_validate,
+    ColumnRuleBuilder,
+    py_validate_columns,
 )
 
 
@@ -23,14 +23,14 @@ SCHEMA = Schema(
 )
 
 RULES = [
-    *RuleBuilder("user_id").not_null().unique().build(),
-    *RuleBuilder("score").not_null().between(0.0, 100.0).build(),
-    *RuleBuilder("age").not_null().between(18.0, 90.0).build(),
-    *RuleBuilder("is_active").not_null().build(),
-    *RuleBuilder("country").not_null().is_in(["US", "UK", "DE", "FR", "JP"]).build(),
-    *RuleBuilder("age_with_nulls").between(18.0, 90.0).build(),
-    *RuleBuilder("score_with_nulls").between(0.0, 100.0).build(),
-    *RuleBuilder("country_with_nulls").is_in(["US", "UK", "DE", "FR", "JP"]).build(),
+    *ColumnRuleBuilder("user_id").not_null().unique().build(),
+    *ColumnRuleBuilder("score").not_null().between(0.0, 100.0).build(),
+    *ColumnRuleBuilder("age").not_null().between(18.0, 90.0).build(),
+    *ColumnRuleBuilder("is_active").not_null().build(),
+    *ColumnRuleBuilder("country").not_null().is_in(["US", "UK", "DE", "FR", "JP"]).build(),
+    *ColumnRuleBuilder("age_with_nulls").between(18.0, 90.0).build(),
+    *ColumnRuleBuilder("score_with_nulls").between(0.0, 100.0).build(),
+    *ColumnRuleBuilder("country_with_nulls").is_in(["US", "UK", "DE", "FR", "JP"]).build(),
 ]
 
 RUNS = 10
@@ -60,7 +60,7 @@ dataset = benchmark("load from csv", lambda: Dataset.from_csv("../../fixtures/sa
 print(f"  loaded: {dataset}\n")
 
 report = benchmark(
-    f"validate ({len(RULES)} rules)", lambda: py_validate(dataset, RULES)
+    f"validate ({len(RULES)} rules)", lambda: py_validate_columns(dataset, RULES)
 )
 
 print(f"\n  {report.passed_count} passed / {report.failed_count} failed\n")
