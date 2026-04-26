@@ -69,7 +69,10 @@ pub struct ColumnRule {
 
 impl ColumnRule {
     pub fn new(column: impl Into<String>, constraint: ColumnConstraint) -> ColumnRule {
-        ColumnRule { column: column.into(), constraint }
+        ColumnRule {
+            column: column.into(),
+            constraint,
+        }
     }
 }
 
@@ -174,7 +177,7 @@ impl ColumnRuleBuilder {
     }
 }
 
-pub fn rule(col_name: &str) -> ColumnRuleBuilder {
+pub fn col_rule(col_name: &str) -> ColumnRuleBuilder {
     ColumnRuleBuilder {
         column: col_name.to_string(),
         constraint: vec![],
