@@ -1,12 +1,16 @@
 use std::fmt::Display;
 
 pub mod column;
+pub mod column_checks;
 pub mod table;
+pub mod table_checks;
 pub mod validation;
 
 pub use column::{ColumnConstraint, ColumnRule, ColumnRuleBuilder, col};
-pub use table::{TableRule, TableRuleBuilder};
-pub use validation::{ValidationConfig, ValidationReport, ValidationResult, validate};
+pub use column_checks::validate_columns;
+pub use table::{TableConstraint, TableRule, TableRuleBuilder};
+pub use table_checks::validate_table;
+pub use validation::{ValidationConfig, ValidationReport, ValidationResult};
 
 #[derive(Debug, Clone)]
 pub enum Operand {
