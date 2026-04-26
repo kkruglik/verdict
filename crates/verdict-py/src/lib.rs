@@ -5,11 +5,11 @@ use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataframe::{
         BoolColumn, Column, DataFrame, DataType, DateColumn, DateTimeColumn, Field, FloatColumn,
-        ValuesSet, IntColumn, Schema, StringColumn,
+        IntColumn, Schema, StringColumn, ValuesSet,
     },
     rules::{
-        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, ValidationConfig, ValidationReport,
-        ValidationResult, validate,
+        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, TableConstraint, TableRule,
+        ValidationConfig, ValidationReport, ValidationResult, validate_columns, validate_table,
     },
 };
 
@@ -284,65 +284,133 @@ impl PyDataset {
     }
 }
 
-#[pyclass(name = "Constraint")]
-struct PyConstraint {
+#[pyclass(name = "TableConstraint")]
+struct PyTableConstraint {
+    inner: TableConstraint,
+}
+
+#[pymethods]
+impl PyTableConstraint {
+    #[staticmethod]
+    fn rows_count_between(min: usize, max: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::RowsCountBetween { min, max } }
+    }
+
+    #[staticmethod]
+    fn rows_count_ge(count: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::RowsCountGreaterOrEqual(count) }
+    }
+
+    #[staticmethod]
+    fn rows_count_gt(count: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::RowCountGreaterThan(count) }
+    }
+
+    #[staticmethod]
+    fn rows_count_le(count: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::RowsCountLessOrEqual(count) }
+    }
+
+    #[staticmethod]
+    fn rows_count_lt(count: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::RowCountLessThan(count) }
+    }
+
+    #[staticmethod]
+    fn columns_count_between(min: usize, max: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::ColumnsCountBetween { min, max } }
+    }
+
+    #[staticmethod]
+    fn columns_count_ge(count: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::ColumnsCountGreaterOrEqual(count) }
+    }
+
+    #[staticmethod]
+    fn columns_count_gt(count: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::ColumnsCountGreaterThan(count) }
+    }
+
+    #[staticmethod]
+    fn columns_count_le(count: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::ColumnsCountLessOrEqual(count) }
+    }
+
+    #[staticmethod]
+    fn columns_count_lt(count: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::ColumnsCountLessThan(count) }
+    }
+
+    #[staticmethod]
+    fn columns_exist(columns: Vec<String>) -> Self {
+        PyTableConstraint { inner: TableConstraint::ColumnsExist(columns) }
+    }
+
+    #[staticmethod]
+    fn shape_equals(rows: usize, columns: usize) -> Self {
+        PyTableConstraint { inner: TableConstraint::ShapeEquals { rows, columns } }
+    }
+}
+
+#[pyclass(name = "ColumnConstraint")]
+struct PyColumnConstraint {
     inner: ColumnConstraint,
 }
 
 #[pymethods]
-impl PyConstraint {
+impl PyColumnConstraint {
     #[staticmethod]
     fn not_null() -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::NotNull,
         }
     }
 
     #[staticmethod]
     fn unique() -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::Unique,
         }
     }
 
     #[staticmethod]
     fn gt(compare: f64) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::GreaterThan(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn ge(compare: f64) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::GreaterThanOrEqual(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn lt(compare: f64) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::LessThan(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn le(compare: f64) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::LessThanOrEqual(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn eq(compare: f64) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::Equal(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn between(min: f64, max: f64) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::Between {
                 min: min.into(),
                 max: max.into(),
@@ -375,78 +443,78 @@ impl PyConstraint {
                 "is_in values must be all integers, floats, or strings",
             ));
         };
-        Ok(PyConstraint {
+        Ok(PyColumnConstraint {
             inner: ColumnConstraint::InSet(set),
         })
     }
 
     #[staticmethod]
     fn matches_regex(pattern: String) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::MatchesRegex(pattern),
         }
     }
 
     #[staticmethod]
     fn contains(pattern: String) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::Contains(pattern),
         }
     }
 
     #[staticmethod]
     fn starts_with(pattern: String) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::StartsWith(pattern),
         }
     }
 
     #[staticmethod]
     fn ends_with(pattern: String) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::EndsWith(pattern),
         }
     }
 
     #[staticmethod]
     fn length_between(min: usize, max: usize) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::LengthBetween { min, max },
         }
     }
 
     #[staticmethod]
     fn after(date: String) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::After(date),
         }
     }
 
     #[staticmethod]
     fn before(date: String) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::Before(date),
         }
     }
 
     #[staticmethod]
     fn between_dates(min: String, max: String) -> Self {
-        PyConstraint {
+        PyColumnConstraint {
             inner: ColumnConstraint::BetweenDates { min, max },
         }
     }
 }
 
-#[pyclass(name = "Rule")]
-struct PyRule {
+#[pyclass(name = "ColumnRule")]
+struct PyColumnRule {
     inner: ColumnRule,
 }
 
 #[pymethods]
-impl PyRule {
+impl PyColumnRule {
     #[new]
-    fn new(py: Python<'_>, column: String, constraint: Py<PyConstraint>) -> Self {
-        PyRule {
+    fn new(py: Python<'_>, column: String, constraint: Py<PyColumnConstraint>) -> Self {
+        PyColumnRule {
             inner: ColumnRule {
                 column,
                 constraint: constraint.borrow(py).inner.clone(),
@@ -455,16 +523,33 @@ impl PyRule {
     }
 }
 
-#[pyclass(name = "RuleBuilder")]
-struct PyRuleBuilder {
+#[pyclass(name = "TableRule")]
+struct PyTableRule {
+    inner: TableRule,
+}
+
+#[pymethods]
+impl PyTableRule {
+    #[new]
+    fn new(py: Python<'_>, constraint: Py<PyTableConstraint>) -> Self {
+        PyTableRule {
+            inner: TableRule {
+                constraint: constraint.borrow(py).inner.clone(),
+            },
+        }
+    }
+}
+
+#[pyclass(name = "ColumnRuleBuilder")]
+struct PyColumnRuleBuilder {
     inner: ColumnRuleBuilder,
 }
 
 #[pymethods]
-impl PyRuleBuilder {
+impl PyColumnRuleBuilder {
     #[new]
     fn new(column: String) -> Self {
-        PyRuleBuilder {
+        PyColumnRuleBuilder {
             inner: ColumnRuleBuilder {
                 column,
                 constraint: vec![],
@@ -615,11 +700,11 @@ impl PyRuleBuilder {
         slf
     }
 
-    fn build(slf: PyRef<'_, Self>) -> Vec<PyRule> {
+    fn build(slf: PyRef<'_, Self>) -> Vec<PyColumnRule> {
         slf.inner
             .constraint
             .iter()
-            .map(|c| PyRule {
+            .map(|c| PyColumnRule {
                 inner: ColumnRule {
                     column: slf.inner.column.clone(),
                     constraint: c.clone(),
@@ -674,8 +759,8 @@ impl PyValidationReport {
 #[pymethods]
 impl PyValidationResult {
     #[getter]
-    fn column(&self) -> &str {
-        &self.inner.column
+    fn column(&self) -> Option<String> {
+        self.inner.column.clone()
     }
 
     #[getter]
@@ -689,7 +774,7 @@ impl PyValidationResult {
     }
 
     #[getter]
-    fn failed_count(&self) -> usize {
+    fn failed_count(&self) -> Option<usize> {
         self.inner.failed_count
     }
 
@@ -709,17 +794,37 @@ impl PyValidationResult {
 }
 
 #[pyfunction]
-fn py_validate(
+fn py_validate_columns(
     py: Python<'_>,
     data: Py<PyDataset>,
-    rules: Vec<Py<PyRule>>,
+    rules: Vec<Py<PyColumnRule>>,
 ) -> PyResult<PyValidationReport> {
     let core_rules: Vec<ColumnRule> = rules
         .into_iter()
         .map(|v| v.borrow(py).inner.clone())
         .collect();
 
-    let results = validate(
+    let results = validate_columns(
+        &data.borrow(py).inner,
+        &core_rules,
+        ValidationConfig::default(),
+    );
+    let report = PyValidationReport { inner: results };
+    Ok(report)
+}
+
+#[pyfunction]
+fn py_validate_table(
+    py: Python<'_>,
+    data: Py<PyDataset>,
+    rules: Vec<Py<PyTableRule>>,
+) -> PyResult<PyValidationReport> {
+    let core_rules: Vec<TableRule> = rules
+        .into_iter()
+        .map(|v| v.borrow(py).inner.clone())
+        .collect();
+
+    let results = validate_table(
         &data.borrow(py).inner,
         &core_rules,
         ValidationConfig::default(),
@@ -732,14 +837,17 @@ fn py_validate(
 fn verdict_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyDataset>()?;
     m.add_class::<PyColumn>()?;
-    m.add_class::<PyConstraint>()?;
-    m.add_class::<PyRule>()?;
-    m.add_class::<PyRuleBuilder>()?;
+    m.add_class::<PyTableConstraint>()?;
+    m.add_class::<PyTableRule>()?;
+    m.add_class::<PyColumnConstraint>()?;
+    m.add_class::<PyColumnRule>()?;
+    m.add_class::<PyColumnRuleBuilder>()?;
     m.add_class::<PyValidationResult>()?;
     m.add_class::<PyValidationReport>()?;
     m.add_class::<PySchema>()?;
     m.add_class::<PyDataType>()?;
-    m.add_function(wrap_pyfunction!(py_validate, m)?)?;
+    m.add_function(wrap_pyfunction!(py_validate_columns, m)?)?;
+    m.add_function(wrap_pyfunction!(py_validate_table, m)?)?;
     m.add_function(wrap_pyfunction!(py_col, m)?)?;
     Ok(())
 }
