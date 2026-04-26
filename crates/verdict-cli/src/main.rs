@@ -2,11 +2,13 @@ use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataframe::{DataFrame, DataType, Field, Schema, ValuesSet},
     rules::{
-        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, ValidationConfig, validate,
+        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, TableConstraint, TableRule,
+        TableRuleBuilder, ValidationConfig, column_checks::validate_columns,
+        table_checks::validate_table,
     },
 };
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Ok, Result, anyhow, bail};
 use clap::{Parser, ValueEnum};
 use serde::Deserialize;
 use serde_json::Value;
@@ -39,8 +41,14 @@ struct Cli {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-struct SchemaConfig {
+struct ValidationCliConfig {
+    pub table: Option<TableConfig>,
     pub columns: Vec<ColumnConfig>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+struct TableConfig {
+    constraints: Option<Vec<ConstraintConfig>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -113,6 +121,13 @@ fn parse_str_value(value: &Value, constraint: &str) -> Result<String> {
         .ok_or_else(|| anyhow!("expected string value for constraint '{}'", constraint))
 }
 
+fn parse_usize_value(value: &Value, constraint: &str) -> Result<usize> {
+    let val = value
+        .as_u64()
+        .ok_or_else(|| anyhow!("expected usize value for constraint '{}'", constraint))?;
+    Ok(val as usize)
+}
+
 fn parse_str_array(value: &Value, constraint: &str) -> Result<(String, String)> {
     let arr = value
         .as_array()
@@ -127,6 +142,22 @@ fn parse_str_array(value: &Value, constraint: &str) -> Result<(String, String)> 
         .as_str()
         .ok_or_else(|| anyhow!("{}: max must be a string", constraint))?;
     Ok((min.to_string(), max.to_string()))
+}
+
+fn parse_usize_array(value: &Value, constraint: &str) -> Result<(usize, usize)> {
+    let arr = value
+        .as_array()
+        .ok_or_else(|| anyhow!("{}: expected array [min, max], got {}", constraint, value))?;
+    if arr.len() != 2 {
+        bail!("{}: expected 2 elements, got {}", constraint, arr.len());
+    }
+    let min = arr[0]
+        .as_u64()
+        .ok_or_else(|| anyhow!("{}: min must be a integer", constraint))?;
+    let max = arr[1]
+        .as_u64()
+        .ok_or_else(|| anyhow!("{}: max must be a string", constraint))?;
+    Ok((min as usize, max as usize))
 }
 
 fn parse_is_in(value: &Value) -> Result<ValuesSet> {
@@ -169,9 +200,67 @@ fn parse_length_between(value: &Value) -> Result<(usize, usize)> {
         as usize;
     Ok((min, max))
 }
+fn parse_table_constraint(constraint: &str, value: &Value) -> Result<TableConstraint> {
+    match constraint.to_lowercase().as_str() {
+        "shape_equals" => {
+            let (target_rows, target_cols) = parse_usize_array(value, constraint)?;
+            Ok(TableConstraint::ShapeEquals {
+                rows: target_rows,
+                columns: target_cols,
+            })
+        }
+        "rows_count_between" => {
+            let (min, max) = parse_usize_array(value, constraint)?;
+            Ok(TableConstraint::RowsCountBetween { min, max })
+        }
+        "rows_count_greater_or_equal" => Ok(TableConstraint::RowsCountGreaterOrEqual(
+            parse_usize_value(value, constraint)?,
+        )),
+        "row_count_greater_than" => Ok(TableConstraint::RowCountGreaterThan(parse_usize_value(
+            value, constraint,
+        )?)),
+        "rows_count_less_or_equal" => Ok(TableConstraint::RowsCountLessOrEqual(parse_usize_value(
+            value, constraint,
+        )?)),
+        "row_count_less_than" => Ok(TableConstraint::RowCountLessThan(parse_usize_value(
+            value, constraint,
+        )?)),
+        "columns_count_between" => {
+            let (min, max) = parse_usize_array(value, constraint)?;
+            Ok(TableConstraint::ColumnsCountBetween { min, max })
+        }
+        "columns_count_greater_or_equal" => Ok(TableConstraint::ColumnsCountGreaterOrEqual(
+            parse_usize_value(value, constraint)?,
+        )),
+        "columns_count_greater_than" => Ok(TableConstraint::ColumnsCountGreaterThan(
+            parse_usize_value(value, constraint)?,
+        )),
+        "columns_count_less_or_equal" => Ok(TableConstraint::ColumnsCountLessOrEqual(
+            parse_usize_value(value, constraint)?,
+        )),
+        "columns_count_less_than" => Ok(TableConstraint::ColumnsCountLessThan(parse_usize_value(
+            value, constraint,
+        )?)),
+        "columns_exist" => {
+            let arr = value
+                .as_array()
+                .ok_or_else(|| anyhow!("{}: expected array of column names", constraint))?;
+            let cols = arr
+                .iter()
+                .map(|v| {
+                    v.as_str()
+                        .map(|s| s.to_string())
+                        .ok_or_else(|| anyhow!("{}: column names must be strings", constraint))
+                })
+                .collect::<Result<Vec<String>>>()?;
+            Ok(TableConstraint::ColumnsExist(cols))
+        }
+        _ => bail!("unknown table constraint: '{}'", constraint),
+    }
+}
 
-fn parse_constraint(constraint: &str, value: &Value) -> Result<ColumnConstraint> {
-    match constraint {
+fn parse_column_constraint(constraint: &str, value: &Value) -> Result<ColumnConstraint> {
+    match constraint.to_lowercase().as_str() {
         "not_null" => Ok(ColumnConstraint::NotNull),
         "unique" => Ok(ColumnConstraint::Unique),
         "gt" => Ok(ColumnConstraint::GreaterThan(parse_operand(value)?)),
@@ -237,19 +326,19 @@ fn main() -> Result<()> {
 
     let schema_file = File::open(&cli.schema).context("failed to open schema file")?;
     let reader = BufReader::new(schema_file);
-    let config: SchemaConfig = if is_yaml {
+    let config: ValidationCliConfig = if is_yaml {
         serde_yaml::from_reader(reader).context("failed to parse schema file as YAML")?
     } else {
         serde_json::from_reader(reader).context("failed to parse schema file as JSON")?
     };
 
-    let mut dataset_rules: Vec<ColumnRule> = Vec::new();
+    let mut columns_rules: Vec<ColumnRule> = Vec::new();
 
     for col_config in &config.columns {
         if let Some(constraints) = &col_config.constraints {
             let mut col_constraints: Vec<ColumnConstraint> = Vec::new();
             for c in constraints {
-                col_constraints.push(parse_constraint(&c.constraint, &c.value).context(
+                col_constraints.push(parse_column_constraint(&c.constraint, &c.value).context(
                     format!(
                         "invalid constraint '{}' on column '{}'",
                         &c.constraint, &col_config.name
@@ -261,7 +350,7 @@ fn main() -> Result<()> {
                 constraint: col_constraints,
             }
             .build();
-            dataset_rules.extend_from_slice(&col_rules);
+            columns_rules.extend_from_slice(&col_rules);
         }
     }
 
@@ -278,22 +367,51 @@ fn main() -> Result<()> {
         cli.filename.display()
     ))?;
 
-    let report = validate(
+    let mut final_report = validate_columns(
         &data,
-        &dataset_rules,
+        &columns_rules,
         ValidationConfig {
             max_failed_samples: cli.max_failed_samples,
         },
     );
 
-    match cli.format {
-        OutputFormat::Text => {
-            println!("{}", report);
+    if let Some(table_config) = &config.table {
+        let mut table_rules: Vec<TableRule> = Vec::new();
+
+        if let Some(constraints) = &table_config.constraints {
+            let mut table_constraints: Vec<TableConstraint> = Vec::new();
+            for c in constraints {
+                table_constraints.push(
+                    parse_table_constraint(&c.constraint, &c.value)
+                        .context(format!("invalid constraint '{}' on table", &c.constraint))?,
+                );
+            }
+            let rules = TableRuleBuilder {
+                constraint: table_constraints,
+            }
+            .build();
+            table_rules.extend_from_slice(&rules);
         }
-        OutputFormat::Json => println!("{}", report.to_json()),
+        let table_report = validate_table(
+            &data,
+            &table_rules,
+            ValidationConfig {
+                max_failed_samples: cli.max_failed_samples,
+            },
+        );
+        final_report = final_report.merge(table_report);
     }
 
-    if !&report.passed {
+    match cli.format {
+        OutputFormat::Text => {
+            println!("{}", final_report);
+        }
+        OutputFormat::Json => {
+            println!("{}", final_report.to_json());
+        }
+    }
+
+    if !&final_report.passed {
         std::process::exit(1);
     }
 
