@@ -3,7 +3,7 @@ use std::path::Path;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
     dataframe::{DataFrame, DataType, Field, Schema},
-    rules::{ColumnConstraint, ColumnRule, Operand, ValidationConfig, validate},
+    rules::{ColumnConstraint, ColumnRule, Operand, ValidationConfig, validate_columns},
 };
 
 fn make_schema() -> Schema {
@@ -73,7 +73,7 @@ fn bench_validation(c: &mut Criterion) {
 
     group.bench_function("100k rows", |b| {
         b.iter(|| {
-            validate(
+            validate_columns(
                 &dataset_100k,
                 &rules,
                 ValidationConfig {
@@ -85,7 +85,7 @@ fn bench_validation(c: &mut Criterion) {
 
     group.bench_function("1m rows", |b| {
         b.iter(|| {
-            validate(
+            validate_columns(
                 &dataset_1m,
                 &rules,
                 ValidationConfig {
