@@ -1,29 +1,33 @@
-## 1. `verdict-core` — *the brain*
+# Architecture
 
-**Purpose**
-Define *what* validation is, not *how* data is loaded or exposed.
+## Crate Structure
 
-**This crate must be usable without CSV, Python, or files.**
+```
+verdict-core  ←  verdict-cli
+verdict-core  ←  verdict-py
+```
 
-### Responsibilities
+| Crate | Description |
+|---|---|
+| `verdict-core` | Pure validation logic. No I/O by default. CSV loading behind the `csv` feature flag. |
+| `verdict-cli` | Static binary. Reads CSV + JSON/YAML schema, runs validation, outputs results. |
+| `verdict-py` | PyO3 bindings exposing verdict to Python. |
 
-* Dataset abstraction
-* Column type system and operations
-* Expectation definitions
-* Validation algorithm
-* Error & result types
+No dependency cycles. `verdict-core` knows nothing about CLI or Python.
 
 ---
+
+## verdict-core
 
 ### Type Hierarchy
 
 ```
-Dataset
+DataFrame
 ├── columns: Vec<Column>
 ├── schema: Schema
 │   └── fields: Vec<Field>
 │       ├── name: String
-│       └── dtype: DataType (Int, Float, Str, Bool)
+│       └── dtype: DataType (Int, Float, Str, Bool, Date, DateTime)
 └── accessors: get_column_by_name, get_column_by_index, get_column_index, shape
 
 Column (enum) — delegates to typed columns
@@ -39,119 +43,57 @@ Column (enum) — delegates to typed columns
     ├── StrColumn (Vec<Option<String>>)
     │   ├── ComparableOps<&str> → gt, ge, lt, le, equal, between
     │   └── StringOps           → contains, starts_with, ends_with, matches_regex, length
-    └── BoolColumn (Vec<Option<bool>>)
-        └── (common ops only)
+    ├── BoolColumn (Vec<Option<bool>>)
+    │   └── (common ops only)
+    ├── DateColumn (Vec<Option<i32>>)      — epoch days
+    │   └── ComparableOps<i32>
+    └── DateTimeColumn (Vec<Option<i64>>)  — epoch microseconds
+        └── ComparableOps<i64>
 ```
 
----
+### Rules
 
-### Traits
+```
+ColumnRule { column: String, constraint: ColumnConstraint }
+TableRule  { constraint: TableConstraint }
+```
 
-* **NumericOps** — math operations for numeric columns (Int, Float)
-* **ComparableOps\<T\>** — comparison operations, generic over compare type
-* **StringOps** — string pattern matching and length
+**ColumnConstraint** (17 variants) — operate on a single column's values: `NotNull`, `Unique`, `GreaterThan`, `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Equal`, `Between`, `InSet`, `MatchesRegex`, `Contains`, `StartsWith`, `EndsWith`, `LengthBetween`, `After`, `Before`, `BetweenDates`.
 
-All trait methods on columns return `Vec<Option<bool>>` to preserve null information.
+**TableConstraint** (12 variants) — operate on the dataset shape: `RowsCountBetween`, `RowsCountGreaterOrEqual`, `RowCountGreaterThan`, `RowsCountLessOrEqual`, `RowCountLessThan`, `ColumnsCountBetween`, `ColumnsCountGreaterOrEqual`, `ColumnsCountGreaterThan`, `ColumnsCountLessOrEqual`, `ColumnsCountLessThan`, `ColumnsExist`, `ShapeEquals`.
 
----
-
-### What must NOT be here
-
-* CSV parsing
-* PyO3
-* filesystem
-* logging
-* CLI
-
----
-
-## 2. `verdict-csv` — *the data loader*
-
-**Purpose**
-Turn a CSV file into a `Dataset`.
-
-### Responsibilities
-
-* Read CSV files
-* Normalize missing values
-* Build `Dataset`
-
-### API
+### Validation
 
 ```rust
-pub fn load_csv(path: &Path, schema: &Schema) -> Result<Dataset, VerdictError>
+validate_columns(data: &DataFrame, rules: &[ColumnRule], config: ValidationConfig) -> ValidationReport
+validate_table(data: &DataFrame, rules: &[TableRule], config: ValidationConfig) -> ValidationReport
+
+report.merge(other: ValidationReport) -> ValidationReport
 ```
 
-### What must NOT be here
+**ValidationResult** fields: `constraint`, `passed`, `column: Option<String>`, `failed_count: Option<usize>`, `failed_values`, `error`. Column and table results share the same type — `column` and `failed_count` are `None` for table-level checks.
 
-* Python bindings
-* Expectation definitions
-* Validation rules
+### Feature Flags
 
-This crate is replaceable.
+- `csv` — enables `DatasetCsvExt` trait (`DataFrame::from_csv(path, schema)`) and `CsvLoadingError`
+- `json` — enables `ValidationReport::to_json()`
 
 ---
 
-## 3. `verdict-py` — *the bridge*
+## verdict-cli
 
-**Purpose**
-Expose `verdict` to Python with a clean API.
+Reads a CSV and a JSON or YAML schema file, runs `validate_table` + `validate_columns`, and prints results.
 
-### Responsibilities
+**Schema format:** `{ columns: [...], table: [...] }`. The `table` block is optional.
 
-* PyO3 wrappers
-* Python-friendly classes
-* Convert Rust results → Python objects
-* Convert Rust errors → Python exceptions
+**Exit codes:** `0` — all rules pass, `1` — at least one fails.
 
-### Python-facing API (conceptual)
-
-```python
-import verdict
-
-ds = verdict.Dataset.from_csv("users.csv")
-
-ds.expect_not_null("id")
-ds.expect_unique("email")
-
-result = ds.validate()
-print(result.failures)
-```
-
-### What must NOT be here
-
-* CSV parsing logic
-* Validation rules
-* Core data structures (owned elsewhere)
+**Output formats:** `text` (default) and `json` (via `--format json`).
 
 ---
 
-## 4. Dependency direction (critical)
+## verdict-py
 
-```
-verdict-core
-↑
-verdict-csv
-↑
-verdict-py
-```
+PyO3 bindings. Exposes `Dataset`, `Column`, `Schema`, `DataType`, `ColumnConstraint`, `ColumnRule`, `ColumnRuleBuilder`, `TableConstraint`, `TableRule`, `ValidationResult`, `ValidationReport`, `py_validate_columns`, `py_validate_table`.
 
-* Core knows nothing
-* CSV knows core
-* Python knows both
-
-No cycles. Ever.
-
----
-
-## 5. Execution flow (end-to-end)
-
-1. Python calls `Dataset.from_csv`
-2. `verdict-py` calls `verdict-csv::load_csv`
-3. `verdict-csv` returns `Dataset`
-4. Python adds expectations
-5. Python calls `validate`
-6. `verdict-core::validate` runs
-7. Result is returned to Python
-
-Every step has one owner.
+`Option<T>` fields map to Python `T | None` automatically.
