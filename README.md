@@ -204,12 +204,62 @@ All column and table constraints from the CLI schema are available as Python met
 
 ---
 
+## Rust API
+
+Add to `Cargo.toml`:
+
+```toml
+[dependencies]
+verdict-core = { version = "0.1", features = ["csv"] }
+```
+
+```rust
+use verdict_core::{
+    dataframe::{Column, DataFrame, IntColumn, FloatColumn},
+    rules::{
+        ColumnConstraint, ColumnRule, TableConstraint, TableRule,
+        ValidationConfig, validate_columns, validate_table,
+    },
+};
+
+// build a dataset manually or load from CSV
+let dataset = DataFrame::from_csv("data.csv", &schema)?;
+
+let col_rules = vec![
+    ColumnRule::new("user_id", ColumnConstraint::NotNull),
+    ColumnRule::new("user_id", ColumnConstraint::Unique),
+    ColumnRule::new("score",   ColumnConstraint::Between { min: 0.0.into(), max: 100.0.into() }),
+];
+let table_rules = vec![
+    TableRule::new(TableConstraint::RowsCountBetween { min: 1000, max: 2_000_000 }),
+    TableRule::new(TableConstraint::ColumnsExist(vec!["user_id".into(), "score".into()])),
+];
+
+let cfg = ValidationConfig::default();
+let report = validate_table(&dataset, &table_rules, cfg)
+    .merge(validate_columns(&dataset, &col_rules, cfg));
+
+println!("passed: {} ({}/{})", report.passed, report.passed_count, report.total_rules);
+for r in &report.results {
+    if !r.passed {
+        println!("FAIL: {} — {}", r.column.as_deref().unwrap_or("table"), r.constraint);
+    }
+}
+```
+
+---
+
 ## Development
 
 ```bash
 cargo build --all-features
 cargo test --all-features
 cargo test -p verdict-cli
+
+# Python extension
+cd crates/verdict-py
+maturin develop
+python3 -m pytest tests/
 ```
 
 ---
