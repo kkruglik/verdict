@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/kkruglik/verdict/compare/verdict-core-v0.2.1...verdict-core-v0.3.0) - 2026-04-30
+
+### Fixed
+
+- fix bench for ValidationConfig and Field::new arity
+- fix ColumnRule::new to accept impl Into<String>
+
+### Other
+
+- applied formatting
+- add table constraint tests including merge and edge cases
+- make column and failed_count optional in ValidationResult
+- add TableConstraint enum TableRule and TableRuleBuilder
+- re-export validate_columns and validate_table from rules
+- add table constraint check functions
+- extract column validation logic into column_checks module
+- rename Constraint to ColumnConstraint and Rule to ColumnRule
+- update bench for ValidationConfig rename
+- rename ValidateConfig to ValidationConfig in tests
+- rename ValidatingConfig to ValidationConfig
+- re-export ValidationConfig and validate from rules mod
+- update tests for dataframe rename
+- update bench for dataframe rename
+- update csv_loader for dataframe rename
+- update rules mod for new structure
+- add rules validation module
+- add rules table module
+- add rules column module
+- update lib to reference dataframe module
+- rename dataset module to dataframe
+- update bench for ColumnConstraint and ColumnRule rename
+- update tests for ColumnConstraint and ColumnRule rename
+- rename Constraint to ColumnConstraint and Rule to ColumnRule
+
 ## [0.2.1](https://github.com/kkruglik/verdict/compare/verdict-core-v0.2.0...verdict-core-v0.2.1) - 2026-03-22
 
 ### Fixed

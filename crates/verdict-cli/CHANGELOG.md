@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.6...verdict-cli-v0.1.7) - 2026-04-30
+
+### Fixed
+
+- fix approx_constant lint in CLI tests
+- fix cli import and rename local ValidationConfig to SchemaConfig
+
+### Other
+
+- add table constraint parsing and validation to CLI
+- add cli tests
+- update cli for dataframe rename
+- update cli for ColumnConstraint and ColumnRule rename
+
 ## [0.1.6](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.5...verdict-cli-v0.1.6) - 2026-03-22
 
 ### Other
