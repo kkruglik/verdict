@@ -186,16 +186,18 @@
 
 ---
 
-## Phase 8: Table-level Constraints
+## Phase 8: Table-level Constraints ✅
 
 **Goal:** validate the dataset itself, not just individual columns. Very common first check in GE/Soda.
 
-- [ ] `TableConstraint` enum separate from column `Constraint`
-- [ ] `RowCountBetween { min: usize, max: usize }` — dataset has expected number of rows
-- [ ] `ColumnCountEquals(usize)` — dataset has expected number of columns
-- [ ] `ColumnsExist(Vec<String>)` — named columns are present
-- [ ] Wire into `validate()` or a separate `validate_table()` function
-- [ ] Expose in Python and CLI schema format
+- [x] `TableConstraint` enum separate from `ColumnConstraint` (12 variants)
+- [x] Row count constraints: `RowsCountBetween`, `RowsCountGreaterOrEqual`, `RowCountGreaterThan`, `RowsCountLessOrEqual`, `RowCountLessThan`
+- [x] Column count constraints: `ColumnsCountBetween`, `ColumnsCountGreaterOrEqual`, `ColumnsCountGreaterThan`, `ColumnsCountLessOrEqual`, `ColumnsCountLessThan`
+- [x] `ColumnsExist(Vec<String>)` — named columns are present
+- [x] `ShapeEquals { rows, columns }` — exact shape match
+- [x] `validate_table()` as a separate function; `ValidationReport::merge()` to combine with column report
+- [x] `ValidationResult.column` and `failed_count` made `Option` to share one type across column and table results
+- [x] Exposed in Python (`py_validate_table`, `TableConstraint`, `TableRule`) and CLI schema (`table` block)
 
 ---
 

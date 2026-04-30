@@ -3,22 +3,22 @@ pub mod ops;
 pub mod schema;
 
 pub use column::{
-    BoolColumn, Column, DateColumn, DateTimeColumn, FloatColumn, InSetValues, IntColumn, Keep,
-    StrColumn,
+    BoolColumn, Column, DateColumn, DateTimeColumn, FloatColumn, IntColumn, KeepStrategy,
+    StringColumn, ValuesSet,
 };
 pub use ops::{
     NumericOps, i32_to_naive_date, i64_to_naive_datetime, naive_date_to_i32, naive_datetime_to_i64,
 };
 pub use schema::{DataType, Field, Schema};
 
-pub struct Dataset {
+pub struct DataFrame {
     pub headers: Vec<String>,
     pub columns: Vec<Column>,
 }
 
-impl Dataset {
+impl DataFrame {
     pub fn new(headers: Vec<String>, columns: Vec<Column>) -> Self {
-        Dataset { headers, columns }
+        DataFrame { headers, columns }
     }
 
     pub fn get_column_by_name(&self, name: &str) -> Option<&Column> {

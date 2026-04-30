@@ -3,7 +3,7 @@ use crate::dataframe::{
     column::{DateColumn, DateTimeColumn},
 };
 
-use super::{BoolColumn, FloatColumn, IntColumn, StrColumn};
+use super::{BoolColumn, FloatColumn, IntColumn, StringColumn};
 use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use regex::Regex;
 
@@ -988,7 +988,7 @@ impl ComparableOps<&FloatColumn> for FloatColumn {
     }
 }
 
-impl ComparableOps<&str> for StrColumn {
+impl ComparableOps<&str> for StringColumn {
     fn gt(&self, compare: &str) -> Vec<Option<bool>> {
         self.0
             .iter()
@@ -1035,8 +1035,8 @@ impl ComparableOps<&str> for StrColumn {
     }
 }
 
-impl ComparableOps<&StrColumn> for StrColumn {
-    fn gt(&self, compare: &StrColumn) -> Vec<Option<bool>> {
+impl ComparableOps<&StringColumn> for StringColumn {
+    fn gt(&self, compare: &StringColumn) -> Vec<Option<bool>> {
         self.0
             .iter()
             .zip(compare.0.iter())
@@ -1047,7 +1047,7 @@ impl ComparableOps<&StrColumn> for StrColumn {
             .collect()
     }
 
-    fn ge(&self, compare: &StrColumn) -> Vec<Option<bool>> {
+    fn ge(&self, compare: &StringColumn) -> Vec<Option<bool>> {
         self.0
             .iter()
             .zip(compare.0.iter())
@@ -1058,7 +1058,7 @@ impl ComparableOps<&StrColumn> for StrColumn {
             .collect()
     }
 
-    fn lt(&self, compare: &StrColumn) -> Vec<Option<bool>> {
+    fn lt(&self, compare: &StringColumn) -> Vec<Option<bool>> {
         self.0
             .iter()
             .zip(compare.0.iter())
@@ -1069,7 +1069,7 @@ impl ComparableOps<&StrColumn> for StrColumn {
             .collect()
     }
 
-    fn le(&self, compare: &StrColumn) -> Vec<Option<bool>> {
+    fn le(&self, compare: &StringColumn) -> Vec<Option<bool>> {
         self.0
             .iter()
             .zip(compare.0.iter())
@@ -1080,7 +1080,7 @@ impl ComparableOps<&StrColumn> for StrColumn {
             .collect()
     }
 
-    fn equal(&self, compare: &StrColumn) -> Vec<Option<bool>> {
+    fn equal(&self, compare: &StringColumn) -> Vec<Option<bool>> {
         self.0
             .iter()
             .zip(compare.0.iter())
@@ -1091,7 +1091,7 @@ impl ComparableOps<&StrColumn> for StrColumn {
             .collect()
     }
 
-    fn between(&self, lower: &StrColumn, upper: &StrColumn) -> Vec<Option<bool>> {
+    fn between(&self, lower: &StringColumn, upper: &StringColumn) -> Vec<Option<bool>> {
         self.0
             .iter()
             .zip(lower.0.iter())
@@ -1210,7 +1210,7 @@ impl StringOps for Column {
     }
 }
 
-impl StringOps for StrColumn {
+impl StringOps for StringColumn {
     fn contains(&self, pat: &str) -> Vec<Option<bool>> {
         self.0
             .iter()

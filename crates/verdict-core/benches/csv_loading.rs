@@ -2,38 +2,38 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use std::path::Path;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
-    dataset::{DataType, Dataset, Field, Schema},
-    rules::{Constraint, Operand, Rule, ValidateConfig, validate},
+    dataframe::{DataFrame, DataType, Field, Schema},
+    rules::{ColumnConstraint, ColumnRule, Operand, ValidationConfig, validate_columns},
 };
 
 fn make_schema() -> Schema {
     Schema::new(vec![
-        Field::new("user_id", DataType::Int),
-        Field::new("score", DataType::Float),
-        Field::new("score_with_nulls", DataType::Float),
-        Field::new("age", DataType::Int),
-        Field::new("age_with_nulls", DataType::Int),
-        Field::new("is_active", DataType::Bool),
-        Field::new("is_active_with_nulls", DataType::Bool),
-        Field::new("country", DataType::Str),
-        Field::new("country_with_nulls", DataType::Str),
+        Field::new("user_id", DataType::Int, None),
+        Field::new("score", DataType::Float, None),
+        Field::new("score_with_nulls", DataType::Float, None),
+        Field::new("age", DataType::Int, None),
+        Field::new("age_with_nulls", DataType::Int, None),
+        Field::new("is_active", DataType::Bool, None),
+        Field::new("is_active_with_nulls", DataType::Bool, None),
+        Field::new("country", DataType::String, None),
+        Field::new("country_with_nulls", DataType::String, None),
     ])
 }
 
-fn make_rules() -> Vec<Rule> {
+fn make_rules() -> Vec<ColumnRule> {
     vec![
-        Rule::new("user_id", Constraint::NotNull),
-        Rule::new("user_id", Constraint::Unique),
-        Rule::new(
+        ColumnRule::new("user_id", ColumnConstraint::NotNull),
+        ColumnRule::new("user_id", ColumnConstraint::Unique),
+        ColumnRule::new(
             "score",
-            Constraint::Between {
+            ColumnConstraint::Between {
                 min: Operand::Num(0.0),
                 max: Operand::Num(100.0),
             },
         ),
-        Rule::new("age", Constraint::GreaterThan(Operand::Num(0.0))),
-        Rule::new("age", Constraint::LessThan(Operand::Num(120.0))),
-        Rule::new("country", Constraint::NotNull),
+        ColumnRule::new("age", ColumnConstraint::GreaterThan(Operand::Num(0.0))),
+        ColumnRule::new("age", ColumnConstraint::LessThan(Operand::Num(120.0))),
+        ColumnRule::new("country", ColumnConstraint::NotNull),
     ]
 }
 
@@ -43,15 +43,17 @@ fn bench_csv_loading(c: &mut Criterion) {
     let mut group = c.benchmark_group("csv_loading");
 
     group.bench_function("10k rows", |b| {
-        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_10k.csv"), &schema).unwrap())
+        b.iter(|| DataFrame::from_csv(Path::new("../../fixtures/sample_10k.csv"), &schema).unwrap())
     });
 
     group.bench_function("100k rows", |b| {
-        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap())
+        b.iter(|| {
+            DataFrame::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap()
+        })
     });
 
     group.bench_function("1m rows", |b| {
-        b.iter(|| Dataset::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap())
+        b.iter(|| DataFrame::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap())
     });
 
     group.finish();
@@ -60,20 +62,21 @@ fn bench_csv_loading(c: &mut Criterion) {
 fn bench_validation(c: &mut Criterion) {
     let schema = make_schema();
     let rules = make_rules();
-    let config = ValidateConfig::default();
+    let config = ValidationConfig::default();
 
     let dataset_100k =
-        Dataset::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap();
-    let dataset_1m = Dataset::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap();
+        DataFrame::from_csv(Path::new("../../fixtures/sample_100k.csv"), &schema).unwrap();
+    let dataset_1m =
+        DataFrame::from_csv(Path::new("../../fixtures/sample_1m.csv"), &schema).unwrap();
 
     let mut group = c.benchmark_group("validation");
 
     group.bench_function("100k rows", |b| {
         b.iter(|| {
-            validate(
+            validate_columns(
                 &dataset_100k,
                 &rules,
-                ValidateConfig {
+                ValidationConfig {
                     max_failed_samples: config.max_failed_samples,
                 },
             )
@@ -82,10 +85,10 @@ fn bench_validation(c: &mut Criterion) {
 
     group.bench_function("1m rows", |b| {
         b.iter(|| {
-            validate(
+            validate_columns(
                 &dataset_1m,
                 &rules,
-                ValidateConfig {
+                ValidationConfig {
                     max_failed_samples: config.max_failed_samples,
                 },
             )

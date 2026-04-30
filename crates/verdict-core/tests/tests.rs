@@ -1,16 +1,18 @@
 #[cfg(test)]
 mod tests {
     use verdict_core::{
-        dataset::{
-            BoolColumn, Column, Dataset, DateColumn, DateTimeColumn, FloatColumn, InSetValues,
-            IntColumn, StrColumn,
+        dataframe::{
+            BoolColumn, Column, DataFrame, DateColumn, DateTimeColumn, FloatColumn, IntColumn,
+            StringColumn, ValuesSet,
             ops::{ComparableOps, StringOps},
         },
-        rules::{Constraint, Operand, Rule, ValidateConfig, col, rule, validate},
+        rules::column::{col, col_rule},
+        rules::column_checks::validate_columns,
+        rules::{ColumnConstraint, ColumnRule, Operand, ValidationConfig},
     };
 
-    fn make_all_types_dataset() -> Dataset {
-        Dataset::new(
+    fn make_all_types_dataset() -> DataFrame {
+        DataFrame::new(
             vec![
                 "id".to_string(),
                 "name".to_string(),
@@ -23,7 +25,7 @@ mod tests {
             ],
             vec![
                 Column::Int(IntColumn(vec![Some(1), Some(2), Some(3), Some(4), Some(5)])),
-                Column::Str(StrColumn(vec![
+                Column::Str(StringColumn(vec![
                     Some("alice".to_string()),
                     Some("bob".to_string()),
                     Some("charlie".to_string()),
@@ -78,8 +80,8 @@ mod tests {
         )
     }
 
-    fn make_compare_dataset() -> Dataset {
-        Dataset::new(
+    fn make_compare_dataset() -> DataFrame {
+        DataFrame::new(
             vec![
                 "id".to_string(),
                 "x".to_string(),
@@ -114,8 +116,8 @@ mod tests {
     }
 
     // a: nulls at rows 1,4 — b: null at row 2 — c: same values as a — high: all 100.0
-    fn make_compare_nulls_dataset() -> Dataset {
-        Dataset::new(
+    fn make_compare_nulls_dataset() -> DataFrame {
+        DataFrame::new(
             vec![
                 "a".to_string(),
                 "b".to_string(),
@@ -155,8 +157,8 @@ mod tests {
         )
     }
 
-    fn make_with_nulls_dataset() -> Dataset {
-        Dataset::new(
+    fn make_with_nulls_dataset() -> DataFrame {
+        DataFrame::new(
             vec![
                 "id".to_string(),
                 "name".to_string(),
@@ -165,7 +167,7 @@ mod tests {
             ],
             vec![
                 Column::Int(IntColumn(vec![None, Some(2), None, Some(4), None])),
-                Column::Str(StrColumn(vec![
+                Column::Str(StringColumn(vec![
                     None,
                     Some("bob".to_string()),
                     Some("charlie".to_string()),
@@ -336,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_string_ops_all_null() {
-        let col = Column::Str(StrColumn(vec![None, None]));
+        let col = Column::Str(StringColumn(vec![None, None]));
         assert_eq!(col.contains("a"), vec![None, None]);
         assert_eq!(col.starts_with("a"), vec![None, None]);
         assert_eq!(col.ends_with("a"), vec![None, None]);
@@ -500,15 +502,15 @@ mod tests {
         let dataset = make_all_types_dataset();
         let null_dataset = make_with_nulls_dataset();
 
-        let passed_result = validate(
+        let passed_result = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::NotNull)],
-            ValidateConfig::default(),
+            &[ColumnRule::new("id", ColumnConstraint::NotNull)],
+            ValidationConfig::default(),
         );
-        let failed_result = validate(
+        let failed_result = validate_columns(
             &null_dataset,
-            &[Rule::new("id", Constraint::NotNull)],
-            ValidateConfig::default(),
+            &[ColumnRule::new("id", ColumnConstraint::NotNull)],
+            ValidationConfig::default(),
         );
 
         assert!(passed_result.results[0].passed);
@@ -518,17 +520,17 @@ mod tests {
     #[test]
     fn test_validate_unique() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::Unique)],
-            ValidateConfig::default(),
+            &[ColumnRule::new("id", ColumnConstraint::Unique)],
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("active", Constraint::Unique)],
-            ValidateConfig::default(),
+            &[ColumnRule::new("active", ColumnConstraint::Unique)],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
     }
@@ -536,17 +538,22 @@ mod tests {
     #[test]
     fn test_validate_comparing_columns() {
         let dataset = make_compare_dataset();
-        let id_rules = rule("id").gt(0.0).unique().build();
-        let x_rules = rule("x").lt(col("y")).lt(100.0).unique().gt(0.0).build();
+        let id_rules = col_rule("id").gt(0.0).unique().build();
+        let x_rules = col_rule("x")
+            .lt(col("y"))
+            .lt(100.0)
+            .unique()
+            .gt(0.0)
+            .build();
         assert_eq!(id_rules.len(), 2);
         assert_eq!(x_rules.len(), 4);
 
-        let report = validate(&dataset, &id_rules, ValidateConfig::default());
+        let report = validate_columns(&dataset, &id_rules, ValidationConfig::default());
         for result in &report.results {
             assert!(result.passed)
         }
 
-        let report = validate(&dataset, &x_rules, ValidateConfig::default());
+        let report = validate_columns(&dataset, &x_rules, ValidationConfig::default());
         for result in &report.results {
             assert!(result.passed)
         }
@@ -557,13 +564,13 @@ mod tests {
     fn test_col_pair_gt_passes() {
         let ds = make_compare_dataset();
         // y=[6,7,8,9,10] > x=[1,2,3,4,5] — always true
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("y").gt(col("x")).build(),
-            ValidateConfig::default(),
+            &col_rule("y").gt(col("x")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
@@ -571,13 +578,13 @@ mod tests {
         let ds = make_compare_dataset();
         // x=[1,2,3,4,5] > z=[28,1,0.5,4,0.9]
         // row 0: 1>28 false, row 3: 4>4 false → 2 failures
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").gt(col("z")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").gt(col("z")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 2);
+        assert_eq!(results.results[0].failed_count, Some(2));
     }
 
     // ── col-pair: ge ─────────────────────────────────────────────────────────
@@ -586,13 +593,13 @@ mod tests {
     fn test_col_pair_ge_passes() {
         let ds = make_compare_dataset();
         // y >= x always
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("y").ge(col("x")).build(),
-            ValidateConfig::default(),
+            &col_rule("y").ge(col("x")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
@@ -600,13 +607,13 @@ mod tests {
         let ds = make_compare_dataset();
         // x=[1,2,3,4,5] >= z=[28,1,0.5,4,0.9]
         // row 3: 4>=4 true; row 0: 1>=28 false → 1 failure
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").ge(col("z")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").ge(col("z")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 1);
+        assert_eq!(results.results[0].failed_count, Some(1));
     }
 
     // ── col-pair: lt ─────────────────────────────────────────────────────────
@@ -615,13 +622,13 @@ mod tests {
     fn test_col_pair_lt_passes() {
         let ds = make_compare_dataset();
         // x < y always
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").lt(col("y")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").lt(col("y")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
@@ -629,13 +636,13 @@ mod tests {
         let ds = make_compare_dataset();
         // z=[28,1,0.5,4,0.9] < x=[1,2,3,4,5]
         // row 0: 28<1 false, row 3: 4<4 false → 2 failures
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("z").lt(col("x")).build(),
-            ValidateConfig::default(),
+            &col_rule("z").lt(col("x")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 2);
+        assert_eq!(results.results[0].failed_count, Some(2));
     }
 
     // ── col-pair: le ─────────────────────────────────────────────────────────
@@ -644,13 +651,13 @@ mod tests {
     fn test_col_pair_le_passes() {
         let ds = make_compare_dataset();
         // x <= y always
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").le(col("y")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").le(col("y")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
@@ -658,13 +665,13 @@ mod tests {
         let ds = make_compare_dataset();
         // x=[1,2,3,4,5] <= z=[28,1,0.5,4,0.9]
         // row 1: 2<=1 false, row 2: 3<=0.5 false, row 4: 5<=0.9 false → 3 failures
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").le(col("z")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").le(col("z")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 3);
+        assert_eq!(results.results[0].failed_count, Some(3));
     }
 
     // ── col-pair: equal ───────────────────────────────────────────────────────
@@ -673,26 +680,26 @@ mod tests {
     fn test_col_pair_equal_same_column() {
         let ds = make_compare_dataset();
         // x == x: every value equals itself
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").equal(col("x")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").equal(col("x")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_equal_fails() {
         let ds = make_compare_dataset();
         // x=[1,2,3,4,5] != y=[6,7,8,9,10] for every row → 5 failures
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").equal(col("y")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").equal(col("y")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 5);
+        assert_eq!(results.results[0].failed_count, Some(5));
     }
 
     // ── col-pair: between ─────────────────────────────────────────────────────
@@ -703,13 +710,13 @@ mod tests {
     fn test_col_pair_between_literal_col_passes() {
         let ds = make_compare_dataset();
         // 0.0 <= x <= y: x=[1..5], y=[6..10] — all pass
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").between(0.0, col("y")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").between(0.0, col("y")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     // TODO: mixed Num+Column operands in Between hit MismatchedTypes in check_between — not yet supported
@@ -718,13 +725,13 @@ mod tests {
     fn test_col_pair_between_col_literal_passes() {
         let ds = make_compare_dataset();
         // x <= y <= 100.0: y=[6..10], x=[1..5] — all pass
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("y").between(col("x"), 100.0).build(),
-            ValidateConfig::default(),
+            &col_rule("y").between(col("x"), 100.0).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
@@ -732,13 +739,13 @@ mod tests {
         let ds = make_compare_dataset();
         // z=[28,1,0.5,4,0.9] between x=[1,2,3,4,5] and y=[6,7,8,9,10]
         // row 0: 1<=28<=6 false (28>6), row 1: 2<=1 false, row 2: 3<=0.5 false, row 4: 5<=0.9 false → 4 failures
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("z").between(col("x"), col("y")).build(),
-            ValidateConfig::default(),
+            &col_rule("z").between(col("x"), col("y")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 4);
+        assert_eq!(results.results[0].failed_count, Some(4));
     }
 
     // ── col-pair: nulls ───────────────────────────────────────────────────────
@@ -747,39 +754,39 @@ mod tests {
     fn test_col_pair_null_counts_as_failure() {
         let ds = make_compare_nulls_dataset();
         // a < b: rows 0,3 pass; rows 1,2,4 have at least one null → None → skipped
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").lt(col("b")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").lt(col("b")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_one_sided_null_is_failure() {
         let ds = make_compare_nulls_dataset();
         // a < high: high has no nulls; a is null at rows 1,4 → None → skipped
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").lt(col("high")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").lt(col("high")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_both_null_is_failure() {
         let ds = make_compare_nulls_dataset();
         // a == c: same values/nulls; rows 1,4 both null → None → skipped
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").equal(col("c")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").equal(col("c")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     // TODO: mixed Num+Column operands in Between hit MismatchedTypes in check_between — not yet supported
@@ -788,13 +795,13 @@ mod tests {
     fn test_col_pair_between_with_nulls() {
         let ds = make_compare_nulls_dataset();
         // 0.0 <= a <= high: a null at rows 1,4 → None → failure
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").between(0.0, col("high")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").between(0.0, col("high")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 2);
+        assert_eq!(results.results[0].failed_count, Some(2));
     }
 
     // ── col-pair: edge cases ──────────────────────────────────────────────────
@@ -803,15 +810,15 @@ mod tests {
 
     #[test]
     fn test_col_pair_str_equal_passes() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StrColumn(vec![
+                Column::Str(StringColumn(vec![
                     Some("foo".into()),
                     Some("bar".into()),
                     None,
                 ])),
-                Column::Str(StrColumn(vec![
+                Column::Str(StringColumn(vec![
                     Some("foo".into()),
                     Some("bar".into()),
                     None,
@@ -819,58 +826,61 @@ mod tests {
             ],
         );
         // same values: rows 0,1 pass; row 2 both null → None → skipped
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").equal(col("b")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").equal(col("b")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_str_lt_passes() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StrColumn(vec![Some("apple".into()), Some("cat".into())])),
-                Column::Str(StrColumn(vec![Some("banana".into()), Some("dog".into())])),
+                Column::Str(StringColumn(vec![Some("apple".into()), Some("cat".into())])),
+                Column::Str(StringColumn(vec![
+                    Some("banana".into()),
+                    Some("dog".into()),
+                ])),
             ],
         );
         // "apple" < "banana", "cat" < "dog" lexicographically
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").lt(col("b")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").lt(col("b")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_str_lt_fails() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StrColumn(vec![Some("zoo".into()), Some("cat".into())])),
-                Column::Str(StrColumn(vec![Some("apple".into()), Some("dog".into())])),
+                Column::Str(StringColumn(vec![Some("zoo".into()), Some("cat".into())])),
+                Column::Str(StringColumn(vec![Some("apple".into()), Some("dog".into())])),
             ],
         );
         // "zoo" < "apple" false → 1 failure
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").lt(col("b")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").lt(col("b")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 1);
+        assert_eq!(results.results[0].failed_count, Some(1));
     }
 
     // ── col-pair: bool ────────────────────────────────────────────────────────
 
     #[test]
     fn test_col_pair_bool_equal_passes() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
                 Column::Bool(BoolColumn(vec![Some(true), Some(false), None])),
@@ -878,18 +888,18 @@ mod tests {
             ],
         );
         // rows 0,1 match; row 2 both null → None → skipped
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").equal(col("b")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").equal(col("b")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_bool_gt_false_lt_true() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
                 Column::Bool(BoolColumn(vec![Some(true), Some(false)])),
@@ -897,13 +907,13 @@ mod tests {
             ],
         );
         // a > b: true>false passes, false>true fails → 1 failure
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").gt(col("b")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").gt(col("b")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 1);
+        assert_eq!(results.results[0].failed_count, Some(1));
     }
 
     // ── col-pair: edge cases ──────────────────────────────────────────────────
@@ -912,18 +922,18 @@ mod tests {
     fn test_col_pair_type_mismatch_all_fail() {
         let ds = make_compare_dataset();
         // id (Int) vs x (Float) → ComparableOps<&Column> returns all None → all skipped
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("id").gt(col("x")).build(),
-            ValidateConfig::default(),
+            &col_rule("id").gt(col("x")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_all_null_left_all_fail() {
-        let ds = Dataset::new(
+        let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
                 Column::Float(FloatColumn(vec![None, None, None])),
@@ -931,35 +941,35 @@ mod tests {
             ],
         );
         // all left values are None → all None → all skipped
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("a").lt(col("b")).build(),
-            ValidateConfig::default(),
+            &col_rule("a").lt(col("b")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_between_type_mismatch_all_fail() {
         let ds = make_compare_dataset();
         // id (Int) between x (Float) and y (Float) → type mismatch in between_cols → all None → all skipped
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("id").between(col("x"), col("y")).build(),
-            ValidateConfig::default(),
+            &col_rule("id").between(col("x"), col("y")).build(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_col_pair_missing_column_error() {
         let ds = make_compare_dataset();
-        let results = validate(
+        let results = validate_columns(
             &ds,
-            &rule("x").gt(col("nonexistent")).build(),
-            ValidateConfig::default(),
+            &col_rule("x").gt(col("nonexistent")).build(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert!(results.results[0].error.is_some());
@@ -969,230 +979,269 @@ mod tests {
     fn test_validate_greater_than() {
         let dataset = make_all_types_dataset();
         // all ids are 1-5, so all > 0
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(Operand::Num(0.0)))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(Operand::Num(0.0)),
+            )],
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
 
         // not all ids > 3
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(Operand::Num(3.0)))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(Operand::Num(3.0)),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 3);
+        assert_eq!(results.results[0].failed_count, Some(3));
     }
 
     #[test]
     fn test_validate_greater_than_or_equal() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThanOrEqual(1.0.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThanOrEqual(1.0.into()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThanOrEqual(3.0.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThanOrEqual(3.0.into()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 2);
+        assert_eq!(results.results[0].failed_count, Some(2));
     }
 
     #[test]
     fn test_validate_less_than() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::LessThan(6.0.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::LessThan(6.0.into()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::LessThan(3.0.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::LessThan(3.0.into()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 3);
+        assert_eq!(results.results[0].failed_count, Some(3));
     }
 
     #[test]
     fn test_validate_less_than_or_equal() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::LessThanOrEqual(5.0.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::LessThanOrEqual(5.0.into()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::LessThanOrEqual(3.0.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::LessThanOrEqual(3.0.into()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 2);
+        assert_eq!(results.results[0].failed_count, Some(2));
     }
 
     #[test]
     fn test_validate_equal() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("score", Constraint::Equal(95.5.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "score",
+                ColumnConstraint::Equal(95.5.into()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 4);
+        assert_eq!(results.results[0].failed_count, Some(4));
     }
 
     #[test]
     fn test_validate_between() {
         let dataset = make_all_types_dataset();
         // all scores are 78.9-100.0
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "score",
-                Constraint::Between {
+                ColumnConstraint::Between {
                     min: 70.0.into(),
                     max: 110.0.into(),
                 },
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "score",
-                Constraint::Between {
+                ColumnConstraint::Between {
                     min: 90.0.into(),
                     max: 100.0.into(),
                 },
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 2); // bob=87.3, diana=78.9
+        assert_eq!(results.results[0].failed_count, Some(2)); // bob=87.3, diana=78.9
     }
 
     #[test]
     fn test_validate_matches_regex() {
         let dataset = make_all_types_dataset();
         // all names are lowercase alpha
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::MatchesRegex(r"^[a-z]+$".to_string()),
+                ColumnConstraint::MatchesRegex(r"^[a-z]+$".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::MatchesRegex(r"^a".to_string()),
+                ColumnConstraint::MatchesRegex(r"^a".to_string()),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 4);
+        assert_eq!(results.results[0].failed_count, Some(4));
     }
 
     #[test]
     fn test_validate_contains() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("name", Constraint::Contains("li".to_string()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::Contains("li".to_string()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 3);
+        assert_eq!(results.results[0].failed_count, Some(3));
 
         // alice and charlie contain "li" — pass case with 2 matches
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("name", Constraint::Contains("b".to_string()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::Contains("b".to_string()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 4); // only bob contains "b"
+        assert_eq!(results.results[0].failed_count, Some(4)); // only bob contains "b"
     }
 
     #[test]
     fn test_validate_starts_with() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("name", Constraint::StartsWith("a".to_string()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::StartsWith("a".to_string()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 4);
+        assert_eq!(results.results[0].failed_count, Some(4));
     }
 
     #[test]
     fn test_validate_ends_with() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("name", Constraint::EndsWith("e".to_string()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::EndsWith("e".to_string()),
+            )],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 2); // bob, diana don't end with "e"
+        assert_eq!(results.results[0].failed_count, Some(2)); // bob, diana don't end with "e"
     }
 
     #[test]
     fn test_validate_length_between() {
         let dataset = make_all_types_dataset();
         // names: alice(5), bob(3), charlie(7), diana(5), eve(3)
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::LengthBetween { min: 3, max: 7 },
+                ColumnConstraint::LengthBetween { min: 3, max: 7 },
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::LengthBetween { min: 4, max: 6 },
+                ColumnConstraint::LengthBetween { min: 4, max: 6 },
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 3); // bob(3), charlie(7), eve(3)
+        assert_eq!(results.results[0].failed_count, Some(3)); // bob(3), charlie(7), eve(3)
     }
 
     #[test]
     fn test_validate_in_set() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::InSet(InSetValues::StrSet(vec![
+                ColumnConstraint::InSet(ValuesSet::StrSet(vec![
                     "alice".to_string(),
                     "bob".to_string(),
                     "charlie".to_string(),
@@ -1200,32 +1249,32 @@ mod tests {
                     "eve".to_string(),
                 ])),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(results.results[0].passed);
 
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new(
+            &[ColumnRule::new(
                 "name",
-                Constraint::InSet(InSetValues::StrSet(vec![
+                ColumnConstraint::InSet(ValuesSet::StrSet(vec![
                     "alice".to_string(),
                     "bob".to_string(),
                 ])),
             )],
-            ValidateConfig::default(),
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 3);
+        assert_eq!(results.results[0].failed_count, Some(3));
     }
 
     #[test]
     fn test_validate_column_not_found() {
         let dataset = make_all_types_dataset();
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("nonexistent", Constraint::NotNull)],
-            ValidateConfig::default(),
+            &[ColumnRule::new("nonexistent", ColumnConstraint::NotNull)],
+            ValidationConfig::default(),
         );
         assert!(!results.results[0].passed);
         assert!(results.results[0].error.is_some());
@@ -1235,32 +1284,35 @@ mod tests {
     fn test_validate_with_nulls() {
         let dataset = make_with_nulls_dataset();
         // id column has nulls in rows 0, 2, 4
-        let results = validate(
+        let results = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(0.0.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(0.0.into()),
+            )],
+            ValidationConfig::default(),
         );
         // nulls are skipped; non-null values (2, 4) are both > 0 → passes
         assert!(results.results[0].passed);
-        assert_eq!(results.results[0].failed_count, 0);
+        assert_eq!(results.results[0].failed_count, Some(0));
     }
 
     #[test]
     fn test_validate_multiple_rules() {
         let dataset = make_all_types_dataset();
         let rules = vec![
-            Rule::new("id", Constraint::NotNull),
-            Rule::new("id", Constraint::GreaterThan(0.0.into())),
-            Rule::new("name", Constraint::NotNull),
-            Rule::new(
+            ColumnRule::new("id", ColumnConstraint::NotNull),
+            ColumnRule::new("id", ColumnConstraint::GreaterThan(0.0.into())),
+            ColumnRule::new("name", ColumnConstraint::NotNull),
+            ColumnRule::new(
                 "score",
-                Constraint::Between {
+                ColumnConstraint::Between {
                     min: 0.0.into(),
                     max: 100.0.into(),
                 },
             ),
         ];
-        let results = validate(&dataset, &rules, ValidateConfig::default());
+        let results = validate_columns(&dataset, &rules, ValidationConfig::default());
         assert_eq!(results.results.len(), 4);
         assert!(results.results[0].passed);
         assert!(results.results[1].passed);
@@ -1274,10 +1326,10 @@ mod tests {
     fn test_report_fields_all_pass() {
         let dataset = make_all_types_dataset();
         let rules = vec![
-            Rule::new("id", Constraint::NotNull),
-            Rule::new("name", Constraint::NotNull),
+            ColumnRule::new("id", ColumnConstraint::NotNull),
+            ColumnRule::new("name", ColumnConstraint::NotNull),
         ];
-        let report = validate(&dataset, &rules, ValidateConfig::default());
+        let report = validate_columns(&dataset, &rules, ValidationConfig::default());
         assert!(report.passed);
         assert_eq!(report.total_rules, 2);
         assert_eq!(report.passed_count, 2);
@@ -1289,10 +1341,10 @@ mod tests {
         let dataset = make_all_types_dataset();
         // id passes not_null, score fails equal(0.0)
         let rules = vec![
-            Rule::new("id", Constraint::NotNull),
-            Rule::new("score", Constraint::Equal(0.0.into())),
+            ColumnRule::new("id", ColumnConstraint::NotNull),
+            ColumnRule::new("score", ColumnConstraint::Equal(0.0.into())),
         ];
-        let report = validate(&dataset, &rules, ValidateConfig::default());
+        let report = validate_columns(&dataset, &rules, ValidationConfig::default());
         assert!(!report.passed);
         assert_eq!(report.total_rules, 2);
         assert_eq!(report.passed_count, 1);
@@ -1305,14 +1357,17 @@ mod tests {
     fn test_failed_values_indices_and_strings() {
         let dataset = make_all_types_dataset();
         // id = [1,2,3,4,5]; gt(3) fails rows 0,1,2 (values 1,2,3)
-        let report = validate(
+        let report = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(3.0.into()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(3.0.into()),
+            )],
+            ValidationConfig::default(),
         );
         let result = &report.results[0];
         assert!(!result.passed);
-        assert_eq!(result.failed_count, 3);
+        assert_eq!(result.failed_count, Some(3));
         let fv = result.failed_values.as_ref().unwrap();
         assert_eq!(fv.len(), 3);
         assert_eq!(fv[0], (0, "1".to_string()));
@@ -1324,10 +1379,10 @@ mod tests {
     fn test_failed_values_not_null() {
         let dataset = make_with_nulls_dataset();
         // id = [None, 2, None, 4, None]; not_null fails rows 0,2,4
-        let report = validate(
+        let report = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::NotNull)],
-            ValidateConfig::default(),
+            &[ColumnRule::new("id", ColumnConstraint::NotNull)],
+            ValidationConfig::default(),
         );
         let fv = report.results[0].failed_values.as_ref().unwrap();
         assert_eq!(fv.len(), 3);
@@ -1340,10 +1395,13 @@ mod tests {
     fn test_failed_values_string_column() {
         let dataset = make_all_types_dataset();
         // name = ["alice","bob","charlie","diana","eve"]; starts_with("a") fails 4 rows
-        let report = validate(
+        let report = validate_columns(
             &dataset,
-            &[Rule::new("name", Constraint::StartsWith("a".to_string()))],
-            ValidateConfig::default(),
+            &[ColumnRule::new(
+                "name",
+                ColumnConstraint::StartsWith("a".to_string()),
+            )],
+            ValidationConfig::default(),
         );
         let fv = report.results[0].failed_values.as_ref().unwrap();
         assert_eq!(fv.len(), 4);
@@ -1354,32 +1412,32 @@ mod tests {
     #[test]
     fn test_failed_values_none_on_pass() {
         let dataset = make_all_types_dataset();
-        let report = validate(
+        let report = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::NotNull)],
-            ValidateConfig::default(),
+            &[ColumnRule::new("id", ColumnConstraint::NotNull)],
+            ValidationConfig::default(),
         );
         assert!(report.results[0].passed);
         assert!(report.results[0].failed_values.is_none());
     }
 
-    // ── ValidateConfig max_failed_samples ─────────────────────────────────────
+    // ── ValidationConfig max_failed_samples ─────────────────────────────────────
 
     #[test]
     fn test_max_failed_samples_cap() {
         let dataset = make_all_types_dataset();
         // id = [1,2,3,4,5]; gt(0) fails none; use gt(-1) so all pass — instead use equal(0) to fail all 5
         // equal(0.0) fails all 5 rows; cap at 2
-        let report = validate(
+        let report = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::Equal(0.0.into()))],
-            ValidateConfig {
+            &[ColumnRule::new("id", ColumnConstraint::Equal(0.0.into()))],
+            ValidationConfig {
                 max_failed_samples: 2,
             },
         );
         let result = &report.results[0];
         assert!(!result.passed);
-        assert_eq!(result.failed_count, 2); // capped
+        assert_eq!(result.failed_count, Some(2)); // capped
         let fv = result.failed_values.as_ref().unwrap();
         assert_eq!(fv.len(), 2);
         assert_eq!(fv[0], (0, "1".to_string()));
@@ -1390,10 +1448,13 @@ mod tests {
     fn test_max_failed_samples_larger_than_failures() {
         let dataset = make_all_types_dataset();
         // id = [1,2,3,4,5]; gt(3) fails 3 rows; cap=10 — all 3 are returned
-        let report = validate(
+        let report = validate_columns(
             &dataset,
-            &[Rule::new("id", Constraint::GreaterThan(3.0.into()))],
-            ValidateConfig {
+            &[ColumnRule::new(
+                "id",
+                ColumnConstraint::GreaterThan(3.0.into()),
+            )],
+            ValidationConfig {
                 max_failed_samples: 10,
             },
         );
@@ -1409,13 +1470,13 @@ mod csv_tests {
     use std::path::Path;
     use verdict_core::{
         csv_loader::DatasetCsvExt,
-        dataset::{DataType, Dataset, Field, Schema},
+        dataframe::{DataFrame, DataType, Field, Schema},
     };
 
     fn make_schema() -> Schema {
         Schema::new(vec![
             Field::new("id", DataType::Int, None),
-            Field::new("name", DataType::Str, None),
+            Field::new("name", DataType::String, None),
             Field::new("score", DataType::Float, None),
             Field::new("active", DataType::Bool, None),
         ])
@@ -1425,7 +1486,7 @@ mod csv_tests {
     fn test_load_csv() {
         let schema = make_schema();
         let dataset =
-            Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
+            DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
         assert_eq!(dataset.headers, vec!["id", "name", "score", "active"]);
         assert_eq!(dataset.shape(), (5, 4));
     }
@@ -1434,7 +1495,7 @@ mod csv_tests {
     fn test_load_csv_with_nulls() {
         let schema = make_schema();
         let dataset =
-            Dataset::from_csv(Path::new("tests/fixtures/with_nulls.csv"), &schema).unwrap();
+            DataFrame::from_csv(Path::new("tests/fixtures/with_nulls.csv"), &schema).unwrap();
         assert_eq!(dataset.headers, vec!["id", "name", "score", "active"]);
         assert_eq!(dataset.shape(), (5, 4));
     }
@@ -1442,7 +1503,7 @@ mod csv_tests {
     #[test]
     fn test_load_csv_invalid_path() {
         let schema = Schema::new(vec![Field::new("id", DataType::Int, None)]);
-        let result = Dataset::from_csv(Path::new("nonexistent.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("nonexistent.csv"), &schema);
         assert!(result.is_err());
     }
 
@@ -1450,7 +1511,7 @@ mod csv_tests {
     fn test_parse_bool_values() {
         let schema = make_schema();
         let dataset =
-            Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
+            DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema).unwrap();
         let col = dataset.get_column_by_name("active").unwrap();
         assert_eq!(col.len(), 5);
         assert_eq!(col.null_count(), 0);
@@ -1459,7 +1520,7 @@ mod csv_tests {
     #[test]
     fn test_parse_bool_invalid() {
         let schema = Schema::new(vec![Field::new("name", DataType::Bool, None)]);
-        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(result.is_err());
     }
 
@@ -1471,7 +1532,7 @@ mod csv_tests {
             Field::new("score", DataType::Float, None),
             Field::new("active", DataType::Bool, None),
         ]);
-        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(result.is_err());
     }
 
@@ -1479,9 +1540,9 @@ mod csv_tests {
     fn test_load_csv_schema_too_few_columns() {
         let schema = Schema::new(vec![
             Field::new("id", DataType::Int, None),
-            Field::new("name", DataType::Str, None),
+            Field::new("name", DataType::String, None),
         ]);
-        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(matches!(
             result,
             Err(verdict_core::csv_loader::CsvLoadingError::ShapeError {
@@ -1495,12 +1556,12 @@ mod csv_tests {
     fn test_load_csv_schema_too_many_columns() {
         let schema = Schema::new(vec![
             Field::new("id", DataType::Int, None),
-            Field::new("name", DataType::Str, None),
+            Field::new("name", DataType::String, None),
             Field::new("score", DataType::Float, None),
             Field::new("active", DataType::Bool, None),
             Field::new("extra", DataType::Int, None),
         ]);
-        let result = Dataset::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
+        let result = DataFrame::from_csv(Path::new("tests/fixtures/all_types.csv"), &schema);
         assert!(matches!(
             result,
             Err(verdict_core::csv_loader::CsvLoadingError::ShapeError {
@@ -1514,7 +1575,7 @@ mod csv_tests {
 #[cfg(test)]
 mod datetime_converter_tests {
     use chrono::NaiveDate;
-    use verdict_core::dataset::{
+    use verdict_core::dataframe::{
         i32_to_naive_date, i64_to_naive_datetime, naive_date_to_i32, naive_datetime_to_i64,
     };
 
@@ -1627,13 +1688,13 @@ mod datetime_converter_tests {
 #[cfg(test)]
 mod date_constraint_tests {
     use verdict_core::{
-        dataset::{Column, Dataset, DateColumn, DateTimeColumn},
-        rules::{Constraint, Rule, ValidateConfig, validate},
+        dataframe::{Column, DataFrame, DateColumn, DateTimeColumn},
+        rules::{ColumnConstraint, ColumnRule, ValidationConfig, validate_columns},
     };
 
-    fn make_date_dataset() -> Dataset {
+    fn make_date_dataset() -> DataFrame {
         // dates: 2024-01-01=19723, 2024-01-03=19725, 2024-01-05=19727
-        Dataset::new(
+        DataFrame::new(
             vec!["date".to_string(), "datetime".to_string()],
             vec![
                 Column::Date(DateColumn(vec![
@@ -1653,8 +1714,8 @@ mod date_constraint_tests {
         )
     }
 
-    fn cfg() -> ValidateConfig {
-        ValidateConfig::default()
+    fn cfg() -> ValidationConfig {
+        ValidationConfig::default()
     }
 
     // --- After ---
@@ -1662,60 +1723,60 @@ mod date_constraint_tests {
     #[test]
     fn test_after_date_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2023-12-31".to_string()),
+            ColumnConstraint::After("2023-12-31".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
 
     #[test]
     fn test_after_date_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2024-01-03".to_string()),
+            ColumnConstraint::After("2024-01-03".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
-        assert_eq!(report.results[0].failed_count, 2); // 2024-01-01 and 2024-01-03 fail (exclusive)
+        assert_eq!(report.results[0].failed_count, Some(2)); // 2024-01-01 and 2024-01-03 fail (exclusive)
     }
 
     #[test]
     fn test_after_date_boundary_exclusive() {
         let ds = make_date_dataset();
         // after 2024-01-01 means strictly greater — 2024-01-01 itself should fail
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2024-01-01".to_string()),
+            ColumnConstraint::After("2024-01-01".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
-        assert_eq!(report.results[0].failed_count, 1);
+        assert_eq!(report.results[0].failed_count, Some(1));
     }
 
     #[test]
     fn test_after_datetime_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::After("2024-01-01T09:00:00".to_string()),
+            ColumnConstraint::After("2024-01-01T09:00:00".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
 
     #[test]
     fn test_after_datetime_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::After("2024-01-03T12:00:00".to_string()),
+            ColumnConstraint::After("2024-01-03T12:00:00".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
-        assert_eq!(report.results[0].failed_count, 2); // 2024-01-01 and 2024-01-03 fail
+        assert_eq!(report.results[0].failed_count, Some(2)); // 2024-01-01 and 2024-01-03 fail
     }
 
     // --- Before ---
@@ -1723,47 +1784,47 @@ mod date_constraint_tests {
     #[test]
     fn test_before_date_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::Before("2024-01-06".to_string()),
+            ColumnConstraint::Before("2024-01-06".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
 
     #[test]
     fn test_before_date_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::Before("2024-01-03".to_string()),
+            ColumnConstraint::Before("2024-01-03".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
-        assert_eq!(report.results[0].failed_count, 2); // 2024-01-03 and 2024-01-05 fail (exclusive)
+        assert_eq!(report.results[0].failed_count, Some(2)); // 2024-01-03 and 2024-01-05 fail (exclusive)
     }
 
     #[test]
     fn test_before_date_boundary_exclusive() {
         let ds = make_date_dataset();
         // before 2024-01-05 means strictly less — 2024-01-05 itself should fail
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::Before("2024-01-05".to_string()),
+            ColumnConstraint::Before("2024-01-05".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
-        assert_eq!(report.results[0].failed_count, 1);
+        assert_eq!(report.results[0].failed_count, Some(1));
     }
 
     #[test]
     fn test_before_datetime_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::Before("2024-01-06T00:00:00".to_string()),
+            ColumnConstraint::Before("2024-01-06T00:00:00".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
 
@@ -1772,59 +1833,59 @@ mod date_constraint_tests {
     #[test]
     fn test_between_dates_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-01".to_string(),
                 max: "2024-01-05".to_string(),
             },
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
 
     #[test]
     fn test_between_dates_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-02".to_string(),
                 max: "2024-01-04".to_string(),
             },
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
-        assert_eq!(report.results[0].failed_count, 2); // 2024-01-01 and 2024-01-05 fail
+        assert_eq!(report.results[0].failed_count, Some(2)); // 2024-01-01 and 2024-01-05 fail
     }
 
     #[test]
     fn test_between_datetimes_passes() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-01T10:00:00".to_string(),
                 max: "2024-01-05T14:00:00".to_string(),
             },
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
 
     #[test]
     fn test_between_datetimes_fails() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-02T00:00:00".to_string(),
                 max: "2024-01-04T00:00:00".to_string(),
             },
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
-        assert_eq!(report.results[0].failed_count, 2); // first and last fail
+        assert_eq!(report.results[0].failed_count, Some(2)); // first and last fail
     }
 
     // --- Nulls ---
@@ -1833,94 +1894,772 @@ mod date_constraint_tests {
     fn test_after_date_nulls_pass() {
         let ds = make_date_dataset();
         // all non-null values pass, null is ignored (use NotNull separately)
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2023-01-01".to_string()),
+            ColumnConstraint::After("2023-01-01".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
 
     #[test]
     fn test_invalid_date_string_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("not-a-date".to_string()),
+            ColumnConstraint::After("not-a-date".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
 
     #[test]
     fn test_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::After("2024-01-01T10:00:00".to_string()),
+            ColumnConstraint::After("2024-01-01T10:00:00".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
 
     #[test]
     fn test_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::After("2024-01-01".to_string()),
+            ColumnConstraint::After("2024-01-01".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
 
     #[test]
     fn test_before_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::Before("2024-01-01T10:00:00".to_string()),
+            ColumnConstraint::Before("2024-01-01T10:00:00".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
 
     #[test]
     fn test_before_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::Before("2024-01-01".to_string()),
+            ColumnConstraint::Before("2024-01-01".to_string()),
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
 
     #[test]
     fn test_between_dates_datetime_string_on_date_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "date",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-01T00:00:00".to_string(),
                 max: "2024-01-05T00:00:00".to_string(),
             },
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
     }
 
     #[test]
     fn test_between_dates_date_string_on_datetime_column_returns_error() {
         let ds = make_date_dataset();
-        let rules = vec![Rule::new(
+        let rules = vec![ColumnRule::new(
             "datetime",
-            Constraint::BetweenDates {
+            ColumnConstraint::BetweenDates {
                 min: "2024-01-01".to_string(),
                 max: "2024-01-05".to_string(),
             },
         )];
-        let report = validate(&ds, &rules, cfg());
+        let report = validate_columns(&ds, &rules, cfg());
         assert!(report.results[0].error.is_some());
+    }
+}
+
+#[cfg(test)]
+mod table_constraint_tests {
+    use verdict_core::{
+        dataframe::{Column, DataFrame, FloatColumn, IntColumn, StringColumn},
+        rules::{TableConstraint, TableRule, ValidationConfig, validate_table},
+    };
+
+    // Dataset: 5 rows, 3 columns ("id", "name", "score")
+    fn make_table_dataset() -> DataFrame {
+        DataFrame::new(
+            vec!["id".to_string(), "name".to_string(), "score".to_string()],
+            vec![
+                Column::Int(IntColumn(vec![Some(1), Some(2), Some(3), Some(4), Some(5)])),
+                Column::Str(StringColumn(vec![Some("a".to_string()); 5])),
+                Column::Float(FloatColumn(vec![Some(1.0); 5])),
+            ],
+        )
+    }
+
+    fn cfg() -> ValidationConfig {
+        ValidationConfig::default()
+    }
+
+    // ── RowsCountBetween ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_rows_count_between_passes_exact_min() {
+        let ds = make_table_dataset();
+        // 5 rows, boundary: exactly at min
+        let rules = vec![TableRule::new(TableConstraint::RowsCountBetween {
+            min: 5,
+            max: 10,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_between_passes_exact_max() {
+        let ds = make_table_dataset();
+        // 5 rows, boundary: exactly at max
+        let rules = vec![TableRule::new(TableConstraint::RowsCountBetween {
+            min: 1,
+            max: 5,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_between_passes_within_range() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::RowsCountBetween {
+            min: 3,
+            max: 8,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_between_fails_below_min() {
+        let ds = make_table_dataset();
+        // 5 rows is below min=6
+        let rules = vec![TableRule::new(TableConstraint::RowsCountBetween {
+            min: 6,
+            max: 10,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_between_fails_above_max() {
+        let ds = make_table_dataset();
+        // 5 rows is above max=4
+        let rules = vec![TableRule::new(TableConstraint::RowsCountBetween {
+            min: 1,
+            max: 4,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    // ── RowsCountGreaterOrEqual ───────────────────────────────────────────────
+
+    #[test]
+    fn test_rows_count_ge_passes_exact_boundary() {
+        let ds = make_table_dataset();
+        // 5 >= 5 — boundary: equal is a pass
+        let rules = vec![TableRule::new(TableConstraint::RowsCountGreaterOrEqual(5))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_ge_passes_above() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::RowsCountGreaterOrEqual(3))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+    }
+
+    #[test]
+    fn test_rows_count_ge_fails() {
+        let ds = make_table_dataset();
+        // 5 < 6 — fails
+        let rules = vec![TableRule::new(TableConstraint::RowsCountGreaterOrEqual(6))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    // ── RowCountGreaterThan ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_rows_count_gt_passes() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::RowCountGreaterThan(4))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_gt_fails_equal() {
+        let ds = make_table_dataset();
+        // 5 > 5 is false — strict greater-than rejects the boundary
+        let rules = vec![TableRule::new(TableConstraint::RowCountGreaterThan(5))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_gt_fails_above() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::RowCountGreaterThan(6))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+    }
+
+    // ── RowsCountLessOrEqual ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_rows_count_le_passes_exact_boundary() {
+        let ds = make_table_dataset();
+        // 5 <= 5 — boundary: equal is a pass
+        let rules = vec![TableRule::new(TableConstraint::RowsCountLessOrEqual(5))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_le_passes_below() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::RowsCountLessOrEqual(10))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+    }
+
+    #[test]
+    fn test_rows_count_le_fails() {
+        let ds = make_table_dataset();
+        // 5 > 4 — fails
+        let rules = vec![TableRule::new(TableConstraint::RowsCountLessOrEqual(4))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    // ── RowCountLessThan ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_rows_count_lt_passes() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::RowCountLessThan(6))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_lt_fails_equal() {
+        let ds = make_table_dataset();
+        // 5 < 5 is false — strict less-than rejects the boundary
+        let rules = vec![TableRule::new(TableConstraint::RowCountLessThan(5))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_rows_count_lt_fails_below() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::RowCountLessThan(3))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+    }
+
+    // ── ColumnsCountBetween ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_columns_count_between_passes_exact_min() {
+        let ds = make_table_dataset();
+        // 3 columns, boundary: exactly at min
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountBetween {
+            min: 3,
+            max: 6,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_between_passes_exact_max() {
+        let ds = make_table_dataset();
+        // 3 columns, boundary: exactly at max
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountBetween {
+            min: 1,
+            max: 3,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_between_fails_below_min() {
+        let ds = make_table_dataset();
+        // 3 columns is below min=4
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountBetween {
+            min: 4,
+            max: 8,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_between_fails_above_max() {
+        let ds = make_table_dataset();
+        // 3 columns is above max=2
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountBetween {
+            min: 1,
+            max: 2,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    // ── ColumnsCountGreaterOrEqual ────────────────────────────────────────────
+
+    #[test]
+    fn test_columns_count_ge_passes_exact_boundary() {
+        let ds = make_table_dataset();
+        // 3 >= 3 — boundary: equal is a pass
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(
+            3,
+        ))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_ge_passes_above() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(
+            1,
+        ))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+    }
+
+    #[test]
+    fn test_columns_count_ge_fails() {
+        let ds = make_table_dataset();
+        // 3 < 4 — fails
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(
+            4,
+        ))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    // ── ColumnsCountGreaterThan ───────────────────────────────────────────────
+
+    #[test]
+    fn test_columns_count_gt_passes() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterThan(2))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_gt_fails_equal() {
+        let ds = make_table_dataset();
+        // 3 > 3 is false — strict greater-than rejects the boundary
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterThan(3))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_gt_fails_above() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountGreaterThan(5))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+    }
+
+    // ── ColumnsCountLessOrEqual ───────────────────────────────────────────────
+
+    #[test]
+    fn test_columns_count_le_passes_exact_boundary() {
+        let ds = make_table_dataset();
+        // 3 <= 3 — boundary: equal is a pass
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountLessOrEqual(3))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_le_passes_below() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountLessOrEqual(10))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+    }
+
+    #[test]
+    fn test_columns_count_le_fails() {
+        let ds = make_table_dataset();
+        // 3 > 2 — fails
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountLessOrEqual(2))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    // ── ColumnsCountLessThan ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_columns_count_lt_passes() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountLessThan(4))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_lt_fails_equal() {
+        let ds = make_table_dataset();
+        // 3 < 3 is false — strict less-than rejects the boundary
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountLessThan(3))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+    }
+
+    #[test]
+    fn test_columns_count_lt_fails_below() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsCountLessThan(1))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+    }
+
+    // ── ColumnsExist ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_columns_exist_all_present_passes() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsExist(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "score".to_string(),
+        ]))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+        assert!(report.results[0].error.is_none());
+    }
+
+    #[test]
+    fn test_columns_exist_subset_passes() {
+        let ds = make_table_dataset();
+        // asking for only a subset of existing columns
+        let rules = vec![TableRule::new(TableConstraint::ColumnsExist(vec![
+            "id".to_string(),
+            "score".to_string(),
+        ]))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+    }
+
+    #[test]
+    fn test_columns_exist_one_missing_fails() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsExist(vec![
+            "id".to_string(),
+            "missing_col".to_string(),
+        ]))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+        let error = report.results[0].error.as_ref().unwrap();
+        assert!(
+            error.contains("missing_col"),
+            "error message must name the missing column, got: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_columns_exist_multiple_missing_fails_and_names_all() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsExist(vec![
+            "id".to_string(),
+            "ghost_a".to_string(),
+            "ghost_b".to_string(),
+        ]))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        let error = report.results[0].error.as_ref().unwrap();
+        assert!(
+            error.contains("ghost_a"),
+            "error message must name ghost_a, got: {}",
+            error
+        );
+        assert!(
+            error.contains("ghost_b"),
+            "error message must name ghost_b, got: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_columns_exist_all_missing_fails() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ColumnsExist(vec![
+            "nonexistent_1".to_string(),
+            "nonexistent_2".to_string(),
+        ]))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        let error = report.results[0].error.as_ref().unwrap();
+        assert!(error.contains("nonexistent_1"));
+        assert!(error.contains("nonexistent_2"));
+    }
+
+    // ── ShapeEquals ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_shape_equals_passes() {
+        let ds = make_table_dataset();
+        // dataset has exactly 5 rows and 3 columns
+        let rules = vec![TableRule::new(TableConstraint::ShapeEquals {
+            rows: 5,
+            columns: 3,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+        assert!(report.results[0].error.is_none());
+    }
+
+    #[test]
+    fn test_shape_equals_fails_wrong_rows() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ShapeEquals {
+            rows: 99,
+            columns: 3,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+        let error = report.results[0].error.as_ref().unwrap();
+        assert!(
+            error.contains("99"),
+            "error should mention expected row count, got: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_shape_equals_fails_wrong_columns() {
+        let ds = make_table_dataset();
+        let rules = vec![TableRule::new(TableConstraint::ShapeEquals {
+            rows: 5,
+            columns: 10,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        assert!(report.results[0].failed_count.is_none());
+        let error = report.results[0].error.as_ref().unwrap();
+        assert!(
+            error.contains("10"),
+            "error should mention expected column count, got: {}",
+            error
+        );
+    }
+
+    #[test]
+    fn test_shape_equals_fails_both_wrong_rows_checked_first() {
+        let ds = make_table_dataset();
+        // Both dimensions are wrong; the implementation checks rows first,
+        // so the error should mention the row mismatch.
+        let rules = vec![TableRule::new(TableConstraint::ShapeEquals {
+            rows: 1,
+            columns: 1,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+        let error = report.results[0].error.as_ref().unwrap();
+        assert!(
+            error.contains("1") && error.contains("row"),
+            "error should mention row count mismatch, got: {}",
+            error
+        );
+    }
+
+    // ── ValidationReport aggregate fields ─────────────────────────────────────
+
+    #[test]
+    fn test_report_all_pass() {
+        let ds = make_table_dataset();
+        let rules = vec![
+            TableRule::new(TableConstraint::RowsCountGreaterOrEqual(1)),
+            TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(1)),
+        ];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.passed);
+        assert_eq!(report.total_rules, 2);
+        assert_eq!(report.passed_count, 2);
+        assert_eq!(report.failed_count, 0);
+    }
+
+    #[test]
+    fn test_report_partial_fail() {
+        let ds = make_table_dataset();
+        let rules = vec![
+            TableRule::new(TableConstraint::RowsCountGreaterOrEqual(1)), // passes
+            TableRule::new(TableConstraint::RowsCountGreaterOrEqual(999)), // fails
+        ];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.total_rules, 2);
+        assert_eq!(report.passed_count, 1);
+        assert_eq!(report.failed_count, 1);
+    }
+
+    // ── Multi-rule ordering ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_multiple_rules_result_order_matches_input() {
+        let ds = make_table_dataset();
+        let rules = vec![
+            TableRule::new(TableConstraint::RowsCountGreaterOrEqual(1)),
+            TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(1)),
+            TableRule::new(TableConstraint::ShapeEquals {
+                rows: 5,
+                columns: 3,
+            }),
+        ];
+        let report = validate_table(&ds, &rules, cfg());
+        assert_eq!(report.results.len(), 3);
+        assert!(report.results[0].passed);
+        assert!(report.results[1].passed);
+        assert!(report.results[2].passed);
+    }
+
+    #[test]
+    fn test_multiple_rules_mixed_pass_fail_count() {
+        let ds = make_table_dataset();
+        let rules = vec![
+            TableRule::new(TableConstraint::RowsCountGreaterOrEqual(1)),
+            TableRule::new(TableConstraint::ColumnsCountGreaterOrEqual(1)),
+            TableRule::new(TableConstraint::RowsCountGreaterOrEqual(999)),
+        ];
+        let report = validate_table(&ds, &rules, cfg());
+        assert_eq!(report.results.len(), 3);
+        assert!(report.results[0].passed);
+        assert!(report.results[1].passed);
+        assert!(!report.results[2].passed);
+        assert_eq!(report.failed_count, 1);
+        assert_eq!(report.passed_count, 2);
+    }
+
+    // ── ValidationReport::merge ───────────────────────────────────────────────
+
+    #[test]
+    fn test_merge_table_and_column_reports() {
+        use verdict_core::rules::{ColumnConstraint, ColumnRule, validate_columns};
+
+        let ds = make_table_dataset();
+
+        let table_rules = vec![
+            TableRule::new(TableConstraint::RowsCountGreaterOrEqual(1)),
+            TableRule::new(TableConstraint::RowsCountGreaterOrEqual(999)),
+        ];
+        let table_report = validate_table(&ds, &table_rules, cfg());
+
+        let col_rules = vec![
+            ColumnRule::new("id", ColumnConstraint::NotNull),
+            ColumnRule::new("id", ColumnConstraint::Unique),
+        ];
+        let col_report = validate_columns(&ds, &col_rules, ValidationConfig::default());
+
+        let merged = table_report.merge(col_report);
+        assert_eq!(merged.results.len(), 4);
+        assert_eq!(merged.failed_count, 1);
+        assert_eq!(merged.passed_count, 3);
+        assert!(!merged.passed);
+    }
+
+    // ── Empty dataset edge cases ──────────────────────────────────────────────
+
+    #[test]
+    fn test_empty_dataset_rows_count_between_zero_passes() {
+        let ds = DataFrame::new(vec![], vec![]);
+        let rules = vec![TableRule::new(TableConstraint::RowsCountBetween {
+            min: 0,
+            max: 10,
+        })];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(report.results[0].passed);
+    }
+
+    #[test]
+    fn test_empty_dataset_rows_count_gt_zero_fails() {
+        let ds = DataFrame::new(vec![], vec![]);
+        let rules = vec![TableRule::new(TableConstraint::RowCountGreaterThan(0))];
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
+    }
+
+    // ── TableRuleBuilder ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_table_rule_builder_shape_equals() {
+        use verdict_core::rules::TableRuleBuilder;
+
+        let ds = make_table_dataset();
+        let rules = TableRuleBuilder::default().shape_equals(5, 3).build();
+        let report = validate_table(&ds, &rules, cfg());
+        assert_eq!(report.results.len(), 1);
+        assert!(report.results[0].passed);
+    }
+
+    #[test]
+    fn test_table_rule_builder_shape_equals_fails() {
+        use verdict_core::rules::TableRuleBuilder;
+
+        let ds = make_table_dataset();
+        let rules = TableRuleBuilder::default().shape_equals(99, 99).build();
+        let report = validate_table(&ds, &rules, cfg());
+        assert!(!report.results[0].passed);
     }
 }

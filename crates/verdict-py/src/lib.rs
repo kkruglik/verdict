@@ -3,13 +3,13 @@ use std::path::Path;
 use pyo3::prelude::*;
 use verdict_core::{
     csv_loader::DatasetCsvExt,
-    dataset::{
-        BoolColumn, Column, DataType, Dataset, DateColumn, DateTimeColumn, Field, FloatColumn,
-        InSetValues, IntColumn, Schema, StrColumn,
+    dataframe::{
+        BoolColumn, Column, DataFrame, DataType, DateColumn, DateTimeColumn, Field, FloatColumn,
+        IntColumn, Schema, StringColumn, ValuesSet,
     },
     rules::{
-        Constraint, Operand, Rule, RuleBuilder, ValidateConfig, ValidationReport, ValidationResult,
-        validate,
+        ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, TableConstraint, TableRule,
+        ValidationConfig, ValidationReport, ValidationResult, validate_columns, validate_table,
     },
 };
 
@@ -75,7 +75,7 @@ impl PyDataType {
     #[staticmethod]
     fn string() -> Self {
         PyDataType {
-            inner: DataType::Str,
+            inner: DataType::String,
         }
     }
 
@@ -164,7 +164,7 @@ impl PyColumn {
 
     #[staticmethod]
     fn string(values: Vec<Option<String>>) -> PyColumn {
-        let column = StrColumn(values);
+        let column = StringColumn(values);
         PyColumn {
             inner: Column::Str(column),
         }
@@ -232,7 +232,7 @@ impl PyColumn {
 
 #[pyclass(name = "Dataset")]
 struct PyDataset {
-    inner: Dataset,
+    inner: DataFrame,
 }
 
 #[pymethods]
@@ -244,7 +244,7 @@ impl PyDataset {
             .map(|col| col.borrow(py).inner.clone())
             .collect();
         PyDataset {
-            inner: Dataset {
+            inner: DataFrame {
                 headers,
                 columns: core_columns,
             },
@@ -253,7 +253,7 @@ impl PyDataset {
 
     #[staticmethod]
     fn from_csv(path: &str, schema: &PySchema) -> PyResult<Self> {
-        let inner = Dataset::from_csv(Path::new(path), &schema.inner)
+        let inner = DataFrame::from_csv(Path::new(path), &schema.inner)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(PyDataset { inner })
     }
@@ -284,66 +284,158 @@ impl PyDataset {
     }
 }
 
-#[pyclass(name = "Constraint")]
-struct PyConstraint {
-    inner: Constraint,
+#[pyclass(name = "TableConstraint")]
+struct PyTableConstraint {
+    inner: TableConstraint,
 }
 
 #[pymethods]
-impl PyConstraint {
+impl PyTableConstraint {
+    #[staticmethod]
+    fn rows_count_between(min: usize, max: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::RowsCountBetween { min, max },
+        }
+    }
+
+    #[staticmethod]
+    fn rows_count_ge(count: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::RowsCountGreaterOrEqual(count),
+        }
+    }
+
+    #[staticmethod]
+    fn rows_count_gt(count: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::RowCountGreaterThan(count),
+        }
+    }
+
+    #[staticmethod]
+    fn rows_count_le(count: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::RowsCountLessOrEqual(count),
+        }
+    }
+
+    #[staticmethod]
+    fn rows_count_lt(count: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::RowCountLessThan(count),
+        }
+    }
+
+    #[staticmethod]
+    fn columns_count_between(min: usize, max: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountBetween { min, max },
+        }
+    }
+
+    #[staticmethod]
+    fn columns_count_ge(count: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountGreaterOrEqual(count),
+        }
+    }
+
+    #[staticmethod]
+    fn columns_count_gt(count: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountGreaterThan(count),
+        }
+    }
+
+    #[staticmethod]
+    fn columns_count_le(count: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountLessOrEqual(count),
+        }
+    }
+
+    #[staticmethod]
+    fn columns_count_lt(count: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsCountLessThan(count),
+        }
+    }
+
+    #[staticmethod]
+    fn columns_exist(columns: Vec<String>) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::ColumnsExist(columns),
+        }
+    }
+
+    #[staticmethod]
+    fn shape_equals(rows: usize, columns: usize) -> Self {
+        PyTableConstraint {
+            inner: TableConstraint::ShapeEquals { rows, columns },
+        }
+    }
+}
+
+#[pyclass(name = "ColumnConstraint")]
+struct PyColumnConstraint {
+    inner: ColumnConstraint,
+}
+
+#[pymethods]
+impl PyColumnConstraint {
     #[staticmethod]
     fn not_null() -> Self {
-        PyConstraint {
-            inner: Constraint::NotNull,
+        PyColumnConstraint {
+            inner: ColumnConstraint::NotNull,
         }
     }
 
     #[staticmethod]
     fn unique() -> Self {
-        PyConstraint {
-            inner: Constraint::Unique,
+        PyColumnConstraint {
+            inner: ColumnConstraint::Unique,
         }
     }
 
     #[staticmethod]
     fn gt(compare: f64) -> Self {
-        PyConstraint {
-            inner: Constraint::GreaterThan(Operand::Num(compare)),
+        PyColumnConstraint {
+            inner: ColumnConstraint::GreaterThan(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn ge(compare: f64) -> Self {
-        PyConstraint {
-            inner: Constraint::GreaterThanOrEqual(Operand::Num(compare)),
+        PyColumnConstraint {
+            inner: ColumnConstraint::GreaterThanOrEqual(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn lt(compare: f64) -> Self {
-        PyConstraint {
-            inner: Constraint::LessThan(Operand::Num(compare)),
+        PyColumnConstraint {
+            inner: ColumnConstraint::LessThan(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn le(compare: f64) -> Self {
-        PyConstraint {
-            inner: Constraint::LessThanOrEqual(Operand::Num(compare)),
+        PyColumnConstraint {
+            inner: ColumnConstraint::LessThanOrEqual(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn eq(compare: f64) -> Self {
-        PyConstraint {
-            inner: Constraint::Equal(Operand::Num(compare)),
+        PyColumnConstraint {
+            inner: ColumnConstraint::Equal(Operand::Num(compare)),
         }
     }
 
     #[staticmethod]
     fn between(min: f64, max: f64) -> Self {
-        PyConstraint {
-            inner: Constraint::Between {
+        PyColumnConstraint {
+            inner: ColumnConstraint::Between {
                 min: min.into(),
                 max: max.into(),
             },
@@ -357,97 +449,97 @@ impl PyConstraint {
             .map(|v| v.extract::<i64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::Int64Set(v)
+            ValuesSet::Int64Set(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<f64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::FloatSet(v)
+            ValuesSet::FloatSet(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<String>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::StrSet(v)
+            ValuesSet::StrSet(v)
         } else {
             return Err(pyo3::exceptions::PyTypeError::new_err(
                 "is_in values must be all integers, floats, or strings",
             ));
         };
-        Ok(PyConstraint {
-            inner: Constraint::InSet(set),
+        Ok(PyColumnConstraint {
+            inner: ColumnConstraint::InSet(set),
         })
     }
 
     #[staticmethod]
     fn matches_regex(pattern: String) -> Self {
-        PyConstraint {
-            inner: Constraint::MatchesRegex(pattern),
+        PyColumnConstraint {
+            inner: ColumnConstraint::MatchesRegex(pattern),
         }
     }
 
     #[staticmethod]
     fn contains(pattern: String) -> Self {
-        PyConstraint {
-            inner: Constraint::Contains(pattern),
+        PyColumnConstraint {
+            inner: ColumnConstraint::Contains(pattern),
         }
     }
 
     #[staticmethod]
     fn starts_with(pattern: String) -> Self {
-        PyConstraint {
-            inner: Constraint::StartsWith(pattern),
+        PyColumnConstraint {
+            inner: ColumnConstraint::StartsWith(pattern),
         }
     }
 
     #[staticmethod]
     fn ends_with(pattern: String) -> Self {
-        PyConstraint {
-            inner: Constraint::EndsWith(pattern),
+        PyColumnConstraint {
+            inner: ColumnConstraint::EndsWith(pattern),
         }
     }
 
     #[staticmethod]
     fn length_between(min: usize, max: usize) -> Self {
-        PyConstraint {
-            inner: Constraint::LengthBetween { min, max },
+        PyColumnConstraint {
+            inner: ColumnConstraint::LengthBetween { min, max },
         }
     }
 
     #[staticmethod]
     fn after(date: String) -> Self {
-        PyConstraint {
-            inner: Constraint::After(date),
+        PyColumnConstraint {
+            inner: ColumnConstraint::After(date),
         }
     }
 
     #[staticmethod]
     fn before(date: String) -> Self {
-        PyConstraint {
-            inner: Constraint::Before(date),
+        PyColumnConstraint {
+            inner: ColumnConstraint::Before(date),
         }
     }
 
     #[staticmethod]
     fn between_dates(min: String, max: String) -> Self {
-        PyConstraint {
-            inner: Constraint::BetweenDates { min, max },
+        PyColumnConstraint {
+            inner: ColumnConstraint::BetweenDates { min, max },
         }
     }
 }
 
-#[pyclass(name = "Rule")]
-struct PyRule {
-    inner: Rule,
+#[pyclass(name = "ColumnRule")]
+struct PyColumnRule {
+    inner: ColumnRule,
 }
 
 #[pymethods]
-impl PyRule {
+impl PyColumnRule {
     #[new]
-    fn new(py: Python<'_>, column: String, constraint: Py<PyConstraint>) -> Self {
-        PyRule {
-            inner: Rule {
+    fn new(py: Python<'_>, column: String, constraint: Py<PyColumnConstraint>) -> Self {
+        PyColumnRule {
+            inner: ColumnRule {
                 column,
                 constraint: constraint.borrow(py).inner.clone(),
             },
@@ -455,17 +547,34 @@ impl PyRule {
     }
 }
 
-#[pyclass(name = "RuleBuilder")]
-struct PyRuleBuilder {
-    inner: RuleBuilder,
+#[pyclass(name = "TableRule")]
+struct PyTableRule {
+    inner: TableRule,
 }
 
 #[pymethods]
-impl PyRuleBuilder {
+impl PyTableRule {
+    #[new]
+    fn new(py: Python<'_>, constraint: Py<PyTableConstraint>) -> Self {
+        PyTableRule {
+            inner: TableRule {
+                constraint: constraint.borrow(py).inner.clone(),
+            },
+        }
+    }
+}
+
+#[pyclass(name = "ColumnRuleBuilder")]
+struct PyColumnRuleBuilder {
+    inner: ColumnRuleBuilder,
+}
+
+#[pymethods]
+impl PyColumnRuleBuilder {
     #[new]
     fn new(column: String) -> Self {
-        PyRuleBuilder {
-            inner: RuleBuilder {
+        PyColumnRuleBuilder {
+            inner: ColumnRuleBuilder {
                 column,
                 constraint: vec![],
             },
@@ -562,19 +671,19 @@ impl PyRuleBuilder {
             .map(|v| v.extract::<i64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::Int64Set(v)
+            ValuesSet::Int64Set(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<f64>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::FloatSet(v)
+            ValuesSet::FloatSet(v)
         } else if let Ok(v) = values
             .iter()
             .map(|v| v.extract::<String>(py))
             .collect::<PyResult<Vec<_>>>()
         {
-            InSetValues::StrSet(v)
+            ValuesSet::StrSet(v)
         } else {
             return Err(pyo3::exceptions::PyTypeError::new_err(
                 "in_set values must be all integers, floats, or strings",
@@ -615,12 +724,12 @@ impl PyRuleBuilder {
         slf
     }
 
-    fn build(slf: PyRef<'_, Self>) -> Vec<PyRule> {
+    fn build(slf: PyRef<'_, Self>) -> Vec<PyColumnRule> {
         slf.inner
             .constraint
             .iter()
-            .map(|c| PyRule {
-                inner: Rule {
+            .map(|c| PyColumnRule {
+                inner: ColumnRule {
                     column: slf.inner.column.clone(),
                     constraint: c.clone(),
                 },
@@ -674,8 +783,8 @@ impl PyValidationReport {
 #[pymethods]
 impl PyValidationResult {
     #[getter]
-    fn column(&self) -> &str {
-        &self.inner.column
+    fn column(&self) -> Option<String> {
+        self.inner.column.clone()
     }
 
     #[getter]
@@ -689,7 +798,7 @@ impl PyValidationResult {
     }
 
     #[getter]
-    fn failed_count(&self) -> usize {
+    fn failed_count(&self) -> Option<usize> {
         self.inner.failed_count
     }
 
@@ -709,20 +818,40 @@ impl PyValidationResult {
 }
 
 #[pyfunction]
-fn py_validate(
+fn py_validate_columns(
     py: Python<'_>,
     data: Py<PyDataset>,
-    rules: Vec<Py<PyRule>>,
+    rules: Vec<Py<PyColumnRule>>,
 ) -> PyResult<PyValidationReport> {
-    let core_rules: Vec<Rule> = rules
+    let core_rules: Vec<ColumnRule> = rules
         .into_iter()
         .map(|v| v.borrow(py).inner.clone())
         .collect();
 
-    let results = validate(
+    let results = validate_columns(
         &data.borrow(py).inner,
         &core_rules,
-        ValidateConfig::default(),
+        ValidationConfig::default(),
+    );
+    let report = PyValidationReport { inner: results };
+    Ok(report)
+}
+
+#[pyfunction]
+fn py_validate_table(
+    py: Python<'_>,
+    data: Py<PyDataset>,
+    rules: Vec<Py<PyTableRule>>,
+) -> PyResult<PyValidationReport> {
+    let core_rules: Vec<TableRule> = rules
+        .into_iter()
+        .map(|v| v.borrow(py).inner.clone())
+        .collect();
+
+    let results = validate_table(
+        &data.borrow(py).inner,
+        &core_rules,
+        ValidationConfig::default(),
     );
     let report = PyValidationReport { inner: results };
     Ok(report)
@@ -732,14 +861,17 @@ fn py_validate(
 fn verdict_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyDataset>()?;
     m.add_class::<PyColumn>()?;
-    m.add_class::<PyConstraint>()?;
-    m.add_class::<PyRule>()?;
-    m.add_class::<PyRuleBuilder>()?;
+    m.add_class::<PyTableConstraint>()?;
+    m.add_class::<PyTableRule>()?;
+    m.add_class::<PyColumnConstraint>()?;
+    m.add_class::<PyColumnRule>()?;
+    m.add_class::<PyColumnRuleBuilder>()?;
     m.add_class::<PyValidationResult>()?;
     m.add_class::<PyValidationReport>()?;
     m.add_class::<PySchema>()?;
     m.add_class::<PyDataType>()?;
-    m.add_function(wrap_pyfunction!(py_validate, m)?)?;
+    m.add_function(wrap_pyfunction!(py_validate_columns, m)?)?;
+    m.add_function(wrap_pyfunction!(py_validate_table, m)?)?;
     m.add_function(wrap_pyfunction!(py_col, m)?)?;
     Ok(())
 }

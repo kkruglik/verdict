@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::dataframe::ops::NumericOps;
 
 #[derive(Debug, Clone)]
-pub enum InSetValues {
+pub enum ValuesSet {
     Int64Set(Vec<i64>),
     Int32Set(Vec<i32>),
     FloatSet(Vec<f64>),
@@ -14,7 +14,7 @@ pub enum InSetValues {
 pub enum Column {
     Int(IntColumn),
     Float(FloatColumn),
-    Str(StrColumn),
+    Str(StringColumn),
     Bool(BoolColumn),
     DateTime(DateTimeColumn),
     Date(DateColumn),
@@ -27,7 +27,7 @@ pub struct IntColumn(pub Vec<Option<i64>>);
 pub struct FloatColumn(pub Vec<Option<f64>>);
 
 #[derive(Clone, Debug)]
-pub struct StrColumn(pub Vec<Option<String>>);
+pub struct StringColumn(pub Vec<Option<String>>);
 
 #[derive(Clone, Debug)]
 pub struct BoolColumn(pub Vec<Option<bool>>);
@@ -114,7 +114,7 @@ impl FloatColumn {
     }
 }
 
-impl StrColumn {
+impl StringColumn {
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -221,7 +221,7 @@ impl Column {
         self.len() - self.unique_count()
     }
 
-    pub fn duplicated(&self, keep: Keep) -> Vec<bool> {
+    pub fn duplicated(&self, keep: KeepStrategy) -> Vec<bool> {
         match self {
             Column::Int(c) => duplicated(&c.0, keep),
             Column::Float(c) => {
@@ -236,29 +236,29 @@ impl Column {
         }
     }
 
-    pub fn is_in(&self, other: &InSetValues) -> Vec<Option<bool>> {
+    pub fn is_in(&self, other: &ValuesSet) -> Vec<Option<bool>> {
         match (self, other) {
-            (Column::Int(col), InSetValues::Int64Set(set)) => col
+            (Column::Int(col), ValuesSet::Int64Set(set)) => col
                 .0
                 .iter()
                 .map(|opt| opt.map(|v| set.contains(&v)))
                 .collect(),
-            (Column::Float(col), InSetValues::FloatSet(set)) => col
+            (Column::Float(col), ValuesSet::FloatSet(set)) => col
                 .0
                 .iter()
                 .map(|opt| opt.map(|v| set.contains(&v)))
                 .collect(),
-            (Column::Str(col), InSetValues::StrSet(set)) => col
+            (Column::Str(col), ValuesSet::StrSet(set)) => col
                 .0
                 .iter()
                 .map(|opt| opt.as_ref().map(|v| set.contains(v)))
                 .collect(),
-            (Column::DateTime(col), InSetValues::Int64Set(set)) => col
+            (Column::DateTime(col), ValuesSet::Int64Set(set)) => col
                 .0
                 .iter()
                 .map(|opt| opt.map(|v| set.contains(&v)))
                 .collect(),
-            (Column::Date(col), InSetValues::Int32Set(set)) => col
+            (Column::Date(col), ValuesSet::Int32Set(set)) => col
                 .0
                 .iter()
                 .map(|opt| opt.map(|v| set.contains(&v)))
@@ -317,13 +317,13 @@ impl Column {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Keep {
+pub enum KeepStrategy {
     First,
     Last,
     None,
 }
 
-fn duplicated<T: Eq + std::hash::Hash>(vec: &[T], keep: Keep) -> Vec<bool> {
+fn duplicated<T: Eq + std::hash::Hash>(vec: &[T], keep: KeepStrategy) -> Vec<bool> {
     let mut counts: HashMap<&T, usize> = HashMap::new();
     for val in vec {
         *counts.entry(val).or_insert(0) += 1;
@@ -333,7 +333,7 @@ fn duplicated<T: Eq + std::hash::Hash>(vec: &[T], keep: Keep) -> Vec<bool> {
     let mut mask = vec![false; vec.len()];
 
     match keep {
-        Keep::First => {
+        KeepStrategy::First => {
             for (i, val) in vec.iter().enumerate() {
                 let seen_count = seen.entry(val).or_insert(0);
                 if *seen_count > 0 {
@@ -342,7 +342,7 @@ fn duplicated<T: Eq + std::hash::Hash>(vec: &[T], keep: Keep) -> Vec<bool> {
                 *seen_count += 1;
             }
         }
-        Keep::Last => {
+        KeepStrategy::Last => {
             for (i, val) in vec.iter().enumerate().rev() {
                 let seen_count = seen.entry(val).or_insert(0);
                 if *seen_count > 0 {
@@ -351,7 +351,7 @@ fn duplicated<T: Eq + std::hash::Hash>(vec: &[T], keep: Keep) -> Vec<bool> {
                 *seen_count += 1;
             }
         }
-        Keep::None => {
+        KeepStrategy::None => {
             for (i, val) in vec.iter().enumerate() {
                 if counts[val] > 1 {
                     mask[i] = true;
