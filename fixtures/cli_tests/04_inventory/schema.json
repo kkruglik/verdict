@@ -1,0 +1,57 @@
+{
+  "columns": [
+    {
+      "name": "item_id",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "stock",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "ge",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "cost_per_unit",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "name": "max_stock",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "lt",
+          "value": 500
+        }
+      ]
+    },
+    {
+      "name": "reorder_level",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            1,
+            50
+          ]
+        }
+      ]
+    }
+  ]
+}

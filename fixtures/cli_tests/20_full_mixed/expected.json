@@ -1,0 +1,37 @@
+[
+  {
+    "column": "id",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "score",
+    "constraint": "between",
+    "passed": true
+  },
+  {
+    "column": "label",
+    "constraint": "is_in",
+    "passed": false
+  },
+  {
+    "column": "active",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "ref_date",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "created_at",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "event_time",
+    "constraint": "between",
+    "passed": false
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "columns": [
+    {
+      "name": "shift_start",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        },
+        {
+          "constraint": "after",
+          "value": "07:00:00"
+        }
+      ]
+    },
+    {
+      "name": "shift_end",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "20:00:00"
+        }
+      ]
+    },
+    {
+      "name": "peak_hours",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            "10:00:00",
+            "16:00:00"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "column": "user_id",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "user_id",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "email",
+    "constraint": "contains",
+    "passed": true
+  },
+  {
+    "column": "status",
+    "constraint": "is_in",
+    "passed": false
+  },
+  {
+    "column": "is_verified",
+    "constraint": "not_null",
+    "passed": false
+  }
+]

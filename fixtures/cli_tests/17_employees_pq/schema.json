@@ -1,0 +1,57 @@
+{
+  "columns": [
+    {
+      "name": "emp_id",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        },
+        {
+          "constraint": "unique",
+          "value": true
+        },
+        {
+          "constraint": "ge",
+          "value": 1000
+        }
+      ]
+    },
+    {
+      "name": "name",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "dept",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "Engineering",
+            "Sales",
+            "HR",
+            "Finance"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hire_date",
+      "dtype": "date",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "2024-01-01"
+        }
+      ]
+    }
+  ]
+}

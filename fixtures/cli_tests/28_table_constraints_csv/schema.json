@@ -1,0 +1,64 @@
+{
+  "table": {
+    "constraints": [
+      {
+        "constraint": "rows_count_between",
+        "value": [
+          5,
+          200
+        ]
+      },
+      {
+        "constraint": "columns_exist",
+        "value": [
+          "col_id",
+          "value",
+          "label"
+        ]
+      },
+      {
+        "constraint": "shape_equals",
+        "value": [
+          10,
+          4
+        ]
+      }
+    ]
+  },
+  "columns": [
+    {
+      "name": "col_id",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        },
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "value",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "name": "label",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    }
+  ]
+}

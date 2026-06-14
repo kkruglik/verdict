@@ -1,0 +1,40 @@
+{
+  "columns": [
+    {
+      "name": "holiday_date",
+      "dtype": "date",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "2023-01-01",
+            "2023-07-04",
+            "2023-12-25",
+            "2023-11-23",
+            "2023-05-29"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ref_date",
+      "dtype": "date",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "quarter_end",
+      "dtype": "date",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "2024-01-01"
+        }
+      ]
+    }
+  ]
+}

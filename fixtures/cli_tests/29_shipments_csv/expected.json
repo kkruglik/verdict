@@ -1,0 +1,32 @@
+[
+  {
+    "column": "tracking_id",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "tracking_id",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "tracking_id",
+    "constraint": "starts_with",
+    "passed": false
+  },
+  {
+    "column": "ship_date",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "delivery_date",
+    "constraint": "before",
+    "passed": true
+  },
+  {
+    "column": "carrier",
+    "constraint": "is_in",
+    "passed": false
+  }
+]

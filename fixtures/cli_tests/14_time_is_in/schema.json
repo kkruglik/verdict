@@ -1,0 +1,31 @@
+{
+  "columns": [
+    {
+      "name": "shift_ms",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "08:00:00",
+            "16:00:00",
+            "00:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "shift_us",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "08:00:00",
+            "16:00:00"
+          ]
+        }
+      ]
+    }
+  ]
+}

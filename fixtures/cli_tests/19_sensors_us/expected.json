@@ -1,0 +1,27 @@
+[
+  {
+    "column": "device_id",
+    "constraint": "unique",
+    "passed": false
+  },
+  {
+    "column": "reading",
+    "constraint": "between",
+    "passed": true
+  },
+  {
+    "column": "quality_score",
+    "constraint": "ge",
+    "passed": true
+  },
+  {
+    "column": "quality_score",
+    "constraint": "le",
+    "passed": false
+  },
+  {
+    "column": "sampled_at",
+    "constraint": "after",
+    "passed": true
+  }
+]

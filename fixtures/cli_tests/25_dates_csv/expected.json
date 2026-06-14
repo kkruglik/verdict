@@ -1,0 +1,22 @@
+[
+  {
+    "column": "event_date",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "event_date",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "created_at",
+    "constraint": "between_dates",
+    "passed": false
+  },
+  {
+    "column": "processed_at",
+    "constraint": "before",
+    "passed": true
+  }
+]

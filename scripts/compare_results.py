@@ -15,7 +15,11 @@ with open(actual_path) as f:
     actual_full = json.load(f)
 
 def normalize(c):
-    return "is_in" if c.startswith("in_set") else c.split("(")[0]
+    if c.startswith("in_set"):
+        return "is_in"
+    if c.startswith("columns_exists"):
+        return "columns_exist"
+    return c.split("(")[0]
 
 actual = {(r["column"], normalize(r["constraint"])): r["passed"] for r in actual_full["results"]}
 

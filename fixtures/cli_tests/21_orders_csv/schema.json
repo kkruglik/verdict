@@ -1,0 +1,42 @@
+{
+  "columns": [
+    {
+      "name": "order_id",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        },
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "total",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": 0.0
+        },
+        {
+          "constraint": "le",
+          "value": 9999.0
+        }
+      ]
+    },
+    {
+      "name": "min_qty",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "ge",
+          "value": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "column": "item_id",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "stock",
+    "constraint": "ge",
+    "passed": true
+  },
+  {
+    "column": "cost_per_unit",
+    "constraint": "gt",
+    "passed": true
+  },
+  {
+    "column": "max_stock",
+    "constraint": "lt",
+    "passed": false
+  },
+  {
+    "column": "reorder_level",
+    "constraint": "between",
+    "passed": false
+  }
+]

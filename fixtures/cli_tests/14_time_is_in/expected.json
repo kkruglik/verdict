@@ -1,0 +1,12 @@
+[
+  {
+    "column": "shift_ms",
+    "constraint": "is_in",
+    "passed": true
+  },
+  {
+    "column": "shift_us",
+    "constraint": "is_in",
+    "passed": false
+  }
+]

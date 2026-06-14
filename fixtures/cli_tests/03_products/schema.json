@@ -1,0 +1,48 @@
+{
+  "columns": [
+    {
+      "name": "product_id",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "ge",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "price",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": 0.0
+        },
+        {
+          "constraint": "le",
+          "value": 200.0
+        }
+      ]
+    },
+    {
+      "name": "name",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "sku",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "starts_with",
+          "value": "SKU-"
+        }
+      ]
+    }
+  ]
+}

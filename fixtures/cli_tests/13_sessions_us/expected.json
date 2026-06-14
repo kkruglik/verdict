@@ -1,0 +1,22 @@
+[
+  {
+    "column": "shift_start",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "shift_start",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "shift_end",
+    "constraint": "before",
+    "passed": true
+  },
+  {
+    "column": "peak_hours",
+    "constraint": "between",
+    "passed": false
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "column": "order_id",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "order_id",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "amount",
+    "constraint": "ge",
+    "passed": true
+  },
+  {
+    "column": "quantity",
+    "constraint": "gt",
+    "passed": true
+  },
+  {
+    "column": "discount",
+    "constraint": "le",
+    "passed": false
+  }
+]

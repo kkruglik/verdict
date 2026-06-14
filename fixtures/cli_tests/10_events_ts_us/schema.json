@@ -1,0 +1,32 @@
+{
+  "columns": [
+    {
+      "name": "logged_at",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        },
+        {
+          "constraint": "after",
+          "value": "2021-06-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "processed_at",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "2023-01-01T00:00:00"
+        },
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    }
+  ]
+}

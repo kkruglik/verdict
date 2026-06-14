@@ -1987,6 +1987,141 @@ mod date_constraint_tests {
 }
 
 #[cfg(test)]
+mod time_constraint_tests {
+    use verdict_core::{
+        dataframe::{Column, DataFrame, TimeColumn},
+        rules::{ColumnConstraint, ColumnRule, ValidationConfig, validate_columns},
+    };
+
+    // Time values as microseconds since midnight.
+    // 04:00:00 = 14_400_000_000 us
+    // 06:00:00 = 21_600_000_000 us
+    // 08:00:00 = 28_800_000_000 us
+    // 10:00:00 = 36_000_000_000 us
+    // 14:00:00 = 50_400_000_000 us
+    // 22:00:00 = 79_200_000_000 us
+    // 23:00:00 = 82_800_000_000 us
+    const H04: i64 = 4 * 3600 * 1_000_000;
+    const H06: i64 = 6 * 3600 * 1_000_000;
+    const H08: i64 = 8 * 3600 * 1_000_000;
+    const H10: i64 = 10 * 3600 * 1_000_000;
+    const H14: i64 = 14 * 3600 * 1_000_000;
+    const H23: i64 = 23 * 3600 * 1_000_000;
+
+    fn make_time_df(values: Vec<Option<i64>>) -> DataFrame {
+        DataFrame::new(
+            vec!["t".to_string()],
+            vec![Column::Time(TimeColumn(values))],
+        )
+    }
+
+    fn cfg() -> ValidationConfig {
+        ValidationConfig::default()
+    }
+
+    // --- After ---
+
+    #[test]
+    fn test_after_time_passes() {
+        let ds = make_time_df(vec![Some(H08), Some(H10), Some(H14)]);
+        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed);
+    }
+
+    #[test]
+    fn test_after_time_fails() {
+        let ds = make_time_df(vec![Some(H08), Some(H10), Some(H04)]);
+        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(1));
+    }
+
+    #[test]
+    fn test_after_time_multiple_failures() {
+        let ds = make_time_df(vec![Some(H08), Some(H04), Some(H04)]);
+        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(2));
+    }
+
+    #[test]
+    fn test_after_time_boundary_exclusive() {
+        // After("06:00:00") means strictly greater — exactly 06:00:00 should fail
+        let ds = make_time_df(vec![Some(H06)]);
+        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(1));
+    }
+
+    // --- Before ---
+
+    #[test]
+    fn test_before_time_passes() {
+        let ds = make_time_df(vec![Some(H08), Some(H10), Some(H14)]);
+        let rules = vec![ColumnRule::new("t", ColumnConstraint::Before("22:00:00".to_string()))];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed);
+    }
+
+    #[test]
+    fn test_before_time_fails() {
+        let ds = make_time_df(vec![Some(H08), Some(H10), Some(H23)]);
+        let rules = vec![ColumnRule::new("t", ColumnConstraint::Before("22:00:00".to_string()))];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(1));
+    }
+
+    #[test]
+    fn test_before_time_boundary_exclusive() {
+        // Before("06:00:00") means strictly less — exactly 06:00:00 should fail
+        let ds = make_time_df(vec![Some(H06)]);
+        let rules = vec![ColumnRule::new("t", ColumnConstraint::Before("06:00:00".to_string()))];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(1));
+    }
+
+    // --- Nulls ---
+
+    #[test]
+    fn test_time_constraint_nulls_skipped() {
+        let ds = make_time_df(vec![Some(H08), None, Some(H10)]);
+        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed);
+    }
+
+    // --- Error cases ---
+
+    #[test]
+    fn test_invalid_time_string_returns_error() {
+        let ds = make_time_df(vec![Some(H08)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("not-a-time".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.results[0].error.is_some());
+    }
+
+    #[test]
+    fn test_before_time_invalid_string_returns_error() {
+        let ds = make_time_df(vec![Some(H08)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Before("25:99:99".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.results[0].error.is_some());
+    }
+}
+
+#[cfg(test)]
 mod table_constraint_tests {
     use verdict_core::{
         dataframe::{Column, DataFrame, FloatColumn, IntColumn, StringColumn},
@@ -2661,5 +2796,153 @@ mod table_constraint_tests {
         let rules = TableRuleBuilder::default().shape_equals(99, 99).build();
         let report = validate_table(&ds, &rules, cfg());
         assert!(!report.results[0].passed);
+    }
+}
+
+#[cfg(all(test, feature = "parquet"))]
+mod parquet_tests {
+    use std::path::Path;
+    use verdict_core::{
+        dataframe::Column,
+        parquet_loader::DatasetParquetExt,
+    };
+    use verdict_core::dataframe::DataFrame;
+
+    fn load_all_types() -> DataFrame {
+        DataFrame::from_parquet(Path::new(
+            "tests/fixtures/parquet/all_types.parquet",
+        ))
+        .expect("all_types.parquet should load without error")
+    }
+
+    fn load_with_nulls() -> DataFrame {
+        DataFrame::from_parquet(Path::new(
+            "tests/fixtures/parquet/with_nulls.parquet",
+        ))
+        .expect("with_nulls.parquet should load without error")
+    }
+
+    // --- Structure ---
+
+    #[test]
+    fn test_parquet_loads_correct_column_count() {
+        let df = load_all_types();
+        assert_eq!(df.columns.len(), 9);
+    }
+
+    #[test]
+    fn test_parquet_loads_correct_row_count() {
+        let df = load_all_types();
+        assert_eq!(df.columns[0].len(), 10);
+    }
+
+    // --- Column type detection ---
+
+    #[test]
+    fn test_parquet_int_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[0], Column::Int(_)), "id should be Int");
+    }
+
+    #[test]
+    fn test_parquet_float_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[1], Column::Float(_)), "score should be Float");
+    }
+
+    #[test]
+    fn test_parquet_str_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[2], Column::Str(_)), "label should be Str");
+    }
+
+    #[test]
+    fn test_parquet_bool_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[3], Column::Bool(_)), "active should be Bool");
+    }
+
+    #[test]
+    fn test_parquet_date_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[4], Column::Date(_)), "date_col should be Date");
+    }
+
+    #[test]
+    fn test_parquet_datetime_ms_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[5], Column::DateTime(_)), "ts_ms should be DateTime");
+    }
+
+    #[test]
+    fn test_parquet_datetime_us_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[6], Column::DateTime(_)), "ts_us should be DateTime");
+    }
+
+    #[test]
+    fn test_parquet_time_ms_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[7], Column::Time(_)), "time_ms should be Time");
+    }
+
+    #[test]
+    fn test_parquet_time_us_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[8], Column::Time(_)), "time_us should be Time");
+    }
+
+    // --- Precision normalisation (ms → us on load) ---
+
+    #[test]
+    fn test_parquet_timestamp_ms_normalized_to_us() {
+        let df = load_all_types();
+        let ts_ms_col = match &df.columns[5] {
+            Column::DateTime(c) => &c.0,
+            _ => panic!("ts_ms is not DateTime"),
+        };
+        let ts_us_col = match &df.columns[6] {
+            Column::DateTime(c) => &c.0,
+            _ => panic!("ts_us is not DateTime"),
+        };
+        // Both columns represent the same wall-clock times; after ms→us normalisation
+        // their raw i64 values (microseconds since epoch) must be identical.
+        assert_eq!(ts_ms_col, ts_us_col);
+    }
+
+    #[test]
+    fn test_parquet_time_ms_normalized_to_us() {
+        let df = load_all_types();
+        let time_ms_col = match &df.columns[7] {
+            Column::Time(c) => &c.0,
+            _ => panic!("time_ms is not Time"),
+        };
+        let time_us_col = match &df.columns[8] {
+            Column::Time(c) => &c.0,
+            _ => panic!("time_us is not Time"),
+        };
+        assert_eq!(time_ms_col, time_us_col);
+    }
+
+    // --- Null handling ---
+
+    #[test]
+    fn test_parquet_null_values_loaded_as_none() {
+        let df = load_with_nulls();
+        // Generator placed None at indices 3 and 7 in every column.
+        for (i, col) in df.columns.iter().enumerate() {
+            assert_eq!(
+                col.null_count(), 2,
+                "column {} should have 2 nulls", i
+            );
+        }
+    }
+
+    // --- Error handling ---
+
+    #[test]
+    fn test_parquet_file_not_found_returns_error() {
+        let result = DataFrame::from_parquet(Path::new("tests/fixtures/parquet/nonexistent.parquet"));
+        assert!(result.is_err());
     }
 }

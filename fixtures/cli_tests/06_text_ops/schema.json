@@ -1,0 +1,52 @@
+{
+  "columns": [
+    {
+      "name": "category",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "description",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "length_between",
+          "value": [
+            5,
+            200
+          ]
+        }
+      ]
+    },
+    {
+      "name": "code",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "matches_regex",
+          "value": "^[A-Z]{3}-\\d{4}$"
+        }
+      ]
+    },
+    {
+      "name": "tag",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "starts_with",
+          "value": "tag_"
+        }
+      ]
+    }
+  ]
+}

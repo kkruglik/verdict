@@ -1,0 +1,26 @@
+company,website,email,phone
+Acme Corp,https://company0.com,contact0@corp.com,+1-555-0000
+Globex,https://company1.com,contact1@corp.com,+1-555-0001
+Initech,https://company2.com,contact2@corp.com,+1-555-0002
+Umbrella,https://company3.com,contact3@corp.com,+1-555-0003
+Hooli,https://company4.com,contact4@corp.com,+1-555-0004
+Acme Corp,https://company5.com,contact5@corp.com,+1-555-0005
+Globex,https://company6.com,contact6@corp.com,+1-555-0006
+Initech,https://company7.com,contact7@corp.com,+1-555-0007
+Umbrella,https://company8.com,contact8@corp.com,+1-555-0008
+Hooli,https://company9.com,contact9@corp.com,+1-555-0009
+Acme Corp,https://company10.com,contact10@corp.com,+1-555-0010
+Globex,https://company11.com,contact11@corp.com,+1-555-0011
+Initech,https://company12.com,contact12@corp.com,+1-555-0012
+Umbrella,https://company13.com,contact13@corp.com,+1-555-0013
+Hooli,https://company14.com,contact14@corp.com,+1-555-0014
+Acme Corp,https://company15.com,contact15@corp.com,+1-555-0015
+Globex,https://company16.com,contact16@corp.com,+1-555-0016
+Initech,https://company17.com,contact17@corp.com,+1-555-0017
+Umbrella,https://company18.com,contact18@corp.com,+1-555-0018
+Hooli,https://company19.com,contact19@corp.com,+1-555-0019
+Acme Corp,https://example.org,notanemail,+44-20-7946-0958
+Globex,ftp://site.net,missing-at,+49-30-1234
+Initech,nope,bad,07911123456
+Umbrella,company.io,nope.com,555-1234
+Hooli,www.test.co.uk,foo,0800-100-200

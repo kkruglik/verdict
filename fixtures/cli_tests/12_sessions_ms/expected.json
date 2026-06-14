@@ -1,0 +1,22 @@
+[
+  {
+    "column": "open_time",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "close_time",
+    "constraint": "before",
+    "passed": true
+  },
+  {
+    "column": "break_time",
+    "constraint": "not_null",
+    "passed": false
+  },
+  {
+    "column": "lunch_time",
+    "constraint": "between",
+    "passed": false
+  }
+]

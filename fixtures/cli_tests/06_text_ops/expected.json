@@ -1,0 +1,22 @@
+[
+  {
+    "column": "category",
+    "constraint": "is_in",
+    "passed": true
+  },
+  {
+    "column": "description",
+    "constraint": "length_between",
+    "passed": true
+  },
+  {
+    "column": "code",
+    "constraint": "matches_regex",
+    "passed": false
+  },
+  {
+    "column": "tag",
+    "constraint": "starts_with",
+    "passed": false
+  }
+]

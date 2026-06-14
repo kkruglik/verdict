@@ -191,3 +191,73 @@ fn parse_constraint_errors_on_unknown_name() {
             .contains("unsupported constraint")
     );
 }
+
+#[test]
+fn parse_constraint_lt_with_number() {
+    let result = parse_column_constraint("lt", &json!(50), &DtypeConfig::Int).unwrap();
+    assert!(matches!(result, ColumnConstraint::LessThan(Operand::Num(v)) if v == 50.0));
+}
+
+#[test]
+fn parse_constraint_le_with_number() {
+    let result = parse_column_constraint("le", &json!(100), &DtypeConfig::Int).unwrap();
+    assert!(matches!(result, ColumnConstraint::LessThanOrEqual(Operand::Num(v)) if v == 100.0));
+}
+
+#[test]
+fn parse_constraint_eq_with_string() {
+    let result = parse_column_constraint("eq", &json!("active"), &DtypeConfig::Str).unwrap();
+    assert!(matches!(result, ColumnConstraint::Equal(Operand::Str(s)) if s == "active"));
+}
+
+#[test]
+fn parse_constraint_after_date() {
+    let result =
+        parse_column_constraint("after", &json!("2023-01-01"), &DtypeConfig::Date).unwrap();
+    assert!(matches!(result, ColumnConstraint::After(s) if s == "2023-01-01"));
+}
+
+#[test]
+fn parse_constraint_before_date() {
+    let result =
+        parse_column_constraint("before", &json!("2025-12-31"), &DtypeConfig::Date).unwrap();
+    assert!(matches!(result, ColumnConstraint::Before(s) if s == "2025-12-31"));
+}
+
+#[test]
+fn parse_constraint_between_dates() {
+    let result = parse_column_constraint(
+        "between_dates",
+        &json!(["2022-01-01", "2024-12-31"]),
+        &DtypeConfig::Date,
+    )
+    .unwrap();
+    assert!(
+        matches!(result, ColumnConstraint::BetweenDates { min, max } if min == "2022-01-01" && max == "2024-12-31")
+    );
+}
+
+#[test]
+fn parse_constraint_starts_with() {
+    let result =
+        parse_column_constraint("starts_with", &json!("SKU-"), &DtypeConfig::Str).unwrap();
+    assert!(matches!(result, ColumnConstraint::StartsWith(s) if s == "SKU-"));
+}
+
+#[test]
+fn parse_constraint_ends_with() {
+    let result =
+        parse_column_constraint("ends_with", &json!(".com"), &DtypeConfig::Str).unwrap();
+    assert!(matches!(result, ColumnConstraint::EndsWith(s) if s == ".com"));
+}
+
+#[test]
+fn parse_constraint_matches_regex() {
+    let result = parse_column_constraint(
+        "matches_regex",
+        &json!("^[A-Z]{3}-\\d{4}$"),
+        &DtypeConfig::Str,
+    )
+    .unwrap();
+    assert!(matches!(result, ColumnConstraint::MatchesRegex(s) if s == "^[A-Z]{3}-\\d{4}$"));
+}

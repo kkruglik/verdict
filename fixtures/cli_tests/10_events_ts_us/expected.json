@@ -1,0 +1,22 @@
+[
+  {
+    "column": "logged_at",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "logged_at",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "processed_at",
+    "constraint": "before",
+    "passed": false
+  },
+  {
+    "column": "processed_at",
+    "constraint": "unique",
+    "passed": false
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "column": "item_id",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "item_id",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "quantity",
+    "constraint": "ge",
+    "passed": true
+  },
+  {
+    "column": "quantity",
+    "constraint": "le",
+    "passed": false
+  },
+  {
+    "column": "unit_price",
+    "constraint": "gt",
+    "passed": true
+  },
+  {
+    "column": "total_value",
+    "constraint": "gt",
+    "passed": false
+  }
+]

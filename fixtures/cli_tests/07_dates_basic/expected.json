@@ -1,0 +1,22 @@
+[
+  {
+    "column": "event_date",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "event_date",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "expiry_date",
+    "constraint": "before",
+    "passed": true
+  },
+  {
+    "column": "created_date",
+    "constraint": "between_dates",
+    "passed": false
+  }
+]

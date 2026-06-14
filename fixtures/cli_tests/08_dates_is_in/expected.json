@@ -1,0 +1,17 @@
+[
+  {
+    "column": "holiday_date",
+    "constraint": "is_in",
+    "passed": true
+  },
+  {
+    "column": "ref_date",
+    "constraint": "not_null",
+    "passed": false
+  },
+  {
+    "column": "quarter_end",
+    "constraint": "before",
+    "passed": false
+  }
+]

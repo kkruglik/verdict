@@ -1,0 +1,41 @@
+{
+  "columns": [
+    {
+      "name": "start_ms",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        },
+        {
+          "constraint": "after",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "end_us",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "2026-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "duration_ms",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "between_dates",
+          "value": [
+            "2022-01-01T00:00:00",
+            "2024-01-01T00:00:00"
+          ]
+        }
+      ]
+    }
+  ]
+}

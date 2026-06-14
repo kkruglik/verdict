@@ -1,0 +1,63 @@
+{
+  "columns": [
+    {
+      "name": "student_id",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "math",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            0.0,
+            100.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "science",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "le",
+          "value": 100.0
+        }
+      ]
+    },
+    {
+      "name": "english",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "ge",
+          "value": 0.0
+        }
+      ]
+    },
+    {
+      "name": "grade",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "F"
+          ]
+        }
+      ]
+    }
+  ]
+}

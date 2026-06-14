@@ -1,0 +1,27 @@
+[
+  {
+    "column": "product_id",
+    "constraint": "ge",
+    "passed": true
+  },
+  {
+    "column": "price",
+    "constraint": "gt",
+    "passed": true
+  },
+  {
+    "column": "price",
+    "constraint": "le",
+    "passed": false
+  },
+  {
+    "column": "name",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "sku",
+    "constraint": "starts_with",
+    "passed": false
+  }
+]

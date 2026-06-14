@@ -1,0 +1,37 @@
+[
+  {
+    "column": null,
+    "constraint": "rows_count_between",
+    "passed": true
+  },
+  {
+    "column": null,
+    "constraint": "columns_exist",
+    "passed": true
+  },
+  {
+    "column": null,
+    "constraint": "shape_equals",
+    "passed": false
+  },
+  {
+    "column": "col_id",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "col_id",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "value",
+    "constraint": "gt",
+    "passed": true
+  },
+  {
+    "column": "label",
+    "constraint": "not_null",
+    "passed": false
+  }
+]

@@ -1,0 +1,50 @@
+{
+  "columns": [
+    {
+      "name": "sensor_id",
+      "dtype": "int",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "humidity",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            0.0,
+            100.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "temperature",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            -10.0,
+            40.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pressure",
+      "dtype": "float",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": 900.0
+        }
+      ]
+    }
+  ]
+}

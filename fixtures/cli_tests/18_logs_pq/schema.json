@@ -1,0 +1,48 @@
+{
+  "columns": [
+    {
+      "name": "level",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "INFO",
+            "WARN",
+            "ERROR"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "message",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "ts",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "2023-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "source",
+      "dtype": "str",
+      "constraints": [
+        {
+          "constraint": "matches_regex",
+          "value": "^[a-z]+\\.[a-z]+"
+        }
+      ]
+    }
+  ]
+}

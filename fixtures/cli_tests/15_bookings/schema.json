@@ -1,0 +1,54 @@
+{
+  "columns": [
+    {
+      "name": "booking_date",
+      "dtype": "date",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "2023-01-01"
+        },
+        {
+          "constraint": "is_in",
+          "value": [
+            "2023-06-01",
+            "2023-07-15",
+            "2023-08-20",
+            "2024-01-10",
+            "2024-03-05"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "check_in_time",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "12:00:00"
+        }
+      ]
+    },
+    {
+      "name": "check_out_time",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "11:00:00"
+        }
+      ]
+    },
+    {
+      "name": "reservation_ts",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    }
+  ]
+}
