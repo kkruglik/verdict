@@ -2,9 +2,10 @@ use std::path::Path;
 
 use crate::dataframe::{
     BoolColumn, Column, DataFrame, DataType, DateColumn, DateTimeColumn, FloatColumn, IntColumn,
-    Schema, StringColumn, naive_date_to_i32, naive_datetime_to_i64,
+    Schema, StringColumn, column::TimeColumn, naive_date_to_i32, naive_datetime_to_i64,
+    ops::naive_time_to_i64,
 };
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use csv::ReaderBuilder;
 use thiserror::Error;
 
@@ -39,6 +40,7 @@ enum ColBuilder {
     Bool(Vec<Option<bool>>),
     Date(Vec<Option<i32>>, Option<String>),
     DateTime(Vec<Option<i64>>, Option<String>),
+    Time(Vec<Option<i64>>, Option<String>),
 }
 
 impl DatasetCsvExt for DataFrame {
@@ -67,6 +69,7 @@ impl DatasetCsvExt for DataFrame {
                 DataType::Bool => "Bool",
                 DataType::DateTime => "DateTime",
                 DataType::Date => "Date",
+                DataType::Time => "Date",
             })
             .collect();
 
@@ -82,6 +85,7 @@ impl DatasetCsvExt for DataFrame {
                     ColBuilder::DateTime(Vec::with_capacity(4096), f.format.clone())
                 }
                 DataType::Date => ColBuilder::Date(Vec::with_capacity(4096), f.format.clone()),
+                DataType::Time => ColBuilder::Time(Vec::with_capacity(4096), f.format.clone()),
             })
             .collect();
 
@@ -96,6 +100,7 @@ impl DatasetCsvExt for DataFrame {
                         ColBuilder::Bool(v) => v.push(None),
                         ColBuilder::DateTime(v, _) => v.push(None),
                         ColBuilder::Date(v, _) => v.push(None),
+                        ColBuilder::Time(v, _) => v.push(None),
                     }
                     continue;
                 }
@@ -159,6 +164,18 @@ impl DatasetCsvExt for DataFrame {
                         })?;
                         v.push(Some(naive_date_to_i32(&naive_dt)));
                     }
+                    ColBuilder::Time(v, fmt) => {
+                        let fmt_str = fmt.as_deref().unwrap_or("%H:%M:%S");
+                        let naive_time = NaiveTime::parse_from_str(val, fmt_str).map_err(|_| {
+                            CsvLoadingError::ParseError {
+                                column: field_names[col_idx].clone(),
+                                row: row_idx,
+                                value: val.to_string(),
+                                expected: field_expected[col_idx].to_string(),
+                            }
+                        })?;
+                        v.push(Some(naive_time_to_i64(&naive_time)));
+                    }
                 }
             }
         }
@@ -172,6 +189,7 @@ impl DatasetCsvExt for DataFrame {
                 ColBuilder::Bool(v) => Column::Bool(BoolColumn(v)),
                 ColBuilder::DateTime(v, _) => Column::DateTime(DateTimeColumn(v)),
                 ColBuilder::Date(v, _) => Column::Date(DateColumn(v)),
+                ColBuilder::Time(v, _) => Column::Time(TimeColumn(v)),
             })
             .collect();
 

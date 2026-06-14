@@ -22,6 +22,7 @@ pub enum DataType {
     Bool,
     Date,
     DateTime,
+    Time,
 }
 
 pub struct Schema {

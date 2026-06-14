@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use crate::dataframe::{
     Column,
-    column::{DateColumn, DateTimeColumn},
+    column::{DateColumn, DateTimeColumn, TimeColumn},
 };
 
 use super::{BoolColumn, FloatColumn, IntColumn, StringColumn};
-use chrono::{DateTime, NaiveDate, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
 use regex::Regex;
 
 pub trait NumericOps {
@@ -232,6 +234,71 @@ impl ComparableOps<&NaiveDate> for DateColumn {
         self.0
             .iter()
             .map(|v| v.map(|x| x >= lower_epochs && x <= upper_epochs))
+            .collect()
+    }
+}
+
+impl ComparableOps<i64> for TimeColumn {
+    fn gt(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x > compare)).collect()
+    }
+
+    fn ge(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x >= compare)).collect()
+    }
+
+    fn lt(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x < compare)).collect()
+    }
+
+    fn le(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x <= compare)).collect()
+    }
+
+    fn equal(&self, compare: i64) -> Vec<Option<bool>> {
+        self.0.iter().map(|v| v.map(|x| x == compare)).collect()
+    }
+
+    fn between(&self, lower: i64, upper: i64) -> Vec<Option<bool>> {
+        self.0
+            .iter()
+            .map(|v| v.map(|x| x >= lower && x <= upper))
+            .collect()
+    }
+}
+
+impl ComparableOps<&NaiveTime> for TimeColumn {
+    fn gt(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        let num_seconds = naive_time_to_i64(compare);
+        self.0.iter().map(|v| v.map(|x| x > num_seconds)).collect()
+    }
+
+    fn ge(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        let num_seconds = naive_time_to_i64(compare);
+        self.0.iter().map(|v| v.map(|x| x >= num_seconds)).collect()
+    }
+
+    fn lt(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        let num_seconds = naive_time_to_i64(compare);
+        self.0.iter().map(|v| v.map(|x| x < num_seconds)).collect()
+    }
+
+    fn le(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        let num_seconds = naive_time_to_i64(compare);
+        self.0.iter().map(|v| v.map(|x| x <= num_seconds)).collect()
+    }
+
+    fn equal(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        let num_seconds = naive_time_to_i64(compare);
+        self.0.iter().map(|v| v.map(|x| x == num_seconds)).collect()
+    }
+
+    fn between(&self, lower: &NaiveTime, upper: &NaiveTime) -> Vec<Option<bool>> {
+        let lower_num_seconds = naive_time_to_i64(lower);
+        let upper_num_seconds = naive_time_to_i64(upper);
+        self.0
+            .iter()
+            .map(|v| v.map(|x| x >= lower_num_seconds && x <= upper_num_seconds))
             .collect()
     }
 }
@@ -515,6 +582,12 @@ impl ComparableOps<&str> for Column {
     fn gt(&self, compare: &str) -> Vec<Option<bool>> {
         match self {
             Column::Str(col) => col.gt(compare),
+            Column::Date(col) => NaiveDate::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |date| col.gt(&date)),
+            Column::DateTime(col) => NaiveDateTime::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |date| col.gt(&date)),
+            Column::Time(col) => NaiveTime::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |date| col.gt(&date)),
             _ => vec![None; self.len()],
         }
     }
@@ -522,6 +595,14 @@ impl ComparableOps<&str> for Column {
     fn ge(&self, compare: &str) -> Vec<Option<bool>> {
         match self {
             Column::Str(col) => col.ge(compare),
+            Column::Date(col) => {
+                NaiveDate::from_str(compare).map_or_else(|_| vec![None; self.len()], |d| col.ge(&d))
+            }
+            Column::DateTime(col) => NaiveDateTime::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |d| col.ge(&d)),
+            Column::Time(col) => {
+                NaiveTime::from_str(compare).map_or_else(|_| vec![None; self.len()], |d| col.ge(&d))
+            }
             _ => vec![None; self.len()],
         }
     }
@@ -529,6 +610,14 @@ impl ComparableOps<&str> for Column {
     fn lt(&self, compare: &str) -> Vec<Option<bool>> {
         match self {
             Column::Str(col) => col.lt(compare),
+            Column::Date(col) => {
+                NaiveDate::from_str(compare).map_or_else(|_| vec![None; self.len()], |d| col.lt(&d))
+            }
+            Column::DateTime(col) => NaiveDateTime::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |d| col.lt(&d)),
+            Column::Time(col) => {
+                NaiveTime::from_str(compare).map_or_else(|_| vec![None; self.len()], |d| col.lt(&d))
+            }
             _ => vec![None; self.len()],
         }
     }
@@ -536,6 +625,14 @@ impl ComparableOps<&str> for Column {
     fn le(&self, compare: &str) -> Vec<Option<bool>> {
         match self {
             Column::Str(col) => col.le(compare),
+            Column::Date(col) => {
+                NaiveDate::from_str(compare).map_or_else(|_| vec![None; self.len()], |d| col.le(&d))
+            }
+            Column::DateTime(col) => NaiveDateTime::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |d| col.le(&d)),
+            Column::Time(col) => {
+                NaiveTime::from_str(compare).map_or_else(|_| vec![None; self.len()], |d| col.le(&d))
+            }
             _ => vec![None; self.len()],
         }
     }
@@ -543,6 +640,12 @@ impl ComparableOps<&str> for Column {
     fn equal(&self, compare: &str) -> Vec<Option<bool>> {
         match self {
             Column::Str(col) => col.equal(compare),
+            Column::Date(col) => NaiveDate::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |d| col.equal(&d)),
+            Column::DateTime(col) => NaiveDateTime::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |d| col.equal(&d)),
+            Column::Time(col) => NaiveTime::from_str(compare)
+                .map_or_else(|_| vec![None; self.len()], |d| col.equal(&d)),
             _ => vec![None; self.len()],
         }
     }
@@ -550,6 +653,21 @@ impl ComparableOps<&str> for Column {
     fn between(&self, lower: &str, upper: &str) -> Vec<Option<bool>> {
         match self {
             Column::Str(col) => col.between(lower, upper),
+            Column::Date(col) => match (NaiveDate::from_str(lower), NaiveDate::from_str(upper)) {
+                (Ok(lo), Ok(hi)) => col.between(&lo, &hi),
+                _ => vec![None; self.len()],
+            },
+            Column::DateTime(col) => match (
+                NaiveDateTime::from_str(lower),
+                NaiveDateTime::from_str(upper),
+            ) {
+                (Ok(lo), Ok(hi)) => col.between(&lo, &hi),
+                _ => vec![None; self.len()],
+            },
+            Column::Time(col) => match (NaiveTime::from_str(lower), NaiveTime::from_str(upper)) {
+                (Ok(lo), Ok(hi)) => col.between(&lo, &hi),
+                _ => vec![None; self.len()],
+            },
             _ => vec![None; self.len()],
         }
     }
@@ -651,12 +769,14 @@ impl ComparableOps<i64> for Column {
     fn ge(&self, compare: i64) -> Vec<Option<bool>> {
         match self {
             Column::DateTime(col) => col.ge(compare),
+            Column::Time(col) => col.ge(compare),
             _ => vec![None; self.len()],
         }
     }
     fn gt(&self, compare: i64) -> Vec<Option<bool>> {
         match self {
             Column::DateTime(col) => col.gt(compare),
+            Column::Time(col) => col.gt(compare),
             _ => vec![None; self.len()],
         }
     }
@@ -664,6 +784,7 @@ impl ComparableOps<i64> for Column {
     fn lt(&self, compare: i64) -> Vec<Option<bool>> {
         match self {
             Column::DateTime(col) => col.lt(compare),
+            Column::Time(col) => col.lt(compare),
             _ => vec![None; self.len()],
         }
     }
@@ -671,6 +792,7 @@ impl ComparableOps<i64> for Column {
     fn le(&self, compare: i64) -> Vec<Option<bool>> {
         match self {
             Column::DateTime(col) => col.le(compare),
+            Column::Time(col) => col.le(compare),
             _ => vec![None; self.len()],
         }
     }
@@ -678,6 +800,7 @@ impl ComparableOps<i64> for Column {
     fn equal(&self, compare: i64) -> Vec<Option<bool>> {
         match self {
             Column::DateTime(col) => col.equal(compare),
+            Column::Time(col) => col.equal(compare),
             _ => vec![None; self.len()],
         }
     }
@@ -685,6 +808,7 @@ impl ComparableOps<i64> for Column {
     fn between(&self, lower: i64, upper: i64) -> Vec<Option<bool>> {
         match self {
             Column::DateTime(col) => col.between(lower, upper),
+            Column::Time(col) => col.between(lower, upper),
             _ => vec![None; self.len()],
         }
     }
@@ -729,6 +853,50 @@ impl ComparableOps<&NaiveDate> for Column {
     fn between(&self, lower: &NaiveDate, upper: &NaiveDate) -> Vec<Option<bool>> {
         match &self {
             Column::Date(col) => col.between(lower, upper),
+            _ => vec![None; self.len()],
+        }
+    }
+}
+
+impl ComparableOps<&NaiveTime> for Column {
+    fn gt(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        match &self {
+            Column::Time(col) => col.gt(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn ge(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        match &self {
+            Column::Time(col) => col.ge(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn lt(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        match &self {
+            Column::Time(col) => col.lt(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn le(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        match &self {
+            Column::Time(col) => col.le(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn equal(&self, compare: &NaiveTime) -> Vec<Option<bool>> {
+        match &self {
+            Column::Time(col) => col.equal(compare),
+            _ => vec![None; self.len()],
+        }
+    }
+
+    fn between(&self, lower: &NaiveTime, upper: &NaiveTime) -> Vec<Option<bool>> {
+        match &self {
+            Column::Time(col) => col.between(lower, upper),
             _ => vec![None; self.len()],
         }
     }
@@ -1250,6 +1418,11 @@ pub fn naive_date_to_i32(naive_date: &NaiveDate) -> i32 {
     naive_date.to_epoch_days()
 }
 
+pub fn naive_time_to_i64(naive_time: &NaiveTime) -> i64 {
+    let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+    (*naive_time - midnight).num_microseconds().unwrap()
+}
+
 pub fn naive_datetime_to_i64(naive_datetime: &NaiveDateTime) -> i64 {
     naive_datetime.and_utc().timestamp_micros()
 }
@@ -1260,4 +1433,10 @@ pub fn i64_to_naive_datetime(v: i64) -> Option<NaiveDateTime> {
 
 pub fn i32_to_naive_date(v: i32) -> Option<NaiveDate> {
     NaiveDate::from_epoch_days(v)
+}
+
+pub fn i64_to_naive_time(v: i64) -> Option<NaiveTime> {
+    let secs = v / 1_000_000;
+    let nanos = (v % 1_000_000) * 1000;
+    NaiveTime::from_num_seconds_from_midnight_opt(secs as u32, nanos as u32)
 }

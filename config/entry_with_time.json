@@ -1,0 +1,23 @@
+{
+  "columns": [
+    { "name": "user_id", "dtype": "int", "constraints": [
+      { "constraint": "not_null", "value": true },
+      { "constraint": "unique", "value": true },
+      { "constraint": "ge", "value": 1 }
+    ]},
+    { "name": "created_date", "dtype": "date", "constraints": [
+      { "constraint": "not_null", "value": true },
+      { "constraint": "after", "value": "2019-12-31" },
+      { "constraint": "before", "value": "2025-01-01" }
+    ]},
+    { "name": "created_at", "dtype": "datetime", "constraints": [
+      { "constraint": "not_null", "value": true }
+    ]},
+    { "name": "event_time", "dtype": "time", "constraints": [
+      { "constraint": "not_null", "value": true },
+      { "constraint": "after", "value": "00:00:00" },
+      { "constraint": "before", "value": "23:59:59" }
+    ]},
+    { "name": "event_time_with_nulls", "dtype": "time" }
+  ]
+}

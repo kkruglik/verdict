@@ -1,0 +1,341 @@
+{
+  "columns": [
+    {
+      "name": "dt_ms_not_null",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "dt_us_not_null",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_unique",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "dt_us_unique",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_after",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_us_after",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_before",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "2025-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_us_before",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "2025-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_between_dates",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "between_dates",
+          "value": [
+            "2020-01-01T00:00:00",
+            "2025-01-01T00:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_gt",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_us_ge",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "ge",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_lt",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "lt",
+          "value": "2025-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_us_le",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "le",
+          "value": "2025-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_eq",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "eq",
+          "value": "2023-06-15T12:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_between",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            "2020-06-01T00:00:00",
+            "2025-01-01T00:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dt_us_between",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            "2020-06-01T00:00:00",
+            "2025-01-01T00:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_is_in",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "2021-03-01T08:00:00",
+            "2021-06-01T12:00:00",
+            "2022-01-01T00:00:00",
+            "2023-06-01T18:00:00",
+            "2024-01-01T06:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_not_null",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_unique",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_after",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_us_fail_after",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_before",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "2025-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_us_fail_before",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "2025-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_between_dates",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "between_dates",
+          "value": [
+            "2020-01-01T00:00:00",
+            "2025-01-01T00:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_gt",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_us_fail_ge",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "ge",
+          "value": "2020-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_lt",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "lt",
+          "value": "2025-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_us_fail_le",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "le",
+          "value": "2025-01-01T00:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_eq",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "eq",
+          "value": "2023-06-15T12:00:00"
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_between",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            "2020-06-01T00:00:00",
+            "2025-01-01T00:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dt_ms_fail_is_in",
+      "dtype": "datetime",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "2021-03-01T08:00:00",
+            "2021-06-01T12:00:00",
+            "2022-01-01T00:00:00",
+            "2023-06-01T18:00:00",
+            "2024-01-01T06:00:00"
+          ]
+        }
+      ]
+    }
+  ]
+}

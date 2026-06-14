@@ -1,0 +1,315 @@
+{
+  "columns": [
+    {
+      "name": "time_ms_not_null",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "time_us_not_null",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "time_ms_unique",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "time_us_unique",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "time_ms_after",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "06:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_us_after",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "06:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_before",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "22:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_us_before",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "22:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_gt",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": "06:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_us_ge",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "ge",
+          "value": "06:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_lt",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "lt",
+          "value": "22:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_us_le",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "le",
+          "value": "22:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_eq",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "eq",
+          "value": "12:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_between",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            "08:00:00",
+            "18:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "time_us_between",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            "08:00:00",
+            "18:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "time_ms_is_in",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "08:00:00",
+            "10:00:00",
+            "12:00:00",
+            "14:00:00",
+            "16:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_not_null",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "not_null",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_unique",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "unique",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_after",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "06:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_us_fail_after",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "after",
+          "value": "06:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_before",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "22:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_us_fail_before",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "before",
+          "value": "22:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_gt",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "gt",
+          "value": "06:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_us_fail_ge",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "ge",
+          "value": "06:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_lt",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "lt",
+          "value": "22:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_us_fail_le",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "le",
+          "value": "22:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_eq",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "eq",
+          "value": "12:00:00"
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_between",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "between",
+          "value": [
+            "08:00:00",
+            "18:00:00"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "time_ms_fail_is_in",
+      "dtype": "time",
+      "constraints": [
+        {
+          "constraint": "is_in",
+          "value": [
+            "08:00:00",
+            "10:00:00",
+            "12:00:00",
+            "14:00:00",
+            "16:00:00"
+          ]
+        }
+      ]
+    }
+  ]
+}

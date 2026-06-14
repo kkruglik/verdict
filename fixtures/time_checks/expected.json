@@ -1,0 +1,147 @@
+[
+  {
+    "column": "time_ms_not_null",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "time_us_not_null",
+    "constraint": "not_null",
+    "passed": true
+  },
+  {
+    "column": "time_ms_unique",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "time_us_unique",
+    "constraint": "unique",
+    "passed": true
+  },
+  {
+    "column": "time_ms_after",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "time_us_after",
+    "constraint": "after",
+    "passed": true
+  },
+  {
+    "column": "time_ms_before",
+    "constraint": "before",
+    "passed": true
+  },
+  {
+    "column": "time_us_before",
+    "constraint": "before",
+    "passed": true
+  },
+  {
+    "column": "time_ms_gt",
+    "constraint": "gt",
+    "passed": true
+  },
+  {
+    "column": "time_us_ge",
+    "constraint": "ge",
+    "passed": true
+  },
+  {
+    "column": "time_ms_lt",
+    "constraint": "lt",
+    "passed": true
+  },
+  {
+    "column": "time_us_le",
+    "constraint": "le",
+    "passed": true
+  },
+  {
+    "column": "time_ms_eq",
+    "constraint": "eq",
+    "passed": true
+  },
+  {
+    "column": "time_ms_between",
+    "constraint": "between",
+    "passed": true
+  },
+  {
+    "column": "time_us_between",
+    "constraint": "between",
+    "passed": true
+  },
+  {
+    "column": "time_ms_is_in",
+    "constraint": "is_in",
+    "passed": true
+  },
+  {
+    "column": "time_ms_fail_not_null",
+    "constraint": "not_null",
+    "passed": false
+  },
+  {
+    "column": "time_ms_fail_unique",
+    "constraint": "unique",
+    "passed": false
+  },
+  {
+    "column": "time_ms_fail_after",
+    "constraint": "after",
+    "passed": false
+  },
+  {
+    "column": "time_us_fail_after",
+    "constraint": "after",
+    "passed": false
+  },
+  {
+    "column": "time_ms_fail_before",
+    "constraint": "before",
+    "passed": false
+  },
+  {
+    "column": "time_us_fail_before",
+    "constraint": "before",
+    "passed": false
+  },
+  {
+    "column": "time_ms_fail_gt",
+    "constraint": "gt",
+    "passed": false
+  },
+  {
+    "column": "time_us_fail_ge",
+    "constraint": "ge",
+    "passed": false
+  },
+  {
+    "column": "time_ms_fail_lt",
+    "constraint": "lt",
+    "passed": false
+  },
+  {
+    "column": "time_us_fail_le",
+    "constraint": "le",
+    "passed": false
+  },
+  {
+    "column": "time_ms_fail_eq",
+    "constraint": "eq",
+    "passed": false
+  },
+  {
+    "column": "time_ms_fail_between",
+    "constraint": "between",
+    "passed": false
+  },
+  {
+    "column": "time_ms_fail_is_in",
+    "constraint": "is_in",
+    "passed": false
+  }
+]

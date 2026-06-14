@@ -230,15 +230,67 @@
 
 **Goal:** make verdict usable in modern data stacks where Parquet is the default format.
 
-- [ ] Add `parquet` feature flag to `verdict-core`
-- [ ] `DatasetParquetExt` trait with `Dataset::from_parquet(path, schema)`
-- [ ] `ParquetLoadingError` mirrors `CsvLoadingError`
-- [ ] Support in `verdict-cli`: auto-detect by `.parquet` extension
-- [ ] CI workflow: validate a sample `.parquet` file
+### Resolved design decisions
+
+- **Dependency:** use `parquet` crate from arrow-rs — well-maintained, industry standard. Accept the binary size increase.
+- **Schema:** auto-infer column types from Parquet file metadata (same approach as Pandera and Great Expectations). Schema file still required for constraints, but `dtype` field ignored for Parquet — the file already knows its types.
+- **Loader signature:** `DataFrame::from_parquet(path)` — no schema argument, unlike CSV. Constraints come from the CLI schema file separately.
+
+### Type mapping
+
+| Parquet physical type | Parquet logical type | verdict `Column` | Conversion |
+|---|---|---|---|
+| `BOOLEAN` | — | `BoolColumn` | direct |
+| `INT32` | none | `IntColumn(i64)` | widen i32→i64 |
+| `INT64` | none | `IntColumn(i64)` | direct |
+| `FLOAT` | — | `FloatColumn(f64)` | widen f32→f64 |
+| `DOUBLE` | — | `FloatColumn(f64)` | direct |
+| `BYTE_ARRAY` | `UTF8` / `STRING` | `StringColumn` | direct |
+| `INT32` | `DATE` | `DateColumn(i32)` | direct — both use days since Unix epoch |
+| `INT64` | `TIMESTAMP(millis)` | `DateTimeColumn(i64)` | × 1000 → micros |
+| `INT64` | `TIMESTAMP(micros)` | `DateTimeColumn(i64)` | direct |
+| `INT64` | `TIMESTAMP(nanos)` | `DateTimeColumn(i64)` | ÷ 1000 → micros, sub-microsecond precision lost |
+
+Unsupported types (`INT96`, `DECIMAL`, `FIXED_LEN_BYTE_ARRAY`, `LIST`, `MAP`, `STRUCT`, `TIME`) return a clear error.
+
+### Implementation scope
+
+- [ ] Add `parquet` feature flag to `verdict-core/Cargo.toml`
+- [ ] `parquet_loader.rs` — `DatasetParquetExt` trait with `DataFrame::from_parquet(path)`
+- [ ] `ParquetLoadingError` — `IoError`, `ParquetError`, `UnsupportedType { column, parquet_type }` variants
+- [ ] Type mapping implementation with logical type inspection
+- [ ] `verdict-cli`: auto-detect `.parquet` extension, route to `from_parquet`, `dtype` field in schema ignored for Parquet files
+- [ ] Python bindings: `Dataset.from_parquet(path)`
+- [ ] Tests: nulls in every column type, unsupported type error, timestamp unit variants, edge date values — fixtures generated programmatically
+- [ ] CI workflow update to run parquet-gated tests
 
 ---
 
-## Phase 11: Statistical Constraints
+## Phase 11: Chunked Loading
+
+**Goal:** validate files too large to fit in memory by processing them in fixed-size chunks.
+
+### How it works
+
+Read N rows → build `DataFrame` → validate → drop → repeat. `ValidationReport::merge()` accumulates results across chunks. The existing columnar validation core is unchanged.
+
+### Design decisions to resolve before starting
+
+- **Chunk size:** fixed default (e.g. 100k rows) with a `--chunk-size` CLI flag, or auto-sized based on available memory?
+- **Incompatible constraints:** `unique` requires a hash set of all seen values (partially defeats memory savings); `median_between` (Phase 12) is mathematically impossible without full data. Options: error at startup if ruleset contains these constraints in chunked mode, or document the limitation and skip them silently.
+
+### Implementation scope
+
+- [ ] `DatasetCsvChunkedExt` trait — `from_csv_chunked(path, schema, chunk_size)` returns an iterator of `DataFrame`
+- [ ] Same for Parquet once Phase 10 is done: `DatasetParquetChunkedExt`
+- [ ] CLI `--chunk-size N` flag; when set, validate chunk by chunk and merge reports
+- [ ] Clear error at startup if `unique` constraint is used with `--chunk-size`
+- [ ] Python: `Dataset.from_csv_chunked(path, schema, chunk_size)` iterator
+- [ ] Tests: validate a multi-chunk file, assert results equal single-load validation
+
+---
+
+## Phase 12: Statistical Constraints
 
 **Goal:** make verdict useful for ML pipelines and data scientists checking data distributions.
 
@@ -250,7 +302,7 @@
 
 ---
 
-## Phase 12: Pandas Integration (Python)
+## Phase 13: Pandas Integration (Python)
 
 **Goal:** fit into existing Python data science workflows. Pandera's biggest advantage is zero-friction pandas adoption.
 

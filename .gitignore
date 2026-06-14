@@ -31,6 +31,8 @@ fixtures/sample_10m.csv
 fixtures/sample_1m.csv
 fixtures/sample_10m_with_dates.csv
 fixtures/sample_1m_with_dates.csv
+fixtures/sample_10m.parquet
+fixtures/sample_10m_with_dates.parquet
 
 # Draft articles
 docs/articles/

@@ -38,10 +38,11 @@ columns:
       - constraint: is_in
         value: ["US", "UK", "DE", "FR", "JP"]
 table:
-  - constraint: rows_count_between
-    value: [1000, 2000000]
-  - constraint: columns_exist
-    value: ["user_id", "score", "country"]
+  constraints:
+    - constraint: rows_count_between
+      value: [1000, 2000000]
+    - constraint: columns_exist
+      value: ["user_id", "score", "country"]
 ```
 
 Exit code `0` — all rules pass. `1` — at least one fails.

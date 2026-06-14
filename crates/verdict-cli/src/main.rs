@@ -1,6 +1,11 @@
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use verdict_core::{
     csv_loader::DatasetCsvExt,
-    dataframe::{DataFrame, DataType, Field, Schema, ValuesSet},
+    dataframe::{
+        DataFrame, DataType, Field, Schema, ValuesSet, naive_date_to_i32, naive_datetime_to_i64,
+        ops::naive_time_to_i64,
+    },
+    parquet_loader::DatasetParquetExt,
     rules::{
         ColumnConstraint, ColumnRule, ColumnRuleBuilder, Operand, TableConstraint, TableRule,
         TableRuleBuilder, ValidationConfig, column_checks::validate_columns,
@@ -12,7 +17,7 @@ use anyhow::{Context, Ok, Result, anyhow, bail};
 use clap::{Parser, ValueEnum};
 use serde::Deserialize;
 use serde_json::Value;
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
 #[derive(Debug, Clone, ValueEnum)]
 enum OutputFormat {
@@ -68,6 +73,7 @@ enum DtypeConfig {
     Bool,
     Date,
     DateTime,
+    Time,
 }
 
 impl From<DtypeConfig> for DataType {
@@ -79,6 +85,7 @@ impl From<DtypeConfig> for DataType {
             DtypeConfig::Bool => DataType::Bool,
             DtypeConfig::DateTime => DataType::DateTime,
             DtypeConfig::Date => DataType::Date,
+            DtypeConfig::Time => DataType::Time,
         }
     }
 }
@@ -160,26 +167,62 @@ fn parse_usize_array(value: &Value, constraint: &str) -> Result<(usize, usize)> 
     Ok((min as usize, max as usize))
 }
 
-fn parse_is_in(value: &Value) -> Result<ValuesSet> {
+fn parse_is_in(value: &Value, col_dtype: &DtypeConfig) -> Result<ValuesSet> {
     let arr = value
         .as_array()
         .ok_or_else(|| anyhow!("is_in: expected array, got {}", value))?;
-    if arr.iter().all(|v| v.as_i64().is_some()) {
-        Ok(ValuesSet::Int64Set(
-            arr.iter().map(|v| v.as_i64().unwrap()).collect(),
-        ))
-    } else if arr.iter().all(|v| v.as_f64().is_some()) {
-        Ok(ValuesSet::FloatSet(
-            arr.iter().map(|v| v.as_f64().unwrap()).collect(),
-        ))
-    } else if arr.iter().all(|v| v.as_str().is_some()) {
-        Ok(ValuesSet::StrSet(
-            arr.iter()
-                .map(|v| v.as_str().unwrap().to_string())
-                .collect(),
-        ))
-    } else {
-        bail!("is_in values must be all integers, floats, or strings")
+
+    match col_dtype {
+        DtypeConfig::Float => arr
+            .iter()
+            .map(|v| {
+                v.as_f64()
+                    .ok_or_else(|| anyhow!("is_in: expected float, got {}", v))
+            })
+            .collect::<Result<Vec<_>>>()
+            .map(ValuesSet::FloatSet),
+        DtypeConfig::Int => arr
+            .iter()
+            .map(|v| {
+                v.as_i64()
+                    .ok_or_else(|| anyhow!("is_in: expected integer, got {}", v))
+            })
+            .collect::<Result<Vec<_>>>()
+            .map(ValuesSet::Int64Set),
+        DtypeConfig::Str => arr
+            .iter()
+            .map(|v| {
+                v.as_str()
+                    .map(|s| s.to_string())
+                    .ok_or_else(|| anyhow!("is_in: expected string, got {}", v))
+            })
+            .collect::<Result<Vec<_>>>()
+            .map(ValuesSet::StrSet),
+        DtypeConfig::DateTime => {
+            let t_arr = arr
+                .iter()
+                .map(|v| NaiveDateTime::from_str(v.as_str().unwrap()))
+                .collect::<Result<Vec<NaiveDateTime>, _>>()?;
+            let output_arr = t_arr.iter().map(naive_datetime_to_i64).collect();
+            Ok(ValuesSet::Int64Set(output_arr))
+        }
+        DtypeConfig::Date => {
+            let t_arr = arr
+                .iter()
+                .map(|v| NaiveDate::from_str(v.as_str().unwrap()))
+                .collect::<Result<Vec<NaiveDate>, _>>()?;
+            let output_arr = t_arr.iter().map(naive_date_to_i32).collect();
+            Ok(ValuesSet::Int32Set(output_arr))
+        }
+        DtypeConfig::Time => {
+            let t_arr = arr
+                .iter()
+                .map(|v| NaiveTime::from_str(v.as_str().unwrap()))
+                .collect::<Result<Vec<NaiveTime>, _>>()?;
+            let output_arr = t_arr.iter().map(naive_time_to_i64).collect();
+            Ok(ValuesSet::Int64Set(output_arr))
+        }
+        DtypeConfig::Bool => bail!("is_in is not supported for bool columns"),
     }
 }
 
@@ -259,7 +302,11 @@ fn parse_table_constraint(constraint: &str, value: &Value) -> Result<TableConstr
     }
 }
 
-fn parse_column_constraint(constraint: &str, value: &Value) -> Result<ColumnConstraint> {
+fn parse_column_constraint(
+    constraint: &str,
+    value: &Value,
+    col_dtype: &DtypeConfig,
+) -> Result<ColumnConstraint> {
     match constraint.to_lowercase().as_str() {
         "not_null" => Ok(ColumnConstraint::NotNull),
         "unique" => Ok(ColumnConstraint::Unique),
@@ -272,7 +319,7 @@ fn parse_column_constraint(constraint: &str, value: &Value) -> Result<ColumnCons
             let (min, max) = parse_operand_array(value)?;
             Ok(ColumnConstraint::Between { min, max })
         }
-        "is_in" => Ok(ColumnConstraint::InSet(parse_is_in(value)?)),
+        "is_in" => Ok(ColumnConstraint::InSet(parse_is_in(value, col_dtype)?)),
         "contains" => Ok(ColumnConstraint::Contains(parse_str_value(
             value, constraint,
         )?)),
@@ -338,12 +385,14 @@ fn main() -> Result<()> {
         if let Some(constraints) = &col_config.constraints {
             let mut col_constraints: Vec<ColumnConstraint> = Vec::new();
             for c in constraints {
-                col_constraints.push(parse_column_constraint(&c.constraint, &c.value).context(
-                    format!(
-                        "invalid constraint '{}' on column '{}'",
-                        &c.constraint, &col_config.name
-                    ),
-                )?);
+                col_constraints.push(
+                    parse_column_constraint(&c.constraint, &c.value, &col_config.dtype).context(
+                        format!(
+                            "invalid constraint '{}' on column '{}'",
+                            &c.constraint, &col_config.name
+                        ),
+                    )?,
+                );
             }
             let col_rules = ColumnRuleBuilder {
                 column: col_config.name.clone(),
@@ -362,10 +411,19 @@ fn main() -> Result<()> {
             .collect(),
     );
 
-    let data = DataFrame::from_csv(&cli.filename, &data_schema).context(format!(
-        "failed to load dataset: {}",
-        cli.filename.display()
-    ))?;
+    let data = if cli.filename.extension().is_some_and(|s| s == "csv") {
+        DataFrame::from_csv(&cli.filename, &data_schema).context(format!(
+            "failed to load dataset: {}",
+            cli.filename.display()
+        ))?
+    } else if cli.filename.extension().is_some_and(|s| s == "parquet") {
+        DataFrame::from_parquet(&cli.filename).context(format!(
+            "failed to load dataset: {}",
+            cli.filename.display()
+        ))?
+    } else {
+        bail!("Unsupported dataset format. Please use parquet or csv.")
+    };
 
     let mut final_report = validate_columns(
         &data,

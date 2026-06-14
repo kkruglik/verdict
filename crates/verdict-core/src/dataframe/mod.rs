@@ -4,7 +4,7 @@ pub mod schema;
 
 pub use column::{
     BoolColumn, Column, DateColumn, DateTimeColumn, FloatColumn, IntColumn, KeepStrategy,
-    StringColumn, ValuesSet,
+    StringColumn, TimeColumn, ValuesSet,
 };
 pub use ops::{
     NumericOps, i32_to_naive_date, i64_to_naive_datetime, naive_date_to_i32, naive_datetime_to_i64,
