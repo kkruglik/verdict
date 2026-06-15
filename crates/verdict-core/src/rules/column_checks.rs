@@ -1821,7 +1821,7 @@ fn check_before_time(col: &Column, value: i64, rule: &ColumnRule, n: usize) -> V
                     .map(|time| time.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
-            _ => unreachable!("lt(i32) on time column"),
+            _ => unreachable!("check_before_time called on non-Time column"),
         })
         .take(n)
         .collect();
@@ -1863,7 +1863,7 @@ fn check_after_time(col: &Column, value: i64, rule: &ColumnRule, n: usize) -> Va
                     .map(|time| time.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
-            _ => unreachable!("lt(i32) on time column"),
+            _ => unreachable!("check_after_time called on non-Time column"),
         })
         .take(n)
         .collect();
@@ -1878,7 +1878,7 @@ fn check_after_time(col: &Column, value: i64, rule: &ColumnRule, n: usize) -> Va
         ValidationResult::failed(
             rule.constraint.to_string().as_str(),
             &format!(
-                "values not before time {}",
+                "values not after time {}",
                 i64_to_naive_time(value)
                     .map(|dt| dt.to_string())
                     .unwrap_or(value.to_string())

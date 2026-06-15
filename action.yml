@@ -1,0 +1,98 @@
+name: Validate data with verdict
+description: Run verdict-cli to validate a CSV or Parquet file against a schema. Downloads a pre-built binary — no Rust or Python required.
+
+inputs:
+  file:
+    description: Path to the data file (CSV or Parquet)
+    required: true
+  csv:
+    description: "Deprecated: use 'file' instead. Path to the CSV file."
+    required: false
+  schema:
+    description: Path to the schema file (JSON or YAML)
+    required: true
+  version:
+    description: verdict-cli release tag (e.g. verdict-cli-v0.1.5). Defaults to latest.
+    required: false
+    default: latest
+  format:
+    description: Output format — text or json
+    required: false
+    default: text
+  max-failed-samples:
+    description: Max failed row samples per rule in the report
+    required: false
+    default: "100"
+
+runs:
+  using: composite
+  steps:
+    - name: Download verdict-cli
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        OS=$(uname -s)
+        ARCH=$(uname -m)
+
+        case "$OS" in
+          Linux)
+            TARGET="x86_64-unknown-linux-musl"
+            ;;
+          Darwin)
+            case "$ARCH" in
+              arm64) TARGET="aarch64-apple-darwin" ;;
+              *)     TARGET="x86_64-apple-darwin" ;;
+            esac
+            ;;
+          MINGW*|MSYS*|CYGWIN*)
+            TARGET="x86_64-pc-windows-msvc"
+            ;;
+          *)
+            echo "::error::Unsupported OS: $OS"
+            exit 1
+            ;;
+        esac
+
+        VERSION="$INPUT_VERSION"
+        if [[ "$VERSION" != "latest" && ! "$VERSION" =~ ^verdict-cli-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::Invalid version format: '$VERSION'. Expected 'latest' or 'verdict-cli-vX.Y.Z'."
+          exit 1
+        fi
+        if [ "$VERSION" = "latest" ]; then
+          VERSION=$(curl -sf "https://api.github.com/repos/kkruglik/verdict/releases" \
+            | grep '"tag_name"' \
+            | grep 'verdict-cli' \
+            | head -1 \
+            | sed 's/.*"tag_name": "\(.*\)".*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not resolve latest verdict-cli version"
+            exit 1
+          fi
+        fi
+
+        BINARY="verdict-cli-${TARGET}"
+        if [[ "$TARGET" == *"windows"* ]]; then
+          BINARY="${BINARY}.exe"
+        fi
+
+        URL="https://github.com/kkruglik/verdict/releases/download/${VERSION}/${BINARY}"
+        echo "Downloading $URL"
+        curl -sfL "$URL" -o "$RUNNER_TEMP/verdict-cli"
+        chmod +x "$RUNNER_TEMP/verdict-cli"
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+    - name: Run verdict-cli
+      shell: bash
+      env:
+        INPUT_FILE: ${{ inputs.file }}
+        INPUT_CSV: ${{ inputs.csv }}
+        INPUT_SCHEMA: ${{ inputs.schema }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_MAX_FAILED: ${{ inputs.max-failed-samples }}
+      run: |
+        DATA_FILE="${INPUT_FILE:-$INPUT_CSV}"
+        verdict-cli \
+          --format "$INPUT_FORMAT" \
+          --max-failed-samples "$INPUT_MAX_FAILED" \
+          -- "$DATA_FILE" "$INPUT_SCHEMA"

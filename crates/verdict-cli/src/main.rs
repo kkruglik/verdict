@@ -201,24 +201,33 @@ fn parse_is_in(value: &Value, col_dtype: &DtypeConfig) -> Result<ValuesSet> {
         DtypeConfig::DateTime => {
             let t_arr = arr
                 .iter()
-                .map(|v| NaiveDateTime::from_str(v.as_str().unwrap()))
-                .collect::<Result<Vec<NaiveDateTime>, _>>()?;
+                .map(|v| {
+                    let s = v.as_str().ok_or_else(|| anyhow!("is_in: expected datetime string, got {}", v))?;
+                    Ok(NaiveDateTime::from_str(s)?)
+                })
+                .collect::<Result<Vec<NaiveDateTime>>>()?;
             let output_arr = t_arr.iter().map(naive_datetime_to_i64).collect();
             Ok(ValuesSet::Int64Set(output_arr))
         }
         DtypeConfig::Date => {
             let t_arr = arr
                 .iter()
-                .map(|v| NaiveDate::from_str(v.as_str().unwrap()))
-                .collect::<Result<Vec<NaiveDate>, _>>()?;
+                .map(|v| {
+                    let s = v.as_str().ok_or_else(|| anyhow!("is_in: expected date string, got {}", v))?;
+                    Ok(NaiveDate::from_str(s)?)
+                })
+                .collect::<Result<Vec<NaiveDate>>>()?;
             let output_arr = t_arr.iter().map(naive_date_to_i32).collect();
             Ok(ValuesSet::Int32Set(output_arr))
         }
         DtypeConfig::Time => {
             let t_arr = arr
                 .iter()
-                .map(|v| NaiveTime::from_str(v.as_str().unwrap()))
-                .collect::<Result<Vec<NaiveTime>, _>>()?;
+                .map(|v| {
+                    let s = v.as_str().ok_or_else(|| anyhow!("is_in: expected time string, got {}", v))?;
+                    Ok(NaiveTime::from_str(s)?)
+                })
+                .collect::<Result<Vec<NaiveTime>>>()?;
             let output_arr = t_arr.iter().map(naive_time_to_i64).collect();
             Ok(ValuesSet::Int64Set(output_arr))
         }
