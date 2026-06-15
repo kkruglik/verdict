@@ -36,3 +36,7 @@ fixtures/benchmarks/sample_10m_with_dates.parquet
 
 # Draft articles
 docs/articles/
+
+# Python bytecode
+__pycache__/
+*.pyc
