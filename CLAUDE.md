@@ -50,7 +50,7 @@ PyO3 bindings exposing verdict to Python. Depends on `verdict-core` with `csv` f
 - `Column` — typed constructors: `Column.integer(...)`, `Column.floating(...)`, `Column.string(...)`, `Column.boolean(...)`
 - `Schema` — list of `(name, DataType)` tuples
 - `DataType` — `DataType.integer()`, `DataType.float()`, `DataType.string()`, `DataType.boolean()`
-- `Constraint` — factory for all 14 constraint variants
+- `Constraint` — factory for all column constraint variants
 - `Rule(column, constraint)` — pairs a column name with a constraint
 - `validate(dataset, rules) -> list[ValidationResult]` — main validation entry point
 - `ValidationResult` — getters: `column`, `constraint`, `is_passed`, `failed_count`, `error`

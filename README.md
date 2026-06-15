@@ -1,20 +1,24 @@
 # verdict
 
-A static binary that validates CSV data against a schema — no Python, no pandas, no runtime overhead.
+A static binary that validates CSV and Parquet data against a schema — no Python, no pandas, no runtime overhead.
 
 [![Rust Build & Test](https://github.com/kkruglik/verdict/actions/workflows/rust-build-test.yml/badge.svg)](https://github.com/kkruglik/verdict/actions/workflows/rust-build-test.yml)
 [![verdict-core on crates.io](https://img.shields.io/crates/v/verdict-core?label=verdict-core)](https://crates.io/crates/verdict-core)
 [![verdict-cli on crates.io](https://img.shields.io/crates/v/verdict-cli?label=verdict-cli)](https://crates.io/crates/verdict-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Drop a single binary into any environment, point it at a CSV and a schema file, get a structured pass/fail result. Works anywhere you can run a shell command — CI runners, Docker images, Airflow workers, shell scripts — without installing Python or managing dependencies.
+Drop a single binary into any environment, point it at a CSV or Parquet file and a schema, get a structured pass/fail result. Works anywhere you can run a shell command — CI runners, Docker images, Airflow workers, shell scripts — without installing Python or managing dependencies.
 
 ---
 
 ## Quick Start
 
 ```bash
+# CSV
 verdict-cli data.csv schema.yaml
+
+# Parquet — format auto-detected from extension
+verdict-cli data.parquet schema.yaml
 ```
 
 ```yaml
@@ -58,8 +62,8 @@ Schema can be JSON or YAML — detected from the file extension. Both formats us
 | Field | Required | Description |
 |---|---|---|
 | `name` | yes | Column name as it appears in the CSV header |
-| `dtype` | yes | `int`, `float`, `str`, `bool`, `date`, `datetime` |
-| `format` | date/datetime only | Chrono format string, e.g. `"%Y-%m-%d"` |
+| `dtype` | yes | `int`, `float`, `str`, `bool`, `date`, `datetime`, `time` |
+| `format` | date/datetime only | Chrono format string, e.g. `"%Y-%m-%d"` (CSV only; Parquet infers types from file metadata) |
 | `constraints` | no | List of `{ constraint, value }` objects |
 
 Columns without `constraints` are still loaded and type-checked — they just aren't validated beyond that.
@@ -84,9 +88,9 @@ Columns without `constraints` are still loaded and type-checked — they just ar
 | `starts_with` | prefix | Str |
 | `ends_with` | suffix | Str |
 | `length_between` | `[min, max]` | Str |
-| `after` | date string | Date, DateTime |
-| `before` | date string | Date, DateTime |
-| `between_dates` | `["date", "date"]` | Date, DateTime |
+| `after` | date/time string | Date, DateTime, Time |
+| `before` | date/time string | Date, DateTime, Time |
+| `between_dates` | `["date", "date"]` | Date, DateTime, Time |
 
 **Column-to-column comparisons:** use `{"col": "name"}` as the value to compare two columns row-by-row:
 
@@ -147,17 +151,19 @@ Use the official action to validate data in CI without installing Rust or Python
 ```yaml
 - uses: kkruglik/verdict@main
   with:
-    csv: data/output.csv
+    file: data/output.parquet   # or a .csv file
     schema: data/schema.yaml
 ```
 
 | Input | Required | Default | Description |
 |---|---|---|---|
-| `csv` | yes | — | Path to the CSV file |
+| `file` | yes | — | Path to the data file (CSV or Parquet) |
 | `schema` | yes | — | Path to the schema file (JSON or YAML) |
 | `version` | no | latest | verdict-cli release tag |
 | `format` | no | `text` | Output format: `text` or `json` |
 | `max-failed-samples` | no | `100` | Max failed row samples per rule |
+
+> `csv:` is accepted as a deprecated alias for `file:` for backward compatibility.
 
 The action downloads a pre-built binary for the current runner OS — no build step required.
 
@@ -172,7 +178,7 @@ verdict-core  ←  verdict-py
 
 | Crate | Description |
 |---|---|
-| `verdict-core` | Pure Rust validation engine. CSV loading behind the `csv` feature flag. |
+| `verdict-core` | Pure Rust validation engine. CSV loading behind the `csv` feature flag; Parquet behind `parquet`. |
 | `verdict-cli` | Static binary for CI/CD pipelines. Reads CSV + schema, outputs results. |
 | `verdict-py` | PyO3 Python bindings. |
 

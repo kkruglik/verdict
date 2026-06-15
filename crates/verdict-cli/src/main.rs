@@ -202,7 +202,9 @@ fn parse_is_in(value: &Value, col_dtype: &DtypeConfig) -> Result<ValuesSet> {
             let t_arr = arr
                 .iter()
                 .map(|v| {
-                    let s = v.as_str().ok_or_else(|| anyhow!("is_in: expected datetime string, got {}", v))?;
+                    let s = v
+                        .as_str()
+                        .ok_or_else(|| anyhow!("is_in: expected datetime string, got {}", v))?;
                     Ok(NaiveDateTime::from_str(s)?)
                 })
                 .collect::<Result<Vec<NaiveDateTime>>>()?;
@@ -213,7 +215,9 @@ fn parse_is_in(value: &Value, col_dtype: &DtypeConfig) -> Result<ValuesSet> {
             let t_arr = arr
                 .iter()
                 .map(|v| {
-                    let s = v.as_str().ok_or_else(|| anyhow!("is_in: expected date string, got {}", v))?;
+                    let s = v
+                        .as_str()
+                        .ok_or_else(|| anyhow!("is_in: expected date string, got {}", v))?;
                     Ok(NaiveDate::from_str(s)?)
                 })
                 .collect::<Result<Vec<NaiveDate>>>()?;
@@ -224,7 +228,9 @@ fn parse_is_in(value: &Value, col_dtype: &DtypeConfig) -> Result<ValuesSet> {
             let t_arr = arr
                 .iter()
                 .map(|v| {
-                    let s = v.as_str().ok_or_else(|| anyhow!("is_in: expected time string, got {}", v))?;
+                    let s = v
+                        .as_str()
+                        .ok_or_else(|| anyhow!("is_in: expected time string, got {}", v))?;
                     Ok(NaiveTime::from_str(s)?)
                 })
                 .collect::<Result<Vec<NaiveTime>>>()?;

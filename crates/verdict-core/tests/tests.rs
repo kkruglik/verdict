@@ -2024,7 +2024,10 @@ mod time_constraint_tests {
     #[test]
     fn test_after_time_passes() {
         let ds = make_time_df(vec![Some(H08), Some(H10), Some(H14)]);
-        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
         let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -2032,7 +2035,10 @@ mod time_constraint_tests {
     #[test]
     fn test_after_time_fails() {
         let ds = make_time_df(vec![Some(H08), Some(H10), Some(H04)]);
-        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
         let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, Some(1));
@@ -2041,7 +2047,10 @@ mod time_constraint_tests {
     #[test]
     fn test_after_time_multiple_failures() {
         let ds = make_time_df(vec![Some(H08), Some(H04), Some(H04)]);
-        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
         let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, Some(2));
@@ -2051,7 +2060,10 @@ mod time_constraint_tests {
     fn test_after_time_boundary_exclusive() {
         // After("06:00:00") means strictly greater — exactly 06:00:00 should fail
         let ds = make_time_df(vec![Some(H06)]);
-        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
         let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, Some(1));
@@ -2062,7 +2074,10 @@ mod time_constraint_tests {
     #[test]
     fn test_before_time_passes() {
         let ds = make_time_df(vec![Some(H08), Some(H10), Some(H14)]);
-        let rules = vec![ColumnRule::new("t", ColumnConstraint::Before("22:00:00".to_string()))];
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Before("22:00:00".to_string()),
+        )];
         let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -2070,7 +2085,10 @@ mod time_constraint_tests {
     #[test]
     fn test_before_time_fails() {
         let ds = make_time_df(vec![Some(H08), Some(H10), Some(H23)]);
-        let rules = vec![ColumnRule::new("t", ColumnConstraint::Before("22:00:00".to_string()))];
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Before("22:00:00".to_string()),
+        )];
         let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, Some(1));
@@ -2080,7 +2098,10 @@ mod time_constraint_tests {
     fn test_before_time_boundary_exclusive() {
         // Before("06:00:00") means strictly less — exactly 06:00:00 should fail
         let ds = make_time_df(vec![Some(H06)]);
-        let rules = vec![ColumnRule::new("t", ColumnConstraint::Before("06:00:00".to_string()))];
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Before("06:00:00".to_string()),
+        )];
         let report = validate_columns(&ds, &rules, cfg());
         assert!(!report.passed);
         assert_eq!(report.results[0].failed_count, Some(1));
@@ -2091,7 +2112,10 @@ mod time_constraint_tests {
     #[test]
     fn test_time_constraint_nulls_skipped() {
         let ds = make_time_df(vec![Some(H08), None, Some(H10)]);
-        let rules = vec![ColumnRule::new("t", ColumnConstraint::After("06:00:00".to_string()))];
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
         let report = validate_columns(&ds, &rules, cfg());
         assert!(report.passed);
     }
@@ -2802,24 +2826,17 @@ mod table_constraint_tests {
 #[cfg(all(test, feature = "parquet"))]
 mod parquet_tests {
     use std::path::Path;
-    use verdict_core::{
-        dataframe::Column,
-        parquet_loader::DatasetParquetExt,
-    };
     use verdict_core::dataframe::DataFrame;
+    use verdict_core::{dataframe::Column, parquet_loader::DatasetParquetExt};
 
     fn load_all_types() -> DataFrame {
-        DataFrame::from_parquet(Path::new(
-            "tests/fixtures/parquet/all_types.parquet",
-        ))
-        .expect("all_types.parquet should load without error")
+        DataFrame::from_parquet(Path::new("tests/fixtures/parquet/all_types.parquet"))
+            .expect("all_types.parquet should load without error")
     }
 
     fn load_with_nulls() -> DataFrame {
-        DataFrame::from_parquet(Path::new(
-            "tests/fixtures/parquet/with_nulls.parquet",
-        ))
-        .expect("with_nulls.parquet should load without error")
+        DataFrame::from_parquet(Path::new("tests/fixtures/parquet/with_nulls.parquet"))
+            .expect("with_nulls.parquet should load without error")
     }
 
     // --- Structure ---
@@ -2847,49 +2864,73 @@ mod parquet_tests {
     #[test]
     fn test_parquet_float_column_type() {
         let df = load_all_types();
-        assert!(matches!(df.columns[1], Column::Float(_)), "score should be Float");
+        assert!(
+            matches!(df.columns[1], Column::Float(_)),
+            "score should be Float"
+        );
     }
 
     #[test]
     fn test_parquet_str_column_type() {
         let df = load_all_types();
-        assert!(matches!(df.columns[2], Column::Str(_)), "label should be Str");
+        assert!(
+            matches!(df.columns[2], Column::Str(_)),
+            "label should be Str"
+        );
     }
 
     #[test]
     fn test_parquet_bool_column_type() {
         let df = load_all_types();
-        assert!(matches!(df.columns[3], Column::Bool(_)), "active should be Bool");
+        assert!(
+            matches!(df.columns[3], Column::Bool(_)),
+            "active should be Bool"
+        );
     }
 
     #[test]
     fn test_parquet_date_column_type() {
         let df = load_all_types();
-        assert!(matches!(df.columns[4], Column::Date(_)), "date_col should be Date");
+        assert!(
+            matches!(df.columns[4], Column::Date(_)),
+            "date_col should be Date"
+        );
     }
 
     #[test]
     fn test_parquet_datetime_ms_column_type() {
         let df = load_all_types();
-        assert!(matches!(df.columns[5], Column::DateTime(_)), "ts_ms should be DateTime");
+        assert!(
+            matches!(df.columns[5], Column::DateTime(_)),
+            "ts_ms should be DateTime"
+        );
     }
 
     #[test]
     fn test_parquet_datetime_us_column_type() {
         let df = load_all_types();
-        assert!(matches!(df.columns[6], Column::DateTime(_)), "ts_us should be DateTime");
+        assert!(
+            matches!(df.columns[6], Column::DateTime(_)),
+            "ts_us should be DateTime"
+        );
     }
 
     #[test]
     fn test_parquet_time_ms_column_type() {
         let df = load_all_types();
-        assert!(matches!(df.columns[7], Column::Time(_)), "time_ms should be Time");
+        assert!(
+            matches!(df.columns[7], Column::Time(_)),
+            "time_ms should be Time"
+        );
     }
 
     #[test]
     fn test_parquet_time_us_column_type() {
         let df = load_all_types();
-        assert!(matches!(df.columns[8], Column::Time(_)), "time_us should be Time");
+        assert!(
+            matches!(df.columns[8], Column::Time(_)),
+            "time_us should be Time"
+        );
     }
 
     // --- Precision normalisation (ms → us on load) ---
@@ -2931,10 +2972,7 @@ mod parquet_tests {
         let df = load_with_nulls();
         // Generator placed None at indices 3 and 7 in every column.
         for (i, col) in df.columns.iter().enumerate() {
-            assert_eq!(
-                col.null_count(), 2,
-                "column {} should have 2 nulls", i
-            );
+            assert_eq!(col.null_count(), 2, "column {} should have 2 nulls", i);
         }
     }
 
@@ -2942,7 +2980,8 @@ mod parquet_tests {
 
     #[test]
     fn test_parquet_file_not_found_returns_error() {
-        let result = DataFrame::from_parquet(Path::new("tests/fixtures/parquet/nonexistent.parquet"));
+        let result =
+            DataFrame::from_parquet(Path::new("tests/fixtures/parquet/nonexistent.parquet"));
         assert!(result.is_err());
     }
 }

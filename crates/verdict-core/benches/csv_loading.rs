@@ -43,17 +43,33 @@ fn bench_csv_loading(c: &mut Criterion) {
     let mut group = c.benchmark_group("csv_loading");
 
     group.bench_function("10k rows", |b| {
-        b.iter(|| DataFrame::from_csv(Path::new("../../fixtures/benchmarks/sample_10k.csv"), &schema).unwrap())
+        b.iter(|| {
+            DataFrame::from_csv(
+                Path::new("../../fixtures/benchmarks/sample_10k.csv"),
+                &schema,
+            )
+            .unwrap()
+        })
     });
 
     group.bench_function("100k rows", |b| {
         b.iter(|| {
-            DataFrame::from_csv(Path::new("../../fixtures/benchmarks/sample_100k.csv"), &schema).unwrap()
+            DataFrame::from_csv(
+                Path::new("../../fixtures/benchmarks/sample_100k.csv"),
+                &schema,
+            )
+            .unwrap()
         })
     });
 
     group.bench_function("1m rows", |b| {
-        b.iter(|| DataFrame::from_csv(Path::new("../../fixtures/benchmarks/sample_1m.csv"), &schema).unwrap())
+        b.iter(|| {
+            DataFrame::from_csv(
+                Path::new("../../fixtures/benchmarks/sample_1m.csv"),
+                &schema,
+            )
+            .unwrap()
+        })
     });
 
     group.finish();
@@ -64,10 +80,16 @@ fn bench_validation(c: &mut Criterion) {
     let rules = make_rules();
     let config = ValidationConfig::default();
 
-    let dataset_100k =
-        DataFrame::from_csv(Path::new("../../fixtures/benchmarks/sample_100k.csv"), &schema).unwrap();
-    let dataset_1m =
-        DataFrame::from_csv(Path::new("../../fixtures/benchmarks/sample_1m.csv"), &schema).unwrap();
+    let dataset_100k = DataFrame::from_csv(
+        Path::new("../../fixtures/benchmarks/sample_100k.csv"),
+        &schema,
+    )
+    .unwrap();
+    let dataset_1m = DataFrame::from_csv(
+        Path::new("../../fixtures/benchmarks/sample_1m.csv"),
+        &schema,
+    )
+    .unwrap();
 
     let mut group = c.benchmark_group("validation");
 

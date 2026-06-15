@@ -239,15 +239,13 @@ fn parse_constraint_between_dates() {
 
 #[test]
 fn parse_constraint_starts_with() {
-    let result =
-        parse_column_constraint("starts_with", &json!("SKU-"), &DtypeConfig::Str).unwrap();
+    let result = parse_column_constraint("starts_with", &json!("SKU-"), &DtypeConfig::Str).unwrap();
     assert!(matches!(result, ColumnConstraint::StartsWith(s) if s == "SKU-"));
 }
 
 #[test]
 fn parse_constraint_ends_with() {
-    let result =
-        parse_column_constraint("ends_with", &json!(".com"), &DtypeConfig::Str).unwrap();
+    let result = parse_column_constraint("ends_with", &json!(".com"), &DtypeConfig::Str).unwrap();
     assert!(matches!(result, ColumnConstraint::EndsWith(s) if s == ".com"));
 }
 
