@@ -163,7 +163,7 @@ fn parse_usize_array(value: &Value, constraint: &str) -> Result<(usize, usize)> 
         .ok_or_else(|| anyhow!("{}: min must be a integer", constraint))?;
     let max = arr[1]
         .as_u64()
-        .ok_or_else(|| anyhow!("{}: max must be a string", constraint))?;
+        .ok_or_else(|| anyhow!("{}: max must be an integer", constraint))?;
     Ok((min as usize, max as usize))
 }
 

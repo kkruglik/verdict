@@ -39,6 +39,20 @@ enum ColBuilder {
     Time(Vec<Option<i64>>),
 }
 
+impl ColBuilder {
+    fn type_name(&self) -> &'static str {
+        match self {
+            ColBuilder::Int(_) => "Int",
+            ColBuilder::Float(_) => "Float",
+            ColBuilder::Str(_) => "Str",
+            ColBuilder::Bool(_) => "Bool",
+            ColBuilder::Date(_) => "Date",
+            ColBuilder::DateTime(_) => "DateTime",
+            ColBuilder::Time(_) => "Time",
+        }
+    }
+}
+
 pub trait DatasetParquetExt {
     fn from_parquet(path: &Path) -> Result<DataFrame, ParquetLoadingError>;
 }
@@ -187,7 +201,7 @@ impl DatasetParquetExt for DataFrame {
                         return Err(ParquetLoadingError::TypeMismatch {
                             column: col_name.to_string(),
                             row: row_idx,
-                            expected: format!("{:?}", std::mem::discriminant(builder)),
+                            expected: builder.type_name().to_string(),
                             got: format!("{:?}", field),
                         });
                     }

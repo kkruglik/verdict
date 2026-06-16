@@ -402,18 +402,21 @@ fn check_greater_than_col(
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_datetime)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Date(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i32_to_naive_date)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Time(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_time)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
@@ -763,18 +766,21 @@ fn check_less_than_col(
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_datetime)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Date(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i32_to_naive_date)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Time(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_time)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
@@ -1123,18 +1129,21 @@ fn check_equal_col(
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_datetime)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Date(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i32_to_naive_date)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Time(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_time)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
@@ -1310,18 +1319,21 @@ fn check_between_cols(
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_datetime)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Date(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i32_to_naive_date)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Time(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_time)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),

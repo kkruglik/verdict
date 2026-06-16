@@ -225,7 +225,7 @@ impl PyColumn {
             Column::Bool(col) => ("bool", format_values(&col.0, |v: &bool| v.to_string())),
             Column::Date(col) => ("date", format_values(&col.0, |v: &i32| v.to_string())),
             Column::DateTime(col) => ("datetime", format_values(&col.0, |v: &i64| v.to_string())),
-            Column::Time(col) => ("time", format_values(&col.0, |v: &i32| v.to_string())),
+            Column::Time(col) => ("time", format_values(&col.0, |v: &i64| v.to_string())),
         };
         format!("[{}]: [{}]", dtype, values)
     }
