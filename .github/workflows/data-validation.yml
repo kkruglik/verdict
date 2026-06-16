@@ -19,8 +19,8 @@ jobs:
     - name: Build verdict-cli
       run: cargo build --release -p verdict-cli
     - name: Validate sample data
-      run: ./target/release/verdict-cli fixtures/sample.csv config/entry.json
+      run: ./target/release/verdict-cli fixtures/basic/data.csv fixtures/basic/schema_pass.json
     - name: Validate 100k sample data
-      run: ./target/release/verdict-cli fixtures/sample_100k.csv config/entry.json
+      run: ./target/release/verdict-cli fixtures/benchmarks/sample_100k.csv fixtures/basic/schema_pass.json
     - name: Expect validation failure (exit code check)
-      run: ./target/release/verdict-cli fixtures/sample.csv config/fail.json && exit 1 || exit 0
+      run: ./target/release/verdict-cli fixtures/basic/data.csv fixtures/basic/schema_fail.json && exit 1 || exit 0
