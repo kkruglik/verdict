@@ -1919,13 +1919,21 @@ fn check_between_datetimes(
     } else {
         let (min_str, max_str, label) = match col {
             Column::Time(_) => (
-                i64_to_naive_time(min).map(|t| t.to_string()).unwrap_or(min.to_string()),
-                i64_to_naive_time(max).map(|t| t.to_string()).unwrap_or(max.to_string()),
+                i64_to_naive_time(min)
+                    .map(|t| t.to_string())
+                    .unwrap_or(min.to_string()),
+                i64_to_naive_time(max)
+                    .map(|t| t.to_string())
+                    .unwrap_or(max.to_string()),
                 "times",
             ),
             _ => (
-                i64_to_naive_datetime(min).map(|dt| dt.to_string()).unwrap_or(min.to_string()),
-                i64_to_naive_datetime(max).map(|dt| dt.to_string()).unwrap_or(max.to_string()),
+                i64_to_naive_datetime(min)
+                    .map(|dt| dt.to_string())
+                    .unwrap_or(min.to_string()),
+                i64_to_naive_datetime(max)
+                    .map(|dt| dt.to_string())
+                    .unwrap_or(max.to_string()),
                 "datetimes",
             ),
         };

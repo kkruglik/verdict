@@ -167,8 +167,7 @@ impl DatasetParquetExt for DataFrame {
                     (ColBuilder::Float(v), Field::Decimal(val)) => {
                         let data = val.data();
                         let n_bytes = data.len();
-                        let unscaled =
-                            data.iter().fold(0i64, |acc, &b| (acc << 8) | b as i64);
+                        let unscaled = data.iter().fold(0i64, |acc, &b| (acc << 8) | b as i64);
                         // The fold zero-extends each byte. For n_bytes < 8 the i64
                         // sign bit is never reached, so sign-extend manually.
                         let unscaled = if n_bytes < 8 && (data[0] & 0x80) != 0 {
