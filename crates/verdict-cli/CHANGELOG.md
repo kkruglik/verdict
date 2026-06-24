@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.7...verdict-cli-v0.1.8) - 2026-06-24
+
+### Added
+
+- add parquet support with time types and fix unit consistency bugs
+
+### Fixed
+
+- resolve post-review issues in parquet and time type support
+- post-review corrections for parquet/time types PR
+- correct after_time error message, harden parse_is_in, restore action.yml and CLAUDE.md
+
+### Other
+
+- update README, CLAUDE.md, architecture, and dev-plan for parquet + Time
+- add unit and integration test matrix for parquet and new dtypes
+
 ## [0.1.7](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.6...verdict-cli-v0.1.7) - 2026-04-30
 
 ### Fixed
