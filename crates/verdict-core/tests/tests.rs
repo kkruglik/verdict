@@ -1987,6 +1987,216 @@ mod date_constraint_tests {
 }
 
 #[cfg(test)]
+mod time_constraint_tests {
+    use verdict_core::{
+        dataframe::{Column, DataFrame, TimeColumn},
+        rules::{ColumnConstraint, ColumnRule, ValidationConfig, validate_columns},
+    };
+
+    // Time values as microseconds since midnight.
+    // 04:00:00 = 14_400_000_000 us
+    // 06:00:00 = 21_600_000_000 us
+    // 08:00:00 = 28_800_000_000 us
+    // 10:00:00 = 36_000_000_000 us
+    // 14:00:00 = 50_400_000_000 us
+    // 22:00:00 = 79_200_000_000 us
+    // 23:00:00 = 82_800_000_000 us
+    const H04: i64 = 4 * 3600 * 1_000_000;
+    const H06: i64 = 6 * 3600 * 1_000_000;
+    const H08: i64 = 8 * 3600 * 1_000_000;
+    const H10: i64 = 10 * 3600 * 1_000_000;
+    const H14: i64 = 14 * 3600 * 1_000_000;
+    const H23: i64 = 23 * 3600 * 1_000_000;
+
+    fn make_time_df(values: Vec<Option<i64>>) -> DataFrame {
+        DataFrame::new(
+            vec!["t".to_string()],
+            vec![Column::Time(TimeColumn(values))],
+        )
+    }
+
+    fn cfg() -> ValidationConfig {
+        ValidationConfig::default()
+    }
+
+    // --- After ---
+
+    #[test]
+    fn test_after_time_passes() {
+        let ds = make_time_df(vec![Some(H08), Some(H10), Some(H14)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed);
+    }
+
+    #[test]
+    fn test_after_time_fails() {
+        let ds = make_time_df(vec![Some(H08), Some(H10), Some(H04)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(1));
+    }
+
+    #[test]
+    fn test_after_time_multiple_failures() {
+        let ds = make_time_df(vec![Some(H08), Some(H04), Some(H04)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(2));
+    }
+
+    #[test]
+    fn test_after_time_boundary_exclusive() {
+        // After("06:00:00") means strictly greater — exactly 06:00:00 should fail
+        let ds = make_time_df(vec![Some(H06)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(1));
+    }
+
+    // --- Before ---
+
+    #[test]
+    fn test_before_time_passes() {
+        let ds = make_time_df(vec![Some(H08), Some(H10), Some(H14)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Before("22:00:00".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed);
+    }
+
+    #[test]
+    fn test_before_time_fails() {
+        let ds = make_time_df(vec![Some(H08), Some(H10), Some(H23)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Before("22:00:00".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(1));
+    }
+
+    #[test]
+    fn test_before_time_boundary_exclusive() {
+        // Before("06:00:00") means strictly less — exactly 06:00:00 should fail
+        let ds = make_time_df(vec![Some(H06)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Before("06:00:00".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(1));
+    }
+
+    // --- BetweenDates ---
+
+    #[test]
+    fn test_between_times_passes() {
+        let ds = make_time_df(vec![Some(H04), Some(H08), Some(H14), Some(H23)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::BetweenDates {
+                min: "04:00:00".to_string(),
+                max: "23:00:00".to_string(),
+            },
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed);
+    }
+
+    #[test]
+    fn test_between_times_fails() {
+        let ds = make_time_df(vec![Some(H04), Some(H08), Some(H14), Some(H23)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::BetweenDates {
+                min: "06:00:00".to_string(),
+                max: "14:00:00".to_string(),
+            },
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(!report.passed);
+        assert_eq!(report.results[0].failed_count, Some(2)); // H04 and H23 outside range
+    }
+
+    #[test]
+    fn test_between_times_error_message() {
+        let ds = make_time_df(vec![Some(H04), Some(H23)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::BetweenDates {
+                min: "06:00:00".to_string(),
+                max: "14:00:00".to_string(),
+            },
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        let msg = report.results[0].error.as_deref().unwrap_or("");
+        assert!(
+            msg.contains("times"),
+            "expected 'times' in error, got: {msg}"
+        );
+        assert!(msg.contains("06:00:00"));
+        assert!(msg.contains("14:00:00"));
+    }
+
+    // --- Nulls ---
+
+    #[test]
+    fn test_time_constraint_nulls_skipped() {
+        let ds = make_time_df(vec![Some(H08), None, Some(H10)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("06:00:00".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed);
+    }
+
+    // --- Error cases ---
+
+    #[test]
+    fn test_invalid_time_string_returns_error() {
+        let ds = make_time_df(vec![Some(H08)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::After("not-a-time".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.results[0].error.is_some());
+    }
+
+    #[test]
+    fn test_before_time_invalid_string_returns_error() {
+        let ds = make_time_df(vec![Some(H08)]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Before("25:99:99".to_string()),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.results[0].error.is_some());
+    }
+}
+
+#[cfg(test)]
 mod table_constraint_tests {
     use verdict_core::{
         dataframe::{Column, DataFrame, FloatColumn, IntColumn, StringColumn},
@@ -2661,5 +2871,341 @@ mod table_constraint_tests {
         let rules = TableRuleBuilder::default().shape_equals(99, 99).build();
         let report = validate_table(&ds, &rules, cfg());
         assert!(!report.results[0].passed);
+    }
+}
+
+#[cfg(all(test, feature = "parquet"))]
+mod parquet_tests {
+    use std::path::Path;
+    use verdict_core::dataframe::DataFrame;
+    use verdict_core::{dataframe::Column, parquet_loader::DatasetParquetExt};
+
+    fn load_all_types() -> DataFrame {
+        DataFrame::from_parquet(Path::new("tests/fixtures/parquet/all_types.parquet"))
+            .expect("all_types.parquet should load without error")
+    }
+
+    fn load_with_nulls() -> DataFrame {
+        DataFrame::from_parquet(Path::new("tests/fixtures/parquet/with_nulls.parquet"))
+            .expect("with_nulls.parquet should load without error")
+    }
+
+    // --- Structure ---
+
+    #[test]
+    fn test_parquet_loads_correct_column_count() {
+        let df = load_all_types();
+        assert_eq!(df.columns.len(), 9);
+    }
+
+    #[test]
+    fn test_parquet_loads_correct_row_count() {
+        let df = load_all_types();
+        assert_eq!(df.columns[0].len(), 10);
+    }
+
+    // --- Column type detection ---
+
+    #[test]
+    fn test_parquet_int_column_type() {
+        let df = load_all_types();
+        assert!(matches!(df.columns[0], Column::Int(_)), "id should be Int");
+    }
+
+    #[test]
+    fn test_parquet_float_column_type() {
+        let df = load_all_types();
+        assert!(
+            matches!(df.columns[1], Column::Float(_)),
+            "score should be Float"
+        );
+    }
+
+    #[test]
+    fn test_parquet_str_column_type() {
+        let df = load_all_types();
+        assert!(
+            matches!(df.columns[2], Column::Str(_)),
+            "label should be Str"
+        );
+    }
+
+    #[test]
+    fn test_parquet_bool_column_type() {
+        let df = load_all_types();
+        assert!(
+            matches!(df.columns[3], Column::Bool(_)),
+            "active should be Bool"
+        );
+    }
+
+    #[test]
+    fn test_parquet_date_column_type() {
+        let df = load_all_types();
+        assert!(
+            matches!(df.columns[4], Column::Date(_)),
+            "date_col should be Date"
+        );
+    }
+
+    #[test]
+    fn test_parquet_datetime_ms_column_type() {
+        let df = load_all_types();
+        assert!(
+            matches!(df.columns[5], Column::DateTime(_)),
+            "ts_ms should be DateTime"
+        );
+    }
+
+    #[test]
+    fn test_parquet_datetime_us_column_type() {
+        let df = load_all_types();
+        assert!(
+            matches!(df.columns[6], Column::DateTime(_)),
+            "ts_us should be DateTime"
+        );
+    }
+
+    #[test]
+    fn test_parquet_time_ms_column_type() {
+        let df = load_all_types();
+        assert!(
+            matches!(df.columns[7], Column::Time(_)),
+            "time_ms should be Time"
+        );
+    }
+
+    #[test]
+    fn test_parquet_time_us_column_type() {
+        let df = load_all_types();
+        assert!(
+            matches!(df.columns[8], Column::Time(_)),
+            "time_us should be Time"
+        );
+    }
+
+    // --- Precision normalisation (ms → us on load) ---
+
+    #[test]
+    fn test_parquet_timestamp_ms_normalized_to_us() {
+        let df = load_all_types();
+        let ts_ms_col = match &df.columns[5] {
+            Column::DateTime(c) => &c.0,
+            _ => panic!("ts_ms is not DateTime"),
+        };
+        let ts_us_col = match &df.columns[6] {
+            Column::DateTime(c) => &c.0,
+            _ => panic!("ts_us is not DateTime"),
+        };
+        // Both columns represent the same wall-clock times; after ms→us normalisation
+        // their raw i64 values (microseconds since epoch) must be identical.
+        assert_eq!(ts_ms_col, ts_us_col);
+    }
+
+    #[test]
+    fn test_parquet_time_ms_normalized_to_us() {
+        let df = load_all_types();
+        let time_ms_col = match &df.columns[7] {
+            Column::Time(c) => &c.0,
+            _ => panic!("time_ms is not Time"),
+        };
+        let time_us_col = match &df.columns[8] {
+            Column::Time(c) => &c.0,
+            _ => panic!("time_us is not Time"),
+        };
+        assert_eq!(time_ms_col, time_us_col);
+    }
+
+    // --- Null handling ---
+
+    #[test]
+    fn test_parquet_null_values_loaded_as_none() {
+        let df = load_with_nulls();
+        // Generator placed None at indices 3 and 7 in every column.
+        for (i, col) in df.columns.iter().enumerate() {
+            assert_eq!(col.null_count(), 2, "column {} should have 2 nulls", i);
+        }
+    }
+
+    // --- Error handling ---
+
+    #[test]
+    fn test_parquet_file_not_found_returns_error() {
+        let result =
+            DataFrame::from_parquet(Path::new("tests/fixtures/parquet/nonexistent.parquet"));
+        assert!(result.is_err());
+    }
+
+    // --- Decimal byte conversion ---
+
+    // Mirrors the algorithm in parquet_loader for Decimal fields.
+    fn decimal_bytes_to_i64(bytes: &[u8]) -> i64 {
+        let n_bytes = bytes.len();
+        let unscaled = bytes.iter().fold(0i64, |acc, &b| (acc << 8) | b as i64);
+        if n_bytes < 8 && (bytes[0] & 0x80) != 0 {
+            unscaled | (-1i64 << (n_bytes * 8))
+        } else {
+            unscaled
+        }
+    }
+
+    #[test]
+    fn test_decimal_bytes_negative_one() {
+        // [0xFF, 0xFF] is -1 in big-endian two's-complement.
+        assert_eq!(decimal_bytes_to_i64(&[0xFF, 0xFF]), -1);
+    }
+
+    #[test]
+    fn test_decimal_bytes_negative_123() {
+        // -123 as i16 big-endian: 0xFF85
+        assert_eq!(decimal_bytes_to_i64(&[0xFF, 0x85]), -123);
+    }
+
+    #[test]
+    fn test_decimal_bytes_positive_123() {
+        // 123 as i16 big-endian: 0x007B — must stay positive.
+        assert_eq!(decimal_bytes_to_i64(&[0x00, 0x7B]), 123);
+    }
+
+    #[test]
+    fn test_decimal_bytes_8_byte_negative() {
+        // 8-byte all-0xFF = -1; wrapping shift handles this without explicit sign extension.
+        assert_eq!(decimal_bytes_to_i64(&[0xFF; 8]), -1);
+    }
+}
+
+// Tests that pin the silent-pass-on-parse-error behavior in ComparableOps<&str>
+// for temporal columns. When the string operand cannot be parsed, the ops return
+// vec![None; n] rather than an error. None rows are invisible to the failure
+// filter (which looks for Some(false)), so the constraint silently passes.
+//
+// This is a known limitation documented in ops.rs. These tests exist to make
+// the behavior explicit — if the root cause is ever fixed (e.g. by returning
+// Result from ComparableOps), these tests should be updated to assert the error
+// is surfaced instead.
+#[cfg(test)]
+mod silent_parse_failure_tests {
+    use verdict_core::{
+        dataframe::DataFrame,
+        dataframe::{Column, DateColumn, DateTimeColumn, TimeColumn, ops::ComparableOps},
+        rules::{ColumnConstraint, ColumnRule, Operand, ValidationConfig, validate_columns},
+    };
+
+    // DateColumn values all before 2020-01-01: a real gt("2020-01-01") would
+    // flag every row. With a garbage string the result must be all None.
+    fn date_col() -> Column {
+        // Days since epoch for 2019-06-01 = 18048
+        Column::Date(DateColumn(vec![Some(18048), Some(18049), Some(18050)]))
+    }
+
+    // DateTimeColumn values all in 2019: a real gt would flag every row.
+    fn datetime_col() -> Column {
+        // Microseconds since epoch for 2019-06-01T00:00:00 = 1559347200 * 1_000_000
+        let us = 1_559_347_200_i64 * 1_000_000;
+        Column::DateTime(DateTimeColumn(vec![Some(us), Some(us + 1), Some(us + 2)]))
+    }
+
+    // TimeColumn values all before 08:00:00: a real gt would flag every row.
+    fn time_col() -> Column {
+        // Microseconds since midnight for 07:00:00 = 7 * 3600 * 1_000_000
+        let us = 7_i64 * 3600 * 1_000_000;
+        Column::Time(TimeColumn(vec![Some(us), Some(us + 1), Some(us + 2)]))
+    }
+
+    #[test]
+    fn test_date_gt_bad_string_silently_passes() {
+        let col = date_col();
+        let result = col.gt("not-a-date");
+        assert!(
+            result.iter().all(|v| v.is_none()),
+            "expected all None, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_datetime_gt_bad_string_silently_passes() {
+        let col = datetime_col();
+        let result = col.gt("not-a-datetime");
+        assert!(
+            result.iter().all(|v| v.is_none()),
+            "expected all None, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_time_gt_bad_string_silently_passes() {
+        let col = time_col();
+        let result = col.gt("not-a-time");
+        assert!(
+            result.iter().all(|v| v.is_none()),
+            "expected all None, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_date_between_one_bad_bound_silently_passes() {
+        // lower is valid, upper is garbage — both must parse for a real result.
+        let col = date_col();
+        let result = col.between("2020-01-01", "not-a-date");
+        assert!(
+            result.iter().all(|v| v.is_none()),
+            "expected all None, got {result:?}"
+        );
+    }
+
+    // --- Full validation pipeline ---
+    //
+    // These tests go end-to-end through validate_columns to confirm that the
+    // silent-pass propagates all the way to the ValidationResult. A bad operand
+    // string produces no failed rows, so the result is reported as passed even
+    // though every row would fail if the operand were valid.
+
+    fn cfg() -> ValidationConfig {
+        ValidationConfig::default()
+    }
+
+    #[test]
+    fn test_validate_date_gt_bad_string_reports_passed() {
+        // All dates are in 2019 — gt("9999-01-01") would flag all 3 rows.
+        // gt("not-a-date") should silently pass with zero failures.
+        let ds = DataFrame::new(vec!["d".to_string()], vec![date_col()]);
+        let rules = vec![ColumnRule::new(
+            "d",
+            ColumnConstraint::GreaterThan(Operand::Str("not-a-date".to_string())),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed, "expected silent pass, but report failed");
+        assert_eq!(report.results[0].failed_count, Some(0));
+    }
+
+    #[test]
+    fn test_validate_datetime_lt_bad_string_reports_passed() {
+        // All datetimes are in 2019 — lt("2000-01-01T00:00:00") would flag all 3.
+        // lt("not-a-datetime") should silently pass.
+        let ds = DataFrame::new(vec!["dt".to_string()], vec![datetime_col()]);
+        let rules = vec![ColumnRule::new(
+            "dt",
+            ColumnConstraint::LessThan(Operand::Str("not-a-datetime".to_string())),
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed, "expected silent pass, but report failed");
+        assert_eq!(report.results[0].failed_count, Some(0));
+    }
+
+    #[test]
+    fn test_validate_time_between_bad_string_reports_passed() {
+        // All times are 07:xx — between("09:00:00","23:00:00") would flag all 3.
+        // between("not-a-time", "23:00:00") should silently pass.
+        let ds = DataFrame::new(vec!["t".to_string()], vec![time_col()]);
+        let rules = vec![ColumnRule::new(
+            "t",
+            ColumnConstraint::Between {
+                min: Operand::Str("not-a-time".to_string()),
+                max: Operand::Str("23:00:00".to_string()),
+            },
+        )];
+        let report = validate_columns(&ds, &rules, cfg());
+        assert!(report.passed, "expected silent pass, but report failed");
+        assert_eq!(report.results[0].failed_count, Some(0));
     }
 }

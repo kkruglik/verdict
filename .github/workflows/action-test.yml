@@ -14,18 +14,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - csv: fixtures/sample.csv
-            schema: config/entry.yaml
-          - csv: fixtures/sample_10k.csv
-            schema: config/entry.yaml
-          - csv: fixtures/sample_100k.csv
-            schema: config/entry.yaml
-          - csv: fixtures/sample_with_dates.csv
-            schema: config/entry_with_dates.json
-          - csv: fixtures/sample_10k_with_dates.csv
-            schema: config/entry_with_dates.json
-          - csv: fixtures/sample_100k_with_dates.csv
-            schema: config/entry_with_dates.json
+          - csv: fixtures/basic/data.csv
+            schema: fixtures/basic/schema_pass.yaml
+          - csv: fixtures/benchmarks/sample_10k.csv
+            schema: fixtures/basic/schema_pass.yaml
+          - csv: fixtures/benchmarks/sample_100k.csv
+            schema: fixtures/basic/schema_pass.yaml
+          - csv: fixtures/with_dates/data.csv
+            schema: fixtures/with_dates/schema_pass.json
+          - csv: fixtures/benchmarks/sample_10k_with_dates.csv
+            schema: fixtures/with_dates/schema_pass.json
+          - csv: fixtures/benchmarks/sample_100k_with_dates.csv
+            schema: fixtures/with_dates/schema_pass.json
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -46,8 +46,8 @@ jobs:
         id: fail_action
         uses: kkruglik/verdict@main
         with:
-          csv: fixtures/sample.csv
-          schema: config/fail.yaml
+          csv: fixtures/basic/data.csv
+          schema: fixtures/basic/schema_fail.yaml
         continue-on-error: true
 
       - name: Verify fail case failed

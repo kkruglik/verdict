@@ -26,7 +26,7 @@
 - [x] `ComparableOps<T>` — `gt`, `ge`, `lt`, `le`, `equal`, `between` (IntColumn<i64,f64>, FloatColumn<f64>, StrColumn<&str>)
 - [x] `StringOps` — `contains`, `starts_with`, `ends_with`, `matches_regex`, `length` (StrColumn)
 - [x] Column enum delegation for all ops (returns f64 for numeric, None for unsupported types)
-- [ ] `DateTimeOps` — `year`, `month`, `day`, `between_dates`, `is_weekend` (deferred, no DateTimeColumn yet)
+- [ ] `DateTimeOps` — `year`, `month`, `day`, `is_weekend` (deferred)
 
 ---
 
@@ -129,8 +129,8 @@
 
 ### 5.4 CI integration
 
-- [ ] Works as a GitHub Actions step with no setup beyond downloading the binary
-- [ ] Example workflow snippet in README
+- [x] `action.yml` GitHub Action — downloads pre-built binary, accepts CSV or Parquet, JSON/YAML schema
+- [x] Example workflow snippet in README
 
 ---
 
@@ -158,31 +158,31 @@
 
 ---
 
-## Phase 7: Date and Datetime Support
+## Phase 7: Date and Datetime Support ✅
 
 **Goal:** make verdict usable on real-world datasets. Most production data has timestamps.
 
 ### 7.1 DateColumn and DateTimeColumn types
 
-- [ ] Add `DateColumn(Vec<Option<NaiveDate>>)` and `DateTimeColumn(Vec<Option<NaiveDateTime>>)` using `chrono`
-- [ ] Add `DataType::Date` and `DataType::DateTime` variants
-- [ ] Add `Column::Date` and `Column::DateTime` enum variants
-- [ ] Common ops: `len`, `is_empty`, `null_count`, `is_null`, `unique_count`
+- [x] `DateColumn(Vec<Option<i32>>)` — epoch days; `DateTimeColumn(Vec<Option<i64>>)` — epoch microseconds
+- [x] `DataType::Date` and `DataType::DateTime` variants
+- [x] `Column::Date` and `Column::DateTime` enum variants
+- [x] Common ops: `len`, `is_empty`, `null_count`, `is_null`, `unique_count`
 
 ### 7.2 Date constraints
 
-- [ ] `After(date)` — all values after a given date
-- [ ] `Before(date)` — all values before a given date
-- [ ] `BetweenDates { min, max }` — values in date range
-- [ ] `NotNull`, `Unique` already work via Column enum (wire up)
-- [ ] Date format config for CSV parsing (default: `%Y-%m-%d` / `%Y-%m-%dT%H:%M:%S`)
+- [x] `After(date)` — all values after a given date
+- [x] `Before(date)` — all values before a given date
+- [x] `BetweenDates { min, max }` — values in date range
+- [x] `NotNull`, `Unique` wired up for Date/DateTime columns
+- [x] Date format config for CSV parsing (`format` field in schema, default `%Y-%m-%d` / `%Y-%m-%dT%H:%M:%S`)
 
 ### 7.3 Expose in Python and CLI
 
-- [ ] `DataType.date()`, `DataType.datetime()` in Python
-- [ ] `Column.date([...])`, `Column.datetime([...])` constructors
-- [ ] `Constraint.after(date_str)`, `Constraint.before(date_str)`, `Constraint.between_dates(min, max)`
-- [ ] `"date"` / `"datetime"` dtype in CLI JSON schema
+- [x] `DataType.date()`, `DataType.datetime()` in Python
+- [x] `Column.date([...])`, `Column.datetime([...])` constructors
+- [x] `Constraint.after(date_str)`, `Constraint.before(date_str)`, `Constraint.between_dates(min, max)`
+- [x] `"date"` / `"datetime"` dtype in CLI JSON/YAML schema
 
 ---
 
@@ -205,12 +205,12 @@
 
 **Goal:** make the CLI pleasant to use day-to-day.
 
-### 9.1 YAML schema support
+### 9.1 YAML schema support ✅
 
-- [ ] Add `serde_yaml` dependency to `verdict-cli`
-- [ ] Auto-detect schema format by file extension (`.yaml`/`.yml` vs `.json`)
-- [ ] Same `ValidationConfig` struct, just a different deserializer
-- [ ] Add YAML example to README
+- [x] `serde_yaml` dependency in `verdict-cli`
+- [x] Auto-detect schema format by file extension (`.yaml`/`.yml` vs `.json`)
+- [x] Same `ValidationConfig` struct, just a different deserializer
+- [x] YAML example in README
 
 ### 9.2 CLI flags
 
@@ -226,14 +226,21 @@
 
 ---
 
-## Phase 10: Parquet Support
+## Phase 10: Parquet Support ✅
 
 **Goal:** make verdict usable in modern data stacks where Parquet is the default format.
 
-- [ ] Add `parquet` feature flag to `verdict-core`
-- [ ] `DatasetParquetExt` trait with `Dataset::from_parquet(path, schema)`
-- [ ] `ParquetLoadingError` mirrors `CsvLoadingError`
-- [ ] Support in `verdict-cli`: auto-detect by `.parquet` extension
+- [x] `parquet` feature flag in `verdict-core`
+- [x] `DatasetParquetExt` trait — `DataFrame::from_parquet(path)` (no schema arg; types inferred from file metadata)
+- [x] `ParquetLoadingError` — `IoError`, `ParquetError`, `UnsupportedType`, `TypeMismatch` variants
+- [x] Type mapping: `BOOLEAN`→Bool, `INT32`/`INT64`→Int, `FLOAT`/`DOUBLE`→Float, `BYTE_ARRAY(UTF8)`→Str, `DATE`→Date, `TIMESTAMP(ms/us)`→DateTime, `TIME(ms/us)`→Time
+- [x] Unit normalisation on load: `TimestampMillis×1000`→µs, `TimeMillis×1000`→µs
+- [x] `verdict-cli`: auto-detect `.parquet` extension, route to `from_parquet`
+- [x] `TimeColumn(Vec<Option<i64>>)` — microseconds since midnight; new `DataType::Time` variant
+- [x] Time constraints: `After`, `Before`, `BetweenDates` wired to `TimeColumn`
+- [x] `ComparableOps<&NaiveTime>`, `<i64>`, `<&str>` for `TimeColumn`; `is_in` for Time/Date/DateTime in CLI
+- [x] Parquet unit tests: 15 loader tests + 10 `TimeColumn` constraint tests
+- [ ] Python bindings: `Dataset.from_parquet(path)` — deferred (verdict-py needs `TimeColumn` update first)
 - [ ] CI workflow: validate a sample `.parquet` file
 
 ---

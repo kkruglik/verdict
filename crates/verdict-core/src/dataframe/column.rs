@@ -18,6 +18,7 @@ pub enum Column {
     Bool(BoolColumn),
     DateTime(DateTimeColumn),
     Date(DateColumn),
+    Time(TimeColumn),
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +38,9 @@ pub struct DateTimeColumn(pub Vec<Option<i64>>);
 
 #[derive(Clone, Debug)]
 pub struct DateColumn(pub Vec<Option<i32>>);
+
+#[derive(Clone, Debug)]
+pub struct TimeColumn(pub Vec<Option<i64>>);
 
 impl IntColumn {
     pub fn len(&self) -> usize {
@@ -77,6 +81,25 @@ impl DateColumn {
 }
 
 impl DateTimeColumn {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn is_null(&self) -> Vec<bool> {
+        self.0.iter().map(|v| v.is_none()).collect()
+    }
+
+    pub fn not_null_count(&self) -> usize {
+        self.0.iter().filter(|v| v.is_some()).count()
+    }
+}
+
+impl TimeColumn {
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -161,6 +184,7 @@ impl Column {
             Column::Bool(col) => col.len(),
             Column::DateTime(col) => col.len(),
             Column::Date(col) => col.len(),
+            Column::Time(col) => col.len(),
         }
     }
 
@@ -176,6 +200,7 @@ impl Column {
             Column::Bool(col) => col.is_null(),
             Column::DateTime(col) => col.is_null(),
             Column::Date(col) => col.is_null(),
+            Column::Time(col) => col.is_null(),
         }
     }
 
@@ -187,6 +212,7 @@ impl Column {
             Column::Bool(col) => col.len() - col.not_null_count(),
             Column::Date(col) => col.len() - col.not_null_count(),
             Column::DateTime(col) => col.len() - col.not_null_count(),
+            Column::Time(col) => col.len() - col.not_null_count(),
         }
     }
 
@@ -198,6 +224,7 @@ impl Column {
             Column::Bool(col) => col.not_null_count(),
             Column::DateTime(col) => col.not_null_count(),
             Column::Date(col) => col.not_null_count(),
+            Column::Time(col) => col.not_null_count(),
         }
     }
 
@@ -214,6 +241,7 @@ impl Column {
                 .len(),
             Column::DateTime(col) => col.0.iter().collect::<HashSet<_>>().len(),
             Column::Date(col) => col.0.iter().collect::<HashSet<_>>().len(),
+            Column::Time(col) => col.0.iter().collect::<HashSet<_>>().len(),
         }
     }
 
@@ -233,6 +261,7 @@ impl Column {
             Column::Bool(c) => duplicated(&c.0, keep),
             Column::DateTime(c) => duplicated(&c.0, keep),
             Column::Date(c) => duplicated(&c.0, keep),
+            Column::Time(c) => duplicated(&c.0, keep),
         }
     }
 
@@ -259,6 +288,11 @@ impl Column {
                 .map(|opt| opt.map(|v| set.contains(&v)))
                 .collect(),
             (Column::Date(col), ValuesSet::Int32Set(set)) => col
+                .0
+                .iter()
+                .map(|opt| opt.map(|v| set.contains(&v)))
+                .collect(),
+            (Column::Time(col), ValuesSet::Int64Set(set)) => col
                 .0
                 .iter()
                 .map(|opt| opt.map(|v| set.contains(&v)))

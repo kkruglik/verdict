@@ -1,10 +1,13 @@
 name: Validate data with verdict
-description: Run verdict-cli to validate a CSV file against a schema. Downloads a pre-built binary — no Rust or Python required.
+description: Run verdict-cli to validate a CSV or Parquet file against a schema. Downloads a pre-built binary — no Rust or Python required.
 
 inputs:
-  csv:
-    description: Path to the CSV file
+  file:
+    description: Path to the data file (CSV or Parquet)
     required: true
+  csv:
+    description: "Deprecated: use 'file' instead. Path to the CSV file."
+    required: false
   schema:
     description: Path to the schema file (JSON or YAML)
     required: true
@@ -26,6 +29,8 @@ runs:
   steps:
     - name: Download verdict-cli
       shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
       run: |
         OS=$(uname -s)
         ARCH=$(uname -m)
@@ -49,7 +54,11 @@ runs:
             ;;
         esac
 
-        VERSION="${{ inputs.version }}"
+        VERSION="$INPUT_VERSION"
+        if [[ "$VERSION" != "latest" && ! "$VERSION" =~ ^verdict-cli-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::Invalid version format: '$VERSION'. Expected 'latest' or 'verdict-cli-vX.Y.Z'."
+          exit 1
+        fi
         if [ "$VERSION" = "latest" ]; then
           VERSION=$(curl -sf "https://api.github.com/repos/kkruglik/verdict/releases" \
             | grep '"tag_name"' \
@@ -75,9 +84,15 @@ runs:
 
     - name: Run verdict-cli
       shell: bash
+      env:
+        INPUT_FILE: ${{ inputs.file }}
+        INPUT_CSV: ${{ inputs.csv }}
+        INPUT_SCHEMA: ${{ inputs.schema }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_MAX_FAILED: ${{ inputs.max-failed-samples }}
       run: |
+        DATA_FILE="${INPUT_FILE:-$INPUT_CSV}"
         verdict-cli \
-          "${{ inputs.csv }}" \
-          "${{ inputs.schema }}" \
-          --format "${{ inputs.format }}" \
-          --max-failed-samples "${{ inputs.max-failed-samples }}"
+          --format "$INPUT_FORMAT" \
+          --max-failed-samples "$INPUT_MAX_FAILED" \
+          -- "$DATA_FILE" "$INPUT_SCHEMA"
