@@ -62,7 +62,7 @@ Schema can be JSON or YAML — detected from the file extension. Both formats us
 | Field | Required | Description |
 |---|---|---|
 | `name` | yes | Column name as it appears in the CSV header |
-| `dtype` | yes | `int`, `float`, `str`, `bool`, `date`, `datetime`, `time` |
+| `dtype` | yes | `int`, `float`, `str`, `bool`, `date`, `datetime`, `time` (microseconds) |
 | `format` | date/datetime only | Chrono format string, e.g. `"%Y-%m-%d"` (CSV only; Parquet infers types from file metadata) |
 | `constraints` | no | List of `{ constraint, value }` objects |
 
@@ -180,7 +180,7 @@ verdict-core  ←  verdict-py
 |---|---|
 | `verdict-core` | Pure Rust validation engine. CSV loading behind the `csv` feature flag; Parquet behind `parquet`. |
 | `verdict-cli` | Static binary for CI/CD pipelines. Reads CSV + schema, outputs results. |
-| `verdict-py` | PyO3 Python bindings. |
+| `verdict-py` | PyO3 Python bindings (Note: currently incompatible with new `TimeColumn` storage). |
 
 ---
 

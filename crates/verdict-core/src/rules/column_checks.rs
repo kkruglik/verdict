@@ -74,7 +74,7 @@ fn validate_cols_with_rule(
                 Operand::Num(v) => Ok(check_greater_than_or_equal_num(column, *v, rule, n)),
                 Operand::Str(v) => Ok(check_greater_than_or_equal_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
-                    .map(|other| check_greater_than_or_equal_col(column, other, name, rule, n)),
+                    .map(|other| check_greater_or_equal_than_col(column, other, name, rule, n)),
             },
             ColumnConstraint::LessThan(operand) => match operand {
                 Operand::Num(v) => Ok(check_less_than_num(column, *v, rule, n)),
@@ -86,7 +86,7 @@ fn validate_cols_with_rule(
                 Operand::Num(v) => Ok(check_less_than_or_equal_num(column, *v, rule, n)),
                 Operand::Str(v) => Ok(check_less_than_or_equal_str(column, v, rule, n)),
                 Operand::Column(name) => resolve_col(data, name)
-                    .map(|other| check_less_than_or_equal_col(column, other, name, rule, n)),
+                    .map(|other| check_less_or_equal_than_col(column, other, name, rule, n)),
             },
             ColumnConstraint::Equal(operand) => match operand {
                 Operand::Num(v) => Ok(check_equal_num(column, *v, rule, n)),
@@ -203,7 +203,18 @@ fn validate_cols_with_rule(
                         n,
                     ))
                 }
-                _ => unreachable!("Only applied to date or datetime columns"),
+                Column::Time(_) => {
+                    let naive_time_min = NaiveTime::from_str(min)?;
+                    let naive_time_max = NaiveTime::from_str(max)?;
+                    Ok(check_between_datetimes(
+                        column,
+                        naive_time_to_i64(&naive_time_min),
+                        naive_time_to_i64(&naive_time_max),
+                        rule,
+                        n,
+                    ))
+                }
+                _ => unreachable!("Only applied to date, datetime or time columns"),
             },
         }
     } else {
@@ -311,38 +322,23 @@ fn check_greater_than_str(
             Column::DateTime(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_datetime(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_datetime)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Date(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i32_to_naive_date(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i32_to_naive_date)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Time(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_time(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_time)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             _ => unreachable!("gt(str) on non-str column"),
         })
@@ -502,38 +498,23 @@ fn check_greater_than_or_equal_str(
             Column::DateTime(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_datetime(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_datetime)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Date(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i32_to_naive_date(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i32_to_naive_date)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Time(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_time(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_time)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             _ => unreachable!("ge(str) on non-str column"),
         })
@@ -556,7 +537,7 @@ fn check_greater_than_or_equal_str(
     }
 }
 
-fn check_greater_than_or_equal_col(
+fn check_greater_or_equal_than_col(
     col: &Column,
     other: &Column,
     other_name: &str,
@@ -591,18 +572,21 @@ fn check_greater_than_or_equal_col(
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_datetime)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Date(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i32_to_naive_date)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Time(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_time)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
@@ -677,38 +661,23 @@ fn check_less_than_str(col: &Column, value: &str, rule: &ColumnRule, n: usize) -
             Column::DateTime(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_datetime(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_datetime)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Date(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i32_to_naive_date(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i32_to_naive_date)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Time(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_time(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_time)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             _ => unreachable!("lt(str) on non-str column"),
         })
@@ -865,38 +834,23 @@ fn check_less_than_or_equal_str(
             Column::DateTime(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_datetime(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_datetime)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Date(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i32_to_naive_date(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i32_to_naive_date)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Time(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_time(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_time)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             _ => unreachable!("le(str) on non-str column"),
         })
@@ -919,7 +873,7 @@ fn check_less_than_or_equal_str(
     }
 }
 
-fn check_less_than_or_equal_col(
+fn check_less_or_equal_than_col(
     col: &Column,
     other: &Column,
     other_name: &str,
@@ -954,18 +908,21 @@ fn check_less_than_or_equal_col(
             Column::DateTime(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_datetime)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Date(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i32_to_naive_date)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
             Column::Time(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_time)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
@@ -1040,38 +997,23 @@ fn check_equal_str(col: &Column, value: &str, rule: &ColumnRule, n: usize) -> Va
             Column::DateTime(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_datetime(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_datetime)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Date(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i32_to_naive_date(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i32_to_naive_date)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Time(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_time(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_time)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             _ => unreachable!("equal(str) on non-str column"),
         })
@@ -1230,38 +1172,23 @@ fn check_between_str(
             Column::DateTime(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_datetime(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_datetime)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Date(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i32_to_naive_date(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i32_to_naive_date)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             Column::Time(col) => (
                 idx,
                 col.0[idx]
-                    .map(|val| {
-                        if let Some(d) = i64_to_naive_time(val) {
-                            d.to_string()
-                        } else {
-                            "null".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "null".to_string()),
+                    .and_then(i64_to_naive_time)
+                    .map(|v| v.to_string())
+                    .unwrap_or("null".to_string()),
             ),
             _ => unreachable!("between(str) on non-str column"),
         })
@@ -1559,6 +1486,7 @@ fn check_is_in_set(
             Column::Time(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_time)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
@@ -1630,6 +1558,7 @@ fn check_unique(col: &Column, rule: &ColumnRule, n: usize) -> ValidationResult {
             Column::Time(c) => (
                 idx,
                 c.0[idx]
+                    .and_then(i64_to_naive_time)
                     .map(|v| v.to_string())
                     .unwrap_or("null".to_string()),
             ),
@@ -1970,6 +1899,13 @@ fn check_between_datetimes(
                     .map(|dt| dt.to_string())
                     .unwrap_or_else(|| "null".to_string()),
             ),
+            Column::Time(c) => (
+                idx,
+                c.0[idx]
+                    .and_then(i64_to_naive_time)
+                    .map(|dt| dt.to_string())
+                    .unwrap_or_else(|| "null".to_string()),
+            ),
             _ => unreachable!("between(i64) on non-datetime column"),
         })
         .take(n)
@@ -1981,15 +1917,21 @@ fn check_between_datetimes(
             CheckScope::Column,
         )
     } else {
-        let min_str = i64_to_naive_datetime(min)
-            .map(|dt| dt.to_string())
-            .unwrap_or(min.to_string());
-        let max_str = i64_to_naive_datetime(max)
-            .map(|dt| dt.to_string())
-            .unwrap_or(max.to_string());
+        let (min_str, max_str, label) = match col {
+            Column::Time(_) => (
+                i64_to_naive_time(min).map(|t| t.to_string()).unwrap_or(min.to_string()),
+                i64_to_naive_time(max).map(|t| t.to_string()).unwrap_or(max.to_string()),
+                "times",
+            ),
+            _ => (
+                i64_to_naive_datetime(min).map(|dt| dt.to_string()).unwrap_or(min.to_string()),
+                i64_to_naive_datetime(max).map(|dt| dt.to_string()).unwrap_or(max.to_string()),
+                "datetimes",
+            ),
+        };
         ValidationResult::failed(
             rule.constraint.to_string().as_str(),
-            &format!("values not between datetimes {} and {}", min_str, max_str),
+            &format!("values not between {} {} and {}", label, min_str, max_str),
             Some(rule.column.as_str()),
             Some(failed_values.len()),
             Some(failed_values),

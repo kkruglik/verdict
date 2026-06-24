@@ -360,7 +360,7 @@ fn parse_column_constraint(
             Ok(ColumnConstraint::BetweenDates { min, max })
         }
         _ => bail!(
-            "unsupported constraint '{}'. valid: not_null, unique, gt, ge, lt, le, eq, between, is_in, contains, starts_with, ends_with, matches_regex, length_between",
+            "unsupported constraint '{}'. valid: not_null, unique, gt, ge, lt, le, eq, between, is_in, contains, starts_with, ends_with, matches_regex, length_between, after, before, between_dates",
             constraint
         ),
     }

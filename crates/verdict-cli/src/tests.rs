@@ -238,6 +238,19 @@ fn parse_constraint_between_dates() {
 }
 
 #[test]
+fn parse_constraint_between_dates_time() {
+    let result = parse_column_constraint(
+        "between_dates",
+        &json!(["08:00:00", "17:00:00"]),
+        &DtypeConfig::Time,
+    )
+    .unwrap();
+    assert!(
+        matches!(result, ColumnConstraint::BetweenDates { min, max } if min == "08:00:00" && max == "17:00:00")
+    );
+}
+
+#[test]
 fn parse_constraint_starts_with() {
     let result = parse_column_constraint("starts_with", &json!("SKU-"), &DtypeConfig::Str).unwrap();
     assert!(matches!(result, ColumnConstraint::StartsWith(s) if s == "SKU-"));

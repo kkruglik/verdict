@@ -69,7 +69,7 @@ impl DatasetCsvExt for DataFrame {
                 DataType::Bool => "Bool",
                 DataType::DateTime => "DateTime",
                 DataType::Date => "Date",
-                DataType::Time => "Date",
+                DataType::Time => "Time",
             })
             .collect();
 

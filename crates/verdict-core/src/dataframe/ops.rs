@@ -1517,6 +1517,9 @@ pub fn i32_to_naive_date(v: i32) -> Option<NaiveDate> {
 }
 
 pub fn i64_to_naive_time(v: i64) -> Option<NaiveTime> {
+    if v < 0 {
+        return None;
+    }
     let secs = v / 1_000_000;
     let nanos = (v % 1_000_000) * 1000;
     NaiveTime::from_num_seconds_from_midnight_opt(secs as u32, nanos as u32)
