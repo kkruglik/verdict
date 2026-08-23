@@ -218,13 +218,13 @@ impl DatasetParquetExt for DataFrame {
         let columns = columns_data
             .into_iter()
             .map(|b| match b {
-                ColBuilder::Int(v) => Column::Int(IntColumn(v)),
-                ColBuilder::Float(v) => Column::Float(FloatColumn(v)),
-                ColBuilder::Str(v) => Column::Str(StringColumn(v)),
-                ColBuilder::Bool(v) => Column::Bool(BoolColumn(v)),
-                ColBuilder::DateTime(v) => Column::DateTime(DateTimeColumn(v)),
-                ColBuilder::Date(v) => Column::Date(DateColumn(v)),
-                ColBuilder::Time(v) => Column::Time(TimeColumn(v)),
+                ColBuilder::Int(v) => Column::Int(IntColumn::new(v)),
+                ColBuilder::Float(v) => Column::Float(FloatColumn::new(v)),
+                ColBuilder::Str(v) => Column::Str(StringColumn::new(v)),
+                ColBuilder::Bool(v) => Column::Bool(BoolColumn::new(v)),
+                ColBuilder::DateTime(v) => Column::DateTime(DateTimeColumn::new(v)),
+                ColBuilder::Date(v) => Column::Date(DateColumn::new(v)),
+                ColBuilder::Time(v) => Column::Time(TimeColumn::new(v)),
             })
             .collect();
 

@@ -1,6 +1,14 @@
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 
-use crate::dataframe::ops::NumericOps;
+use crate::dataframe::ops::numeric::NumericOps;
+
+#[derive(Debug, Clone, Copy)]
+pub enum KeepStrategy {
+    First,
+    Last,
+    None,
+}
 
 #[derive(Debug, Clone)]
 pub enum ValuesSet {
@@ -21,35 +29,20 @@ pub enum Column {
     Time(TimeColumn),
 }
 
-#[derive(Clone, Debug)]
-pub struct IntColumn(pub Vec<Option<i64>>);
+#[derive(Clone, Debug, PartialEq)]
+pub struct TypedColumn<T, Marker>(pub Vec<Option<T>>, PhantomData<Marker>);
 
-#[derive(Clone, Debug)]
-pub struct FloatColumn(pub Vec<Option<f64>>);
+impl<T, Marker> TypedColumn<T, Marker> {
+    pub fn new(data: Vec<Option<T>>) -> Self {
+        TypedColumn(data, PhantomData)
+    }
 
-#[derive(Clone, Debug)]
-pub struct StringColumn(pub Vec<Option<String>>);
-
-#[derive(Clone, Debug)]
-pub struct BoolColumn(pub Vec<Option<bool>>);
-
-#[derive(Clone, Debug)]
-pub struct DateTimeColumn(pub Vec<Option<i64>>);
-
-#[derive(Clone, Debug)]
-pub struct DateColumn(pub Vec<Option<i32>>);
-
-#[derive(Clone, Debug)]
-pub struct TimeColumn(pub Vec<Option<i64>>);
-
-impl IntColumn {
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.0.is_empty()
     }
 
     pub fn is_null(&self) -> Vec<bool> {
@@ -61,119 +54,34 @@ impl IntColumn {
     }
 }
 
-impl DateColumn {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct IntMarker;
 
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct FloatMarker;
 
-    pub fn is_null(&self) -> Vec<bool> {
-        self.0.iter().map(|v| v.is_none()).collect()
-    }
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct StringMarker;
 
-    pub fn not_null_count(&self) -> usize {
-        self.0.iter().filter(|v| v.is_some()).count()
-    }
-}
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct BoolMarker;
 
-impl DateTimeColumn {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct DateMarker;
 
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct DateTimeMarker;
 
-    pub fn is_null(&self) -> Vec<bool> {
-        self.0.iter().map(|v| v.is_none()).collect()
-    }
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct TimeMarker;
 
-    pub fn not_null_count(&self) -> usize {
-        self.0.iter().filter(|v| v.is_some()).count()
-    }
-}
-
-impl TimeColumn {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn is_null(&self) -> Vec<bool> {
-        self.0.iter().map(|v| v.is_none()).collect()
-    }
-
-    pub fn not_null_count(&self) -> usize {
-        self.0.iter().filter(|v| v.is_some()).count()
-    }
-}
-
-impl FloatColumn {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn is_null(&self) -> Vec<bool> {
-        self.0.iter().map(|v| v.is_none()).collect()
-    }
-
-    pub fn not_null_count(&self) -> usize {
-        self.0.iter().filter(|v| v.is_some()).count()
-    }
-}
-
-impl StringColumn {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn is_null(&self) -> Vec<bool> {
-        self.0.iter().map(|v| v.is_none()).collect()
-    }
-
-    pub fn not_null_count(&self) -> usize {
-        self.0.iter().filter(|v| v.is_some()).count()
-    }
-}
-
-impl BoolColumn {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn is_null(&self) -> Vec<bool> {
-        self.0.iter().map(|v| v.is_none()).collect()
-    }
-
-    pub fn not_null_count(&self) -> usize {
-        self.0.iter().filter(|v| v.is_some()).count()
-    }
-}
+pub type IntColumn = TypedColumn<i64, IntMarker>;
+pub type FloatColumn = TypedColumn<f64, FloatMarker>;
+pub type BoolColumn = TypedColumn<bool, BoolMarker>;
+pub type StringColumn = TypedColumn<String, StringMarker>;
+pub type DateColumn = TypedColumn<i32, DateMarker>;
+pub type DateTimeColumn = TypedColumn<i64, DateTimeMarker>;
+pub type TimeColumn = TypedColumn<i64, TimeMarker>;
 
 impl Column {
     pub fn len(&self) -> usize {
@@ -348,13 +256,6 @@ impl Column {
             _ => None,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum KeepStrategy {
-    First,
-    Last,
-    None,
 }
 
 fn duplicated<T: Eq + std::hash::Hash>(vec: &[T], keep: KeepStrategy) -> Vec<bool> {

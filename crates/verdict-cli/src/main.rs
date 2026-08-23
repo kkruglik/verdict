@@ -404,7 +404,7 @@ fn main() -> Result<()> {
                     parse_column_constraint(&c.constraint, &c.value, &col_config.dtype).context(
                         format!(
                             "invalid constraint '{}' on column '{}'",
-                            &c.constraint, &col_config.name
+                            c.constraint, col_config.name
                         ),
                     )?,
                 );
@@ -456,7 +456,7 @@ fn main() -> Result<()> {
             for c in constraints {
                 table_constraints.push(
                     parse_table_constraint(&c.constraint, &c.value)
-                        .context(format!("invalid constraint '{}' on table", &c.constraint))?,
+                        .context(format!("invalid constraint '{}' on table", c.constraint))?,
                 );
             }
             let rules = TableRuleBuilder {

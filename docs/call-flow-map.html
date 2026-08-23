@@ -1,0 +1,465 @@
+<title>verdict-core — Architecture Map</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #181c27;
+    --border: #2a2f3f;
+    --text: #e2e8f4;
+    --text-dim: #7a85a0;
+    --entry: #f5a623;
+    --entry-bg: rgba(245,166,35,0.10);
+    --core: #4a9eff;
+    --core-bg: rgba(74,158,255,0.10);
+    --ops: #6bcfb0;
+    --ops-bg: rgba(107,207,176,0.10);
+    --data: #a78bfa;
+    --data-bg: rgba(167,139,250,0.10);
+    --arrow: #3a4155;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f5f7fc;
+      --bg2: #ffffff;
+      --border: #d4d9e8;
+      --text: #1a1f2e;
+      --text-dim: #6b748a;
+      --entry: #d4830a;
+      --entry-bg: rgba(212,131,10,0.08);
+      --core: #1a6fd4;
+      --core-bg: rgba(26,111,212,0.08);
+      --ops: #1a9a7a;
+      --ops-bg: rgba(26,154,122,0.08);
+      --data: #6d4fd4;
+      --data-bg: rgba(109,79,212,0.08);
+      --arrow: #c0c8dc;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f7fc;
+    --bg2: #ffffff;
+    --border: #d4d9e8;
+    --text: #1a1f2e;
+    --text-dim: #6b748a;
+    --entry: #d4830a;
+    --entry-bg: rgba(212,131,10,0.08);
+    --core: #1a6fd4;
+    --core-bg: rgba(26,111,212,0.08);
+    --ops: #1a9a7a;
+    --ops-bg: rgba(26,154,122,0.08);
+    --data: #6d4fd4;
+    --data-bg: rgba(109,79,212,0.08);
+    --arrow: #c0c8dc;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 32px 24px 48px;
+  }
+
+  .page-header {
+    margin-bottom: 36px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .page-header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .page-header span {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Main flow grid */
+  .flow {
+    display: grid;
+    grid-template-columns: 180px 40px 200px 40px 220px 40px 200px 40px 160px;
+    gap: 0;
+    align-items: start;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .layer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .layer-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    padding-left: 2px;
+  }
+
+  .node {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: var(--bg2);
+    position: relative;
+  }
+  .node-name {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .node-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .node-tag {
+    display: inline-block;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-bottom: 5px;
+    font-weight: 600;
+  }
+
+  .node.entry  { border-color: var(--entry); background: var(--entry-bg); }
+  .node.entry .node-name { color: var(--entry); }
+  .node.entry .node-tag { background: var(--entry-bg); color: var(--entry); }
+
+  .node.core   { border-color: var(--core); background: var(--core-bg); }
+  .node.core .node-name { color: var(--core); }
+  .node.core .node-tag { background: var(--core-bg); color: var(--core); }
+
+  .node.ops    { border-color: var(--ops); background: var(--ops-bg); }
+  .node.ops .node-name { color: var(--ops); }
+  .node.ops .node-tag { background: var(--ops-bg); color: var(--ops); }
+
+  .node.data   { border-color: var(--data); background: var(--data-bg); }
+  .node.data .node-name { color: var(--data); }
+  .node.data .node-tag { background: var(--data-bg); color: var(--data); }
+
+  /* Arrow columns */
+  .arrow-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 32px;
+    gap: 10px;
+    min-height: 120px;
+  }
+  .arrow-line {
+    width: 100%;
+    height: 1px;
+    background: var(--arrow);
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '▶';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 8px;
+    color: var(--arrow);
+    line-height: 1;
+  }
+  .arrow-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* Responsibility table below */
+  .resp-section {
+    margin-top: 48px;
+    border-top: 1px solid var(--border);
+    padding-top: 32px;
+  }
+  .resp-section h2 {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .resp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .resp-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    background: var(--bg2);
+  }
+  .resp-card h3 {
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .resp-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .resp-card ul li {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding-left: 12px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .resp-card ul li::before {
+    content: '–';
+    position: absolute;
+    left: 0;
+    color: var(--border);
+  }
+  .resp-card.entry h3 { color: var(--entry); }
+  .resp-card.core h3  { color: var(--core); }
+  .resp-card.ops h3   { color: var(--ops); }
+  .resp-card.data h3  { color: var(--data); }
+</style>
+
+<div class="page-header">
+  <h1>verdict · call flow</h1>
+  <span>entry → dispatch → ops → data</span>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--entry)"></div>Entry layer</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--core)"></div>Core / dispatch</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--ops)"></div>Ops traits</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--data)"></div>Data / column types</div>
+</div>
+
+<div class="flow">
+
+  <!-- Layer 1: Entry points -->
+  <div class="layer">
+    <div class="layer-label">Entry</div>
+
+    <div class="node entry">
+      <div class="node-tag">verdict-cli</div>
+      <div class="node-name">main.rs</div>
+      <div class="node-sub">Parses YAML config<br>Loads CSV / Parquet<br>Calls validate_columns()<br>Prints report to stdout</div>
+    </div>
+
+    <div class="node entry">
+      <div class="node-tag">verdict-py</div>
+      <div class="node-name">lib.rs · PyO3</div>
+      <div class="node-sub">Exposes Dataset, Schema,<br>Rule, Constraint to Python<br>Calls validate_columns()<br>Returns list[ValidationResult]</div>
+    </div>
+  </div>
+
+  <!-- Arrow 1 -->
+  <div class="arrow-col">
+    <div class="arrow-label">fn call</div>
+    <div class="arrow-line"></div>
+  </div>
+
+  <!-- Layer 2: Loaders -->
+  <div class="layer">
+    <div class="layer-label">Loaders (feature-gated)</div>
+
+    <div class="node core">
+      <div class="node-tag">feature = csv</div>
+      <div class="node-name">csv_loader.rs</div>
+      <div class="node-sub">DataFrame::from_csv()<br>Parses rows → Column variants<br>Normalises dates to i32/i64</div>
+    </div>
+
+    <div class="node core">
+      <div class="node-tag">feature = parquet</div>
+      <div class="node-name">parquet_loader.rs</div>
+      <div class="node-sub">DataFrame::from_parquet()<br>Arrow → TypedColumn::new()<br>Same normalisation</div>
+    </div>
+
+    <div class="node core" style="opacity:0.55; border-style:dashed;">
+      <div class="node-tag">manual</div>
+      <div class="node-name">DataFrame::new()</div>
+      <div class="node-sub">Construct in-memory<br>directly in Rust / Python</div>
+    </div>
+  </div>
+
+  <!-- Arrow 2 -->
+  <div class="arrow-col">
+    <div class="arrow-label">DataFrame</div>
+    <div class="arrow-line"></div>
+  </div>
+
+  <!-- Layer 3: Core dispatch -->
+  <div class="layer">
+    <div class="layer-label">Core dispatch</div>
+
+    <div class="node core">
+      <div class="node-tag">verdict-core</div>
+      <div class="node-name">validate_columns()</div>
+      <div class="node-sub">Public entry point<br>Iterates rules<br>Calls validate_cols_with_rule()<br>Collects ValidationResult vec</div>
+    </div>
+
+    <div class="node core">
+      <div class="node-tag">private</div>
+      <div class="node-name">validate_cols_with_rule()</div>
+      <div class="node-sub">Matches ColumnConstraint<br>Dispatches to check_* fn<br>Returns Result&lt;ValidationResult&gt;<br>Type guards here (str→temporal)</div>
+    </div>
+
+    <div class="node core">
+      <div class="node-tag">schema</div>
+      <div class="node-name">Schema / ColumnRule</div>
+      <div class="node-sub">Field names + dtypes<br>ColumnConstraint enum<br>Operand (Num / Str / Col)</div>
+    </div>
+  </div>
+
+  <!-- Arrow 3 -->
+  <div class="arrow-col">
+    <div class="arrow-label">check_*()</div>
+    <div class="arrow-line"></div>
+  </div>
+
+  <!-- Layer 4: Ops traits -->
+  <div class="layer">
+    <div class="layer-label">Ops traits</div>
+
+    <div class="node ops">
+      <div class="node-name">ComparableOps&lt;T&gt;</div>
+      <div class="node-sub">gt, ge, lt, le, equal, between<br>Blanket impl for TypedColumn&lt;T,M&gt;<br>Manual impls for &NaiveDate,<br>&str, col-vs-col</div>
+    </div>
+
+    <div class="node ops">
+      <div class="node-name">NumericOps</div>
+      <div class="node-sub">sum, min, max<br>mean, std, median<br>Two impls: IntColumn (i64)<br>FloatColumn (f64) — no blanket</div>
+    </div>
+
+    <div class="node ops">
+      <div class="node-name">StringOps</div>
+      <div class="node-sub">contains, starts_with<br>ends_with, matches_regex<br>length<br>impl for StringColumn only</div>
+    </div>
+  </div>
+
+  <!-- Arrow 4 -->
+  <div class="arrow-col">
+    <div class="arrow-label">Vec&lt;Option&lt;bool&gt;&gt;</div>
+    <div class="arrow-line"></div>
+  </div>
+
+  <!-- Layer 5: Column types -->
+  <div class="layer">
+    <div class="layer-label">Column types</div>
+
+    <div class="node data">
+      <div class="node-name">TypedColumn&lt;T, M&gt;</div>
+      <div class="node-sub">Vec&lt;Option&lt;T&gt;&gt; + PhantomData&lt;M&gt;<br>Markers: Int / Float / Str /<br>Bool / Date / DateTime / Time</div>
+    </div>
+
+    <div class="node data">
+      <div class="node-name">Column (enum)</div>
+      <div class="node-sub">Int(IntColumn)<br>Float(FloatColumn)<br>Str / Bool / Date<br>DateTime / Time</div>
+    </div>
+
+    <div class="node data">
+      <div class="node-name">DataFrame</div>
+      <div class="node-sub">Vec&lt;Column&gt; + Schema<br>get_column_by_name()<br>shape()</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Responsibility breakdown -->
+<div class="resp-section">
+  <h2>Responsibility map</h2>
+  <div class="resp-grid">
+
+    <div class="resp-card entry">
+      <h3>verdict-cli / verdict-py — entry layer</h3>
+      <ul>
+        <li>Parse user input (YAML / Python args)</li>
+        <li>Load data via loader feature flags</li>
+        <li>Build Rule + Schema objects</li>
+        <li>Call validate_columns(), format output</li>
+        <li>No validation logic lives here</li>
+      </ul>
+    </div>
+
+    <div class="resp-card core">
+      <h3>csv_loader / parquet_loader — I/O layer</h3>
+      <ul>
+        <li>Parse raw bytes → typed Column values</li>
+        <li>Normalise temporal types to μs / days since epoch</li>
+        <li>Surface CsvLoadingError / ParquetLoadingError</li>
+        <li>Behind feature flags, no impact on core API</li>
+      </ul>
+    </div>
+
+    <div class="resp-card core">
+      <h3>column_checks.rs — dispatch layer</h3>
+      <ul>
+        <li>validate_columns() — public, iterates rules</li>
+        <li>validate_cols_with_rule() — constraint → check_* dispatch</li>
+        <li>Type guards: str operand on temporal column → Err</li>
+        <li>unreachable!() arms = internal consistency only</li>
+        <li>Converts Result errors to ValidationResult::failed()</li>
+      </ul>
+    </div>
+
+    <div class="resp-card ops">
+      <h3>ComparableOps / NumericOps / StringOps — ops layer</h3>
+      <ul>
+        <li>Pure computation on column data, no schema knowledge</li>
+        <li>Blanket impl covers T == storage type comparisons</li>
+        <li>Manual impls for cross-type (&NaiveDate, &str, col-vs-col)</li>
+        <li>Return Vec&lt;Option&lt;bool&gt;&gt; — None = null row, not error</li>
+        <li>NumericOps stays as two impls (f64 Ord problem)</li>
+      </ul>
+    </div>
+
+    <div class="resp-card data">
+      <h3>TypedColumn&lt;T, M&gt; / Column — data layer</h3>
+      <ul>
+        <li>Marker types solve i64 collision (Int / DateTime / Time)</li>
+        <li>TypedColumn::new() is the only constructor</li>
+        <li>Column enum is the dispatch surface for ops traits</li>
+        <li>len, is_null, null_count, not_null_count live here</li>
+      </ul>
+    </div>
+
+  </div>
+</div>

@@ -140,7 +140,7 @@ struct PyColumn {
 impl PyColumn {
     #[staticmethod]
     fn integer(values: Vec<Option<i64>>) -> PyColumn {
-        let column = IntColumn(values);
+        let column = IntColumn::new(values);
         PyColumn {
             inner: Column::Int(column),
         }
@@ -148,7 +148,7 @@ impl PyColumn {
 
     #[staticmethod]
     fn floating(values: Vec<Option<f64>>) -> PyColumn {
-        let column = FloatColumn(values);
+        let column = FloatColumn::new(values);
         PyColumn {
             inner: Column::Float(column),
         }
@@ -156,7 +156,7 @@ impl PyColumn {
 
     #[staticmethod]
     fn boolean(values: Vec<Option<bool>>) -> PyColumn {
-        let column = BoolColumn(values);
+        let column = BoolColumn::new(values);
         PyColumn {
             inner: Column::Bool(column),
         }
@@ -164,7 +164,7 @@ impl PyColumn {
 
     #[staticmethod]
     fn string(values: Vec<Option<String>>) -> PyColumn {
-        let column = StringColumn(values);
+        let column = StringColumn::new(values);
         PyColumn {
             inner: Column::Str(column),
         }
@@ -173,14 +173,14 @@ impl PyColumn {
     #[staticmethod]
     fn date(values: Vec<Option<i32>>) -> PyColumn {
         PyColumn {
-            inner: Column::Date(DateColumn(values)),
+            inner: Column::Date(DateColumn::new(values)),
         }
     }
 
     #[staticmethod]
     fn datetime(values: Vec<Option<i64>>) -> PyColumn {
         PyColumn {
-            inner: Column::DateTime(DateTimeColumn(values)),
+            inner: Column::DateTime(DateTimeColumn::new(values)),
         }
     }
 
