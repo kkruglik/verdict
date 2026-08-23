@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/kkruglik/verdict/compare/verdict-core-v0.4.0...verdict-core-v0.4.1) - 2026-08-23
+
+### Other
+
+- introduce marker types for TypedColumn and fix temporal string silent pass
+
 ## [0.4.0](https://github.com/kkruglik/verdict/compare/verdict-core-v0.3.0...verdict-core-v0.4.0) - 2026-06-24
 
 ### Added
