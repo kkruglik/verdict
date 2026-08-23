@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.8...verdict-cli-v0.1.9) - 2026-08-23
+
+### Fixed
+
+- remove redundant & in format! args (clippy)
+
 ## [0.1.8](https://github.com/kkruglik/verdict/compare/verdict-cli-v0.1.7...verdict-cli-v0.1.8) - 2026-06-24
 
 ### Added
