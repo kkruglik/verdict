@@ -6,7 +6,9 @@ use crate::{
     dataframe::{
         Column, DataFrame, KeepStrategy, ValuesSet, i32_to_naive_date, i64_to_naive_datetime,
         naive_date_to_i32, naive_datetime_to_i64,
-        ops::{ComparableOps, StringOps, i64_to_naive_time, naive_time_to_i64},
+        ops::comparable::ComparableOps,
+        ops::string::StringOps,
+        ops::{i64_to_naive_time, naive_time_to_i64},
     },
     errors::ValidationError,
     rules::{
@@ -14,6 +16,22 @@ use crate::{
         ValidationResult, validation::CheckScope,
     },
 };
+
+pub fn validate_temporal_str(column: &Column, s: &str) -> Result<(), ValidationError> {
+    match column {
+        Column::Date(_) => {
+            NaiveDate::from_str(s)?;
+        }
+        Column::DateTime(_) => {
+            NaiveDateTime::from_str(s)?;
+        }
+        Column::Time(_) => {
+            NaiveTime::from_str(s)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
 
 pub fn validate_columns(
     data: &DataFrame,
@@ -68,29 +86,44 @@ fn validate_cols_with_rule(
                         })
                     }
                 }
-                Operand::Str(v) => Ok(check_greater_than_str(column, v, rule, n)),
+                Operand::Str(v) => {
+                    validate_temporal_str(column, v)?;
+                    Ok(check_greater_than_str(column, v, rule, n))
+                }
             },
             ColumnConstraint::GreaterThanOrEqual(operand) => match operand {
                 Operand::Num(v) => Ok(check_greater_than_or_equal_num(column, *v, rule, n)),
-                Operand::Str(v) => Ok(check_greater_than_or_equal_str(column, v, rule, n)),
+                Operand::Str(v) => {
+                    validate_temporal_str(column, v)?;
+                    Ok(check_greater_than_or_equal_str(column, v, rule, n))
+                }
                 Operand::Column(name) => resolve_col(data, name)
                     .map(|other| check_greater_or_equal_than_col(column, other, name, rule, n)),
             },
             ColumnConstraint::LessThan(operand) => match operand {
                 Operand::Num(v) => Ok(check_less_than_num(column, *v, rule, n)),
-                Operand::Str(v) => Ok(check_less_than_str(column, v, rule, n)),
+                Operand::Str(v) => {
+                    validate_temporal_str(column, v)?;
+                    Ok(check_less_than_str(column, v, rule, n))
+                }
                 Operand::Column(name) => resolve_col(data, name)
                     .map(|other| check_less_than_col(column, other, name, rule, n)),
             },
             ColumnConstraint::LessThanOrEqual(operand) => match operand {
                 Operand::Num(v) => Ok(check_less_than_or_equal_num(column, *v, rule, n)),
-                Operand::Str(v) => Ok(check_less_than_or_equal_str(column, v, rule, n)),
+                Operand::Str(v) => {
+                    validate_temporal_str(column, v)?;
+                    Ok(check_less_than_or_equal_str(column, v, rule, n))
+                }
                 Operand::Column(name) => resolve_col(data, name)
                     .map(|other| check_less_or_equal_than_col(column, other, name, rule, n)),
             },
             ColumnConstraint::Equal(operand) => match operand {
                 Operand::Num(v) => Ok(check_equal_num(column, *v, rule, n)),
-                Operand::Str(v) => Ok(check_equal_str(column, v, rule, n)),
+                Operand::Str(v) => {
+                    validate_temporal_str(column, v)?;
+                    Ok(check_equal_str(column, v, rule, n))
+                }
                 Operand::Column(name) => resolve_col(data, name)
                     .map(|other| check_equal_col(column, other, name, rule, n)),
             },
@@ -99,6 +132,8 @@ fn validate_cols_with_rule(
                     Ok(check_between_num(column, *lo, *hi, rule, n))
                 }
                 (Operand::Str(lo), Operand::Str(hi)) => {
+                    validate_temporal_str(column, lo)?;
+                    validate_temporal_str(column, hi)?;
                     Ok(check_between_str(column, lo, hi, rule, n))
                 }
                 (Operand::Column(lo), Operand::Column(hi)) => {

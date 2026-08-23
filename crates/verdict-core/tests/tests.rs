@@ -3,8 +3,7 @@ mod tests {
     use verdict_core::{
         dataframe::{
             BoolColumn, Column, DataFrame, DateColumn, DateTimeColumn, FloatColumn, IntColumn,
-            StringColumn, ValuesSet,
-            ops::{ComparableOps, StringOps},
+            StringColumn, ValuesSet, ops::comparable::ComparableOps, ops::string::StringOps,
         },
         rules::column::{col, col_rule},
         rules::column_checks::validate_columns,
@@ -24,22 +23,28 @@ mod tests {
                 "datetime_with_nulls".to_string(),
             ],
             vec![
-                Column::Int(IntColumn(vec![Some(1), Some(2), Some(3), Some(4), Some(5)])),
-                Column::Str(StringColumn(vec![
+                Column::Int(IntColumn::new(vec![
+                    Some(1),
+                    Some(2),
+                    Some(3),
+                    Some(4),
+                    Some(5),
+                ])),
+                Column::Str(StringColumn::new(vec![
                     Some("alice".to_string()),
                     Some("bob".to_string()),
                     Some("charlie".to_string()),
                     Some("diana".to_string()),
                     Some("eve".to_string()),
                 ])),
-                Column::Float(FloatColumn(vec![
+                Column::Float(FloatColumn::new(vec![
                     Some(95.5),
                     Some(87.3),
                     Some(92.0),
                     Some(78.9),
                     Some(100.0),
                 ])),
-                Column::Bool(BoolColumn(vec![
+                Column::Bool(BoolColumn::new(vec![
                     Some(true),
                     Some(false),
                     Some(true),
@@ -47,14 +52,14 @@ mod tests {
                     Some(true),
                 ])),
                 // epoch days: 2024-01-01 to 2024-01-05
-                Column::Date(DateColumn(vec![
+                Column::Date(DateColumn::new(vec![
                     Some(19723),
                     Some(19724),
                     Some(19725),
                     Some(19726),
                     Some(19727),
                 ])),
-                Column::Date(DateColumn(vec![
+                Column::Date(DateColumn::new(vec![
                     Some(19723),
                     None,
                     Some(19725),
@@ -62,14 +67,14 @@ mod tests {
                     Some(19727),
                 ])),
                 // epoch microseconds: 2024-01-01T10:00:00 to 2024-01-05T14:00:00
-                Column::DateTime(DateTimeColumn(vec![
+                Column::DateTime(DateTimeColumn::new(vec![
                     Some(1704096000000000),
                     Some(1704186000000000),
                     Some(1704276000000000),
                     Some(1704366000000000),
                     Some(1704456000000000),
                 ])),
-                Column::DateTime(DateTimeColumn(vec![
+                Column::DateTime(DateTimeColumn::new(vec![
                     Some(1704096000000000),
                     None,
                     Some(1704276000000000),
@@ -89,22 +94,28 @@ mod tests {
                 "z".to_string(),
             ],
             vec![
-                Column::Int(IntColumn(vec![Some(1), Some(2), Some(3), Some(4), Some(5)])),
-                Column::Float(FloatColumn(vec![
+                Column::Int(IntColumn::new(vec![
+                    Some(1),
+                    Some(2),
+                    Some(3),
+                    Some(4),
+                    Some(5),
+                ])),
+                Column::Float(FloatColumn::new(vec![
                     Some(1.0),
                     Some(2.0),
                     Some(3.0),
                     Some(4.0),
                     Some(5.0),
                 ])),
-                Column::Float(FloatColumn(vec![
+                Column::Float(FloatColumn::new(vec![
                     Some(6.0),
                     Some(7.0),
                     Some(8.0),
                     Some(9.0),
                     Some(10.0),
                 ])),
-                Column::Float(FloatColumn(vec![
+                Column::Float(FloatColumn::new(vec![
                     Some(28.0),
                     Some(1.0),
                     Some(0.5),
@@ -125,28 +136,28 @@ mod tests {
                 "high".to_string(),
             ],
             vec![
-                Column::Float(FloatColumn(vec![
+                Column::Float(FloatColumn::new(vec![
                     Some(1.0),
                     None,
                     Some(3.0),
                     Some(4.0),
                     None,
                 ])),
-                Column::Float(FloatColumn(vec![
+                Column::Float(FloatColumn::new(vec![
                     Some(2.0),
                     Some(5.0),
                     None,
                     Some(5.0),
                     None,
                 ])),
-                Column::Float(FloatColumn(vec![
+                Column::Float(FloatColumn::new(vec![
                     Some(1.0),
                     None,
                     Some(3.0),
                     Some(4.0),
                     None,
                 ])),
-                Column::Float(FloatColumn(vec![
+                Column::Float(FloatColumn::new(vec![
                     Some(100.0),
                     Some(100.0),
                     Some(100.0),
@@ -166,16 +177,28 @@ mod tests {
                 "active".to_string(),
             ],
             vec![
-                Column::Int(IntColumn(vec![None, Some(2), None, Some(4), None])),
-                Column::Str(StringColumn(vec![
+                Column::Int(IntColumn::new(vec![None, Some(2), None, Some(4), None])),
+                Column::Str(StringColumn::new(vec![
                     None,
                     Some("bob".to_string()),
                     Some("charlie".to_string()),
                     None,
                     None,
                 ])),
-                Column::Float(FloatColumn(vec![None, None, Some(3.3), None, Some(5.5)])),
-                Column::Bool(BoolColumn(vec![None, Some(false), None, Some(false), None])),
+                Column::Float(FloatColumn::new(vec![
+                    None,
+                    None,
+                    Some(3.3),
+                    None,
+                    Some(5.5),
+                ])),
+                Column::Bool(BoolColumn::new(vec![
+                    None,
+                    Some(false),
+                    None,
+                    Some(false),
+                    None,
+                ])),
             ],
         )
     }
@@ -289,8 +312,8 @@ mod tests {
 
     #[test]
     fn test_numeric_ops_all_null_returns_none() {
-        let int_col = Column::Int(IntColumn(vec![None, None, None]));
-        let float_col = Column::Float(FloatColumn(vec![None, None, None]));
+        let int_col = Column::Int(IntColumn::new(vec![None, None, None]));
+        let float_col = Column::Float(FloatColumn::new(vec![None, None, None]));
 
         for col in [&int_col, &float_col] {
             assert!(col.sum().is_none());
@@ -304,8 +327,8 @@ mod tests {
 
     #[test]
     fn test_numeric_ops_empty_returns_none() {
-        let int_col = Column::Int(IntColumn(vec![]));
-        let float_col = Column::Float(FloatColumn(vec![]));
+        let int_col = Column::Int(IntColumn::new(vec![]));
+        let float_col = Column::Float(FloatColumn::new(vec![]));
 
         for col in [&int_col, &float_col] {
             assert!(col.sum().is_none());
@@ -319,15 +342,15 @@ mod tests {
 
     #[test]
     fn test_std_single_value_returns_none() {
-        let int_col = Column::Int(IntColumn(vec![Some(42)]));
-        let float_col = Column::Float(FloatColumn(vec![Some(1.5)]));
+        let int_col = Column::Int(IntColumn::new(vec![Some(42)]));
+        let float_col = Column::Float(FloatColumn::new(vec![Some(1.5)]));
         assert!(int_col.std().is_none());
         assert!(float_col.std().is_none());
     }
 
     #[test]
     fn test_comparable_ops_all_null() {
-        let col = Column::Int(IntColumn(vec![None, None, None]));
+        let col = Column::Int(IntColumn::new(vec![None, None, None]));
         assert_eq!(col.gt(1.0), vec![None, None, None]);
         assert_eq!(col.ge(1.0), vec![None, None, None]);
         assert_eq!(col.lt(1.0), vec![None, None, None]);
@@ -338,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_string_ops_all_null() {
-        let col = Column::Str(StringColumn(vec![None, None]));
+        let col = Column::Str(StringColumn::new(vec![None, None]));
         assert_eq!(col.contains("a"), vec![None, None]);
         assert_eq!(col.starts_with("a"), vec![None, None]);
         assert_eq!(col.ends_with("a"), vec![None, None]);
@@ -813,12 +836,12 @@ mod tests {
         let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StringColumn(vec![
+                Column::Str(StringColumn::new(vec![
                     Some("foo".into()),
                     Some("bar".into()),
                     None,
                 ])),
-                Column::Str(StringColumn(vec![
+                Column::Str(StringColumn::new(vec![
                     Some("foo".into()),
                     Some("bar".into()),
                     None,
@@ -840,8 +863,11 @@ mod tests {
         let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StringColumn(vec![Some("apple".into()), Some("cat".into())])),
-                Column::Str(StringColumn(vec![
+                Column::Str(StringColumn::new(vec![
+                    Some("apple".into()),
+                    Some("cat".into()),
+                ])),
+                Column::Str(StringColumn::new(vec![
                     Some("banana".into()),
                     Some("dog".into()),
                 ])),
@@ -862,8 +888,14 @@ mod tests {
         let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Str(StringColumn(vec![Some("zoo".into()), Some("cat".into())])),
-                Column::Str(StringColumn(vec![Some("apple".into()), Some("dog".into())])),
+                Column::Str(StringColumn::new(vec![
+                    Some("zoo".into()),
+                    Some("cat".into()),
+                ])),
+                Column::Str(StringColumn::new(vec![
+                    Some("apple".into()),
+                    Some("dog".into()),
+                ])),
             ],
         );
         // "zoo" < "apple" false → 1 failure
@@ -883,8 +915,8 @@ mod tests {
         let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Bool(BoolColumn(vec![Some(true), Some(false), None])),
-                Column::Bool(BoolColumn(vec![Some(true), Some(false), None])),
+                Column::Bool(BoolColumn::new(vec![Some(true), Some(false), None])),
+                Column::Bool(BoolColumn::new(vec![Some(true), Some(false), None])),
             ],
         );
         // rows 0,1 match; row 2 both null → None → skipped
@@ -902,8 +934,8 @@ mod tests {
         let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Bool(BoolColumn(vec![Some(true), Some(false)])),
-                Column::Bool(BoolColumn(vec![Some(false), Some(true)])),
+                Column::Bool(BoolColumn::new(vec![Some(true), Some(false)])),
+                Column::Bool(BoolColumn::new(vec![Some(false), Some(true)])),
             ],
         );
         // a > b: true>false passes, false>true fails → 1 failure
@@ -936,8 +968,8 @@ mod tests {
         let ds = DataFrame::new(
             vec!["a".to_string(), "b".to_string()],
             vec![
-                Column::Float(FloatColumn(vec![None, None, None])),
-                Column::Float(FloatColumn(vec![Some(1.0), Some(2.0), Some(3.0)])),
+                Column::Float(FloatColumn::new(vec![None, None, None])),
+                Column::Float(FloatColumn::new(vec![Some(1.0), Some(2.0), Some(3.0)])),
             ],
         );
         // all left values are None → all None → all skipped
@@ -1697,14 +1729,14 @@ mod date_constraint_tests {
         DataFrame::new(
             vec!["date".to_string(), "datetime".to_string()],
             vec![
-                Column::Date(DateColumn(vec![
+                Column::Date(DateColumn::new(vec![
                     Some(19723),
                     Some(19725),
                     Some(19727),
                     None,
                 ])),
                 // datetimes: 2024-01-01T10:00:00, 2024-01-03T12:00:00, 2024-01-05T14:00:00
-                Column::DateTime(DateTimeColumn(vec![
+                Column::DateTime(DateTimeColumn::new(vec![
                     Some(1704103200000000),
                     Some(1704276000000000),
                     Some(1704456000000000),
@@ -2011,7 +2043,7 @@ mod time_constraint_tests {
     fn make_time_df(values: Vec<Option<i64>>) -> DataFrame {
         DataFrame::new(
             vec!["t".to_string()],
-            vec![Column::Time(TimeColumn(values))],
+            vec![Column::Time(TimeColumn::new(values))],
         )
     }
 
@@ -2208,9 +2240,15 @@ mod table_constraint_tests {
         DataFrame::new(
             vec!["id".to_string(), "name".to_string(), "score".to_string()],
             vec![
-                Column::Int(IntColumn(vec![Some(1), Some(2), Some(3), Some(4), Some(5)])),
-                Column::Str(StringColumn(vec![Some("a".to_string()); 5])),
-                Column::Float(FloatColumn(vec![Some(1.0); 5])),
+                Column::Int(IntColumn::new(vec![
+                    Some(1),
+                    Some(2),
+                    Some(3),
+                    Some(4),
+                    Some(5),
+                ])),
+                Column::Str(StringColumn::new(vec![Some("a".to_string()); 5])),
+                Column::Float(FloatColumn::new(vec![Some(1.0); 5])),
             ],
         )
     }
@@ -3087,7 +3125,9 @@ mod parquet_tests {
 mod silent_parse_failure_tests {
     use verdict_core::{
         dataframe::DataFrame,
-        dataframe::{Column, DateColumn, DateTimeColumn, TimeColumn, ops::ComparableOps},
+        dataframe::{
+            Column, DateColumn, DateTimeColumn, TimeColumn, ops::comparable::ComparableOps,
+        },
         rules::{ColumnConstraint, ColumnRule, Operand, ValidationConfig, validate_columns},
     };
 
@@ -3095,21 +3135,25 @@ mod silent_parse_failure_tests {
     // flag every row. With a garbage string the result must be all None.
     fn date_col() -> Column {
         // Days since epoch for 2019-06-01 = 18048
-        Column::Date(DateColumn(vec![Some(18048), Some(18049), Some(18050)]))
+        Column::Date(DateColumn::new(vec![Some(18048), Some(18049), Some(18050)]))
     }
 
     // DateTimeColumn values all in 2019: a real gt would flag every row.
     fn datetime_col() -> Column {
         // Microseconds since epoch for 2019-06-01T00:00:00 = 1559347200 * 1_000_000
         let us = 1_559_347_200_i64 * 1_000_000;
-        Column::DateTime(DateTimeColumn(vec![Some(us), Some(us + 1), Some(us + 2)]))
+        Column::DateTime(DateTimeColumn::new(vec![
+            Some(us),
+            Some(us + 1),
+            Some(us + 2),
+        ]))
     }
 
     // TimeColumn values all before 08:00:00: a real gt would flag every row.
     fn time_col() -> Column {
         // Microseconds since midnight for 07:00:00 = 7 * 3600 * 1_000_000
         let us = 7_i64 * 3600 * 1_000_000;
-        Column::Time(TimeColumn(vec![Some(us), Some(us + 1), Some(us + 2)]))
+        Column::Time(TimeColumn::new(vec![Some(us), Some(us + 1), Some(us + 2)]))
     }
 
     #[test]
@@ -3174,28 +3218,24 @@ mod silent_parse_failure_tests {
             ColumnConstraint::GreaterThan(Operand::Str("not-a-date".to_string())),
         )];
         let report = validate_columns(&ds, &rules, cfg());
-        assert!(report.passed, "expected silent pass, but report failed");
-        assert_eq!(report.results[0].failed_count, Some(0));
+        assert!(!report.passed);
+        assert!(report.results[0].error.is_some());
     }
 
     #[test]
     fn test_validate_datetime_lt_bad_string_reports_passed() {
-        // All datetimes are in 2019 — lt("2000-01-01T00:00:00") would flag all 3.
-        // lt("not-a-datetime") should silently pass.
         let ds = DataFrame::new(vec!["dt".to_string()], vec![datetime_col()]);
         let rules = vec![ColumnRule::new(
             "dt",
             ColumnConstraint::LessThan(Operand::Str("not-a-datetime".to_string())),
         )];
         let report = validate_columns(&ds, &rules, cfg());
-        assert!(report.passed, "expected silent pass, but report failed");
-        assert_eq!(report.results[0].failed_count, Some(0));
+        assert!(!report.passed);
+        assert!(report.results[0].error.is_some());
     }
 
     #[test]
     fn test_validate_time_between_bad_string_reports_passed() {
-        // All times are 07:xx — between("09:00:00","23:00:00") would flag all 3.
-        // between("not-a-time", "23:00:00") should silently pass.
         let ds = DataFrame::new(vec!["t".to_string()], vec![time_col()]);
         let rules = vec![ColumnRule::new(
             "t",
@@ -3205,7 +3245,7 @@ mod silent_parse_failure_tests {
             },
         )];
         let report = validate_columns(&ds, &rules, cfg());
-        assert!(report.passed, "expected silent pass, but report failed");
-        assert_eq!(report.results[0].failed_count, Some(0));
+        assert!(!report.passed);
+        assert!(report.results[0].error.is_some());
     }
 }
